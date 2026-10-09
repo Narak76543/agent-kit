@@ -25,11 +25,14 @@
  *   copy-docs  --source <id> --target <id> --docs <docId,docId> [--into-doc <docId>] (--dry-run | --yes)
  *              Without --into-doc: one new doc per source doc in the target workspace.
  *              With --into-doc: one top-level page per source doc inside that existing target doc.
+ *   create-tasks --target <id> --target-list <listId> --file <tasks.json> (--dry-run | --yes)
+ *              Tasks from a JSON file [{ "name", "description" }] with status "to do"; skips names that exist.
  *   copy-tasks --source <id> --target <id> --tasks <taskId,...> --target-list <listId> (--dry-run | --yes)
  *              Copies name + markdown description only, with status "to do".
  *
  * No IDs or tokens live in this file; pass them as options.
  */
+import { readFileSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { ClickUpClient, KitError, clickUpErrorHint, createLogger, loadEnv } from '../packages/core/dist/index.js';
@@ -68,6 +71,7 @@ const { values: opts, positionals } = parseArgs({
     dir: { type: 'string' },
     'doc-name': { type: 'string' },
     groups: { type: 'string' },
+    file: { type: 'string' },
     'dry-run': { type: 'boolean', default: false },
     yes: { type: 'boolean', default: false },
   },
@@ -373,6 +377,51 @@ const commands: Record<string, () => Promise<void>> = {
       ps.map((p) => ({ name: p.title, content: p.content, children: toPlanPages(p.children) }));
     await createPages(target, created.id, undefined, toPlanPages(pages));
     print(`Done. Doc ID for sync-docs: ${created.id}`);
+  },
+
+  /** Tasks from a JSON file ([{ "name", "description" }]) → a list in the target workspace, status "to do". */
+  async 'create-tasks'() {
+    const run = mode();
+    const target = need('target');
+    const targetListId = need('target-list');
+    const file = resolve(need('file'));
+    const defs = JSON.parse(readFileSync(file, 'utf8')) as { name?: unknown; description?: unknown }[];
+    if (!Array.isArray(defs) || !defs.length) throw new KitError(`${file} must be a non-empty JSON array`);
+    const tasks = defs.map((d, i) => {
+      if (typeof d.name !== 'string' || !d.name.trim()) throw new KitError(`task ${i + 1} has no name`);
+      return { name: d.name.trim(), description: typeof d.description === 'string' ? d.description : '' };
+    });
+
+    const workspaces = await workspaceNames(tgt());
+    if (!workspaces.has(target)) throw new KitError(`the --env token cannot see target workspace ${target}`);
+    const targetLists = await listsIn(tgt(), target);
+    const targetList = targetLists.find((l) => l.id === targetListId);
+    if (!targetList) throw new KitError(`list ${targetListId} is not in the target workspace ${target}`);
+    const list = await tgt().getList(targetListId);
+    const todo = list.statuses?.find((s) => s.status.trim().toLowerCase() === 'to do');
+    if (!todo) throw new KitError('the target list has no "to do" status; add it in ClickUp first');
+    const existing = new Set((await tgt().getListTasks(targetListId)).map((t) => t.name.trim().toLowerCase()));
+
+    print(`${run === 'dry-run' ? 'DRY RUN — nothing is created' : 'CREATING'}`);
+    print(`To: ${workspaces.get(target)} [${target}] / ${targetList.path} [${targetListId}], status "${todo.status}"`);
+    for (const t of tasks) {
+      const dup = existing.has(t.name.toLowerCase()) ? '  (SKIP: a task with this name already exists)' : '';
+      print(`\n  + "${t.name}"${dup}`);
+      for (const line of t.description.split('\n')) print(`      ${line}`);
+    }
+    const todoTasks = tasks.filter((t) => !existing.has(t.name.toLowerCase()));
+    print(`\n${todoTasks.length} task(s) to create, ${tasks.length - todoTasks.length} skipped.`);
+    if (run === 'dry-run') return print('Run again with --yes instead of --dry-run to create them.');
+
+    targetFence.targetWorkspace = target;
+    targetFence.targetLists = new Set(targetLists.map((l) => l.id));
+    for (const t of todoTasks) {
+      const created = await tgt().request<{ id: string; url?: string }>('POST', `/list/${enc(targetListId)}/task`, {
+        body: { name: t.name, markdown_content: t.description, status: todo.status },
+      });
+      print(`created task "${t.name}" [${created.id}] ${created.url ?? ''}`);
+    }
+    print('Done.');
   },
 
   async 'copy-tasks'() {
