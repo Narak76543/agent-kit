@@ -149,3 +149,17 @@ pnpm format       # fix formatting
 2. Real skills into `packages/templates/skills/` (or keep placeholders).
 3. Check the `.agents/tmp/*` edit permission in a real OpenCode session (pattern matching on Windows paths).
 4. The user runs one small real task in EKMONG from To Do to Ready for Review.
+
+## Test data in the personal ClickUp test workspace (2026-10-10)
+
+- `scripts/copy-test-data.ts` (one-off, no IDs in the file): copies local Markdown specs into one ClickUp doc and
+  creates tasks from a JSON file. Every non-GET request passes `scripts/write-fence.ts` (only the target workspace;
+  the source client can never write). Always `--dry-run` first.
+- Done: the EKMONG spec doc (28 pages, from the git-ignored `.local/ekmong-docs/clickup/`) and 5 small test tasks
+  (status "to do", no assignee) in the test list. IDs are kept out of the repo.
+- Learned: ClickUp refuses docs created at Workspace level (create them in a Space); it rejects tables with an
+  unescaped `|` inside a code span (`--escape-table-pipes`); Create Task uses `markdown_content`.
+- `sync-docs` round trip: 20/28 pages identical; the rest differ only by ClickUp's Markdown export (escapes, list
+  numbering, empty `>` lines). No text lost. Headings are no longer doubled.
+- Read-only Phase 2 checks against the test list: all PASS except `doctor` → the list still has the default statuses
+  (to do / in progress / complete). Waiting for the user to set custom statuses on the list.
