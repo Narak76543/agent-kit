@@ -1,0 +1,68 @@
+import { resolve } from 'node:path';
+import { Command, CommanderError } from 'commander';
+import { DoneGuardError, KitError, clickUpErrorHint } from '@tossana/agents-core';
+import { registerClickupCommands } from './commands/clickup.js';
+import { createContext, type CliContext } from './context.js';
+import { KIT_VERSION } from './version.js';
+
+export type ContextOptions = Parameters<typeof createContext>[0];
+
+export function createProgram(ctx: CliContext): Command {
+  const program = new Command('tossana-agents')
+    .description('Multi-agent coding workflow driven by ClickUp tasks')
+    .version(KIT_VERSION, '-v, --version')
+    .option('--cwd <path>', 'project folder (default: current folder)')
+    .showHelpAfterError()
+    .exitOverride()
+    .configureOutput({ writeOut: (s) => ctx.io.out(s), writeErr: (s) => ctx.io.err(s) })
+    .hook('preAction', (thisCommand) => {
+      const cwd = thisCommand.opts<{ cwd?: string }>().cwd;
+      if (cwd) ctx.cwd = resolve(ctx.cwd, cwd);
+    });
+
+  registerClickupCommands(program, ctx);
+
+  // Subcommands share the parent's output and exit behaviour.
+  const inherit = (cmd: Command) => {
+    for (const sub of cmd.commands) {
+      sub.exitOverride().configureOutput({ writeOut: (s) => ctx.io.out(s), writeErr: (s) => ctx.io.err(s) });
+      inherit(sub);
+    }
+  };
+  inherit(program);
+  return program;
+}
+
+/**
+ * Runs the CLI and resolves with the exit code. Never calls process.exit(): exiting while
+ * fetch sockets are still closing crashes Node on Windows (libuv UV_HANDLE_CLOSING assertion),
+ * so the caller sets process.exitCode instead (fix kept from EKMONG_MOBILE scripts/clickup.ts).
+ */
+export async function runCli(argv: string[], options: ContextOptions = {}): Promise<number> {
+  const ctx = createContext(options);
+  try {
+    await createProgram(ctx).parseAsync(argv, { from: 'user' });
+    return 0;
+  } catch (e) {
+    return reportError(ctx, e);
+  }
+}
+
+function reportError(ctx: CliContext, e: unknown): number {
+  if (e instanceof CommanderError) {
+    // Commander already printed the message (or help/version).
+    return e.exitCode;
+  }
+  if (e instanceof DoneGuardError) {
+    ctx.logger.error(e.message);
+    return e.exitCode;
+  }
+  if (e instanceof KitError) {
+    ctx.logger.error(`ERROR: ${e.message}`);
+    const hint = clickUpErrorHint(e);
+    if (hint) ctx.logger.error(`FIX: ${hint}`);
+    return e.exitCode;
+  }
+  ctx.logger.error(`ERROR: ${(e as Error)?.stack ?? String(e)}`);
+  return 1;
+}

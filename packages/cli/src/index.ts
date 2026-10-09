@@ -1,10 +1,13 @@
 #!/usr/bin/env node
-import { KIT_VERSION } from './version.js';
+import { runCli } from './program.js';
 
-// Placeholder entry point; commands arrive in Phase 2.
-const [arg] = process.argv.slice(2);
-if (arg === '--version' || arg === '-v') {
-  console.log(KIT_VERSION);
-} else {
-  console.log(`tossana-agents ${KIT_VERSION}\nCommands are not implemented yet.`);
-}
+// Set exitCode instead of calling process.exit(): see runCli.
+runCli(process.argv.slice(2)).then(
+  (code) => {
+    process.exitCode = code;
+  },
+  (e: unknown) => {
+    console.error(e);
+    process.exitCode = 1;
+  },
+);
