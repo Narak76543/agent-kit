@@ -5,3 +5,6 @@ export * from './clickup/guard.js';
 export * from './clickup/rate-limiter.js';
 export * from './clickup/client.js';
 export type * from './clickup/types.js';
+export * from './config.js';
+export * from './handoff.js';
+export * from './detect.js';
