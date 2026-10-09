@@ -11,6 +11,8 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      // noUncheckedIndexedAccess makes regex groups `string | undefined`; `!` after a match is intended.
+      '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },
   {
