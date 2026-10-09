@@ -212,7 +212,7 @@ describe('clickup subtask / list / statuses / spaces / lists', () => {
     const api = taskApi().on('POST /v2/list/L1/task', { id: 'N1', name: 'API', url: 'u' });
     const r = await cli(['clickup', 'subtask', 'T1', 'API call', 'step 1\\nstep 2'], { cwd: project.dir, api });
     expect(JSON.parse(r.out)).toEqual({ id: 'N1', name: 'API', url: 'u' });
-    expect(api.calls[1]!.body).toEqual({ name: 'API call', markdown_description: 'step 1\nstep 2', parent: 'T1' });
+    expect(api.calls[1]!.body).toEqual({ name: 'API call', markdown_content: 'step 1\nstep 2', parent: 'T1' });
   });
 
   it('lists my tasks in a role status', async () => {

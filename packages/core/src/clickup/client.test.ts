@@ -193,7 +193,7 @@ describe('write commands', () => {
     expect(api.calls[1]).toMatchObject({
       method: 'POST',
       path: '/v2/list/L1/task',
-      body: { name: 'Add API call', markdown_description: '- step 1', parent: 'real1' },
+      body: { name: 'Add API call', markdown_content: '- step 1', parent: 'real1' },
     });
   });
 

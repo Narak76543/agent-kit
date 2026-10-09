@@ -174,7 +174,8 @@ export class ClickUpClient {
     const parent = await this.getTask(parentTaskId, { subtasks: false });
     if (!parent.list?.id) throw new KitError(`task ${parentTaskId} has no list`);
     return this.request('POST', `/list/${enc(parent.list.id)}/task`, {
-      body: { name, markdown_description: description, parent: parent.id },
+      // Official Create Task field: markdown_content (markdown_description is only returned by Get Task).
+      body: { name, markdown_content: description, parent: parent.id },
     });
   }
 
