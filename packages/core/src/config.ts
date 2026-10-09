@@ -182,26 +182,29 @@ export function loadEnv(cwd: string, processEnv: Record<string, string | undefin
   return env;
 }
 
-/** Client options from config + env. Env overrides the config's workspace/custom-ID settings. */
-export function clickUpClientOptions(config: AgentConfig, env: KitEnv): ClickUpClientOptions {
+/**
+ * Client options from config + env. Env overrides the config's workspace/custom-ID settings.
+ * `config` is null before `init` (e.g. for `clickup lists`); team default statuses are used then.
+ */
+export function clickUpClientOptions(config: AgentConfig | null, env: KitEnv): ClickUpClientOptions {
   const customIds = env.CLICKUP_CUSTOM_TASK_IDS;
   return {
     token: env.CLICKUP_API_TOKEN ?? '',
-    workspaceId: env.CLICKUP_WORKSPACE_ID || config.clickup.workspaceId,
-    customTaskIds: customIds ? customIds.trim().toLowerCase() === 'true' : config.clickup.customTaskIds,
-    agentStatuses: agentStatusNames(config),
+    workspaceId: env.CLICKUP_WORKSPACE_ID || config?.clickup.workspaceId,
+    customTaskIds: customIds ? customIds.trim().toLowerCase() === 'true' : (config?.clickup.customTaskIds ?? false),
+    agentStatuses: config ? agentStatusNames(config) : ROLES.map((r) => DEFAULT_STATUSES[r]),
   };
 }
 
 /** ClickUp Doc IDs and output folder from config, overridden by CLICKUP_DOC_IDS / CLICKUP_DOCS_OUT. */
-export function docsSettings(config: AgentConfig, env: KitEnv): { ids: string[]; outDir: string } {
+export function docsSettings(config: AgentConfig | null, env: KitEnv): { ids: string[]; outDir: string } {
   const fromEnv = (env.CLICKUP_DOC_IDS ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
   return {
-    ids: fromEnv.length ? fromEnv : config.clickup.docs.ids,
-    outDir: env.CLICKUP_DOCS_OUT || config.clickup.docs.outDir,
+    ids: fromEnv.length ? fromEnv : (config?.clickup.docs.ids ?? []),
+    outDir: env.CLICKUP_DOCS_OUT || (config?.clickup.docs.outDir ?? 'docs/clickup'),
   };
 }
 
