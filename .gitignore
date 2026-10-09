@@ -12,3 +12,6 @@ Thumbs.db
 !.vscode/extensions.json
 packages/cli/templates/
 packages/cli/schema/
+
+# Local-only data (e.g. copies of company specs). Never commit.
+.local/
