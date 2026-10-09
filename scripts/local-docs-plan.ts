@@ -92,6 +92,45 @@ export function buildPlan(files: { name: string; content: string }[], groups: st
   return pages;
 }
 
+const BACKSLASH = String.fromCharCode(92);
+const BACKTICK = String.fromCharCode(96);
+
+/**
+ * In GitHub-flavored Markdown a "|" inside a code span in a table row still splits the cell unless it
+ * is escaped. ClickUp rejects such tables ("mismatched column counts"). This escapes those pipes
+ * (`a|b` → `a\|b`), which renders as intended. Fenced code blocks and non-table lines are untouched.
+ */
+export function escapeTablePipes(markdown: string): { text: string; count: number } {
+  let count = 0;
+  let fence = false;
+  const lines = markdown.split('\n').map((line) => {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fence = !fence;
+      return line;
+    }
+    if (fence || !/^\s*\|/.test(line)) return line;
+    let out = '';
+    let code = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i]!;
+      if (c === BACKSLASH && i + 1 < line.length) {
+        out += c + line[i + 1];
+        i++;
+      } else if (c === BACKTICK) {
+        code = !code;
+        out += c;
+      } else if (c === '|' && code) {
+        out += `${BACKSLASH}|`;
+        count++;
+      } else {
+        out += c;
+      }
+    }
+    return out;
+  });
+  return { text: lines.join('\n'), count };
+}
+
 export function planLocalDocs(dir: string, groups: string[]): LocalPage[] {
   const files = readdirSync(dir, { withFileTypes: true })
     .filter((d) => d.isFile())

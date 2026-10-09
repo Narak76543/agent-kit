@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlan, rootPrefix, titleFromFile } from './local-docs-plan.js';
+import { buildPlan, escapeTablePipes, rootPrefix, titleFromFile } from './local-docs-plan.js';
 
 const ROOT = 'prd-app';
 const f = (name: string, content = `# ${name}`) => ({ name, content });
@@ -44,6 +44,29 @@ describe('local docs plan', () => {
     const onboarding = plan.find((p) => p.title === 'Onboarding')!;
     expect(onboarding).toMatchObject({ file: null, content: '' });
     expect(onboarding.children.map((c) => c.title)).toEqual(['onboarding – glossary']);
+  });
+
+  it('escapes pipes inside code spans in table rows only', () => {
+    const md = [
+      '| Header | Scope | Why |',
+      '| --- | --- | --- |',
+      '| `X-App-Platform: ios|android` | All | Min build |',
+      '| `already\\|escaped` | a | b |',
+      'Text with `a|b` outside a table stays.',
+      '```ts',
+      '| { kind: `x|y` }',
+      '```',
+    ].join('\n');
+    const { text, count } = escapeTablePipes(md);
+    expect(count).toBe(1);
+    expect(text.split('\n')[2]).toBe('| `X-App-Platform: ios\\|android` | All | Min build |');
+    expect(text.split('\n')[3]).toBe('| `already\\|escaped` | a | b |');
+    expect(text.split('\n').slice(4)).toEqual(md.split('\n').slice(4));
+  });
+
+  it('leaves content without such pipes byte-identical', () => {
+    const md = '| a | b |\n|---|---|\n| `x` | y |\n';
+    expect(escapeTablePipes(md)).toEqual({ text: md, count: 0 });
   });
 
   it('keeps the content exactly', () => {

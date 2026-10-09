@@ -22,6 +22,8 @@
  *   copy-local-docs --dir <folder> --target <id> --space <spaceId> --doc-name <name> [--groups a,b]
  *              Markdown files (e.g. a synced docs/clickup, INDEX.md ignored) → one new doc with one page per
  *              file; `<root>__<group>__*.md` files go under a "<Group>" parent page. Needs only --env.
+ *              --resume-doc <docId>: finish a doc created earlier (only missing pages are created).
+ *              --escape-table-pipes: escape "|" inside code spans in table rows (ClickUp rejects them).
  *   copy-docs  --source <id> --target <id> --docs <docId,docId> [--into-doc <docId>] (--dry-run | --yes)
  *              Without --into-doc: one new doc per source doc in the target workspace.
  *              With --into-doc: one top-level page per source doc inside that existing target doc.
@@ -37,7 +39,7 @@ import { basename, dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { ClickUpClient, KitError, clickUpErrorHint, createLogger, loadEnv } from '../packages/core/dist/index.js';
 import type { ClickUpDocPage, ClickUpTask, Logger } from '../packages/core/dist/index.js';
-import { planLocalDocs, type LocalPage } from './local-docs-plan.ts';
+import { escapeTablePipes, planLocalDocs, type LocalPage } from './local-docs-plan.ts';
 import { fencedFetch, newFence, type Fence } from './write-fence.ts';
 
 interface Doc {
@@ -73,6 +75,8 @@ const { values: opts, positionals } = parseArgs({
     groups: { type: 'string' },
     file: { type: 'string' },
     space: { type: 'string' },
+    'resume-doc': { type: 'string' },
+    'escape-table-pipes': { type: 'boolean', default: false },
     'dry-run': { type: 'boolean', default: false },
     yes: { type: 'boolean', default: false },
   },
@@ -341,48 +345,113 @@ const commands: Record<string, () => Promise<void>> = {
       .split(',')
       .map((g) => g.trim())
       .filter(Boolean);
+    const escape = opts['escape-table-pipes'] === true;
     const pages = planLocalDocs(dir, groups);
     if (!pages.length) throw new KitError(`no .md files in ${dir}`);
-
-    print(`${run === 'dry-run' ? 'DRY RUN — nothing is created' : 'COPYING'}`);
-    print(`From: ${dir} (local files, read only)`);
-    print(`\n+ new doc "${docName}"`);
-    const walk = (ps: LocalPage[], indent: string): number =>
-      ps.reduce((n, p) => {
-        print(`${indent}- ${p.title}  (${p.file ?? 'empty group page'}, ${p.content.length} chars)`);
-        return n + 1 + walk(p.children, `${indent}  `);
-      }, 0);
-    const total = walk(pages, '    ');
-    print(`\n1 doc, ${total} page(s). Content is uploaded as-is (text/md).`);
 
     // Target checks (need a working --env token).
     const workspaces = await workspaceNames(tgt());
     if (!workspaces.has(target)) throw new KitError(`the --env token cannot see target workspace ${target}`);
-    const existing = (await listDocs(tgt(), target)).find((d) => d.name.trim() === docName.trim());
-    if (existing)
-      throw new KitError(
-        `a doc named "${docName}" already exists in the target [${existing.id}]; not creating a second one`,
+    const resumeId = opts['resume-doc']?.trim();
+    let existingTree: ClickUpDocPage[] = [];
+    let spaceLine: string;
+    if (resumeId) {
+      // Resume a doc this command created earlier: keep its pages, add only the missing ones.
+      const doc = await getDoc(tgt(), target, resumeId);
+      if (doc.name.trim() !== docName.trim()) {
+        throw new KitError(`doc ${resumeId} is named "${doc.name}", not "${docName}"; refusing to add pages to it`);
+      }
+      existingTree = await v3<ClickUpDocPage[]>(
+        tgt(),
+        'GET',
+        `/workspaces/${enc(target)}/docs/${enc(resumeId)}/page_listing`,
+        undefined,
+        { max_page_depth: -1 },
       );
-    // ClickUp refused docs at the Workspace level (403 EXTRA_AUTHZ_002); create the doc inside a Space.
-    const spaceId = need('space');
-    const space = (await tgt().getSpaces(target)).find((s) => s.id === spaceId);
-    if (!space) throw new KitError(`space ${spaceId} is not in the target workspace ${target}`);
+      spaceLine = `existing doc "${doc.name}" [${resumeId}] (resume: only missing pages are created)`;
+    } else {
+      const existing = (await listDocs(tgt(), target)).find((d) => d.name.trim() === docName.trim());
+      if (existing) {
+        throw new KitError(
+          `a doc named "${docName}" already exists in the target [${existing.id}]; use --resume-doc ${existing.id} to finish it`,
+        );
+      }
+      // ClickUp refused docs at the Workspace level (403 EXTRA_AUTHZ_002); create the doc inside a Space.
+      const space = (await tgt().getSpaces(target)).find((s) => s.id === need('space'));
+      if (!space) throw new KitError(`space ${opts.space} is not in the target workspace ${target}`);
+      spaceLine = `space "${space.name}" [${space.id}] (new doc; no doc with this name yet)`;
+    }
+
+    // The plan: which pages exist (by title under the same parent) and which are created.
+    interface Step {
+      page: LocalPage;
+      content: string;
+      escaped: number;
+      existingId: string | null;
+      children: Step[];
+    }
+    const plan = (ps: LocalPage[], existing: ClickUpDocPage[]): Step[] =>
+      ps.map((p) => {
+        const match = existing.find((e) => (e.name ?? '').trim() === p.title.trim() && !e.deleted && !e.archived);
+        const { text, count } = escape ? escapeTablePipes(p.content) : { text: p.content, count: 0 };
+        return {
+          page: p,
+          content: text,
+          escaped: count,
+          existingId: match?.id ?? null,
+          children: plan(p.children, match?.pages ?? []),
+        };
+      });
+    const steps = plan(pages, existingTree);
+
+    print(`${run === 'dry-run' ? 'DRY RUN — nothing is created' : 'COPYING'}`);
+    print(`From: ${dir} (local files, read only)`);
+    print(`To:   ${workspaces.get(target)} [${target}] / ${spaceLine}`);
+    print(`\n${resumeId ? '~' : '+'} doc "${docName}"`);
+    let toCreate = 0;
+    let kept = 0;
+    const show = (ss: Step[], indent: string) => {
+      for (const s of ss) {
+        if (s.existingId) kept++;
+        else toCreate++;
+        const what = s.existingId ? `exists [${s.existingId}]` : 'CREATE';
+        const esc = s.escaped ? `, ${s.escaped} pipe(s) in table code spans escaped` : '';
+        print(
+          `${indent}- ${s.page.title}  (${what}; ${s.page.file ?? 'empty group page'}, ${s.content.length} chars${esc})`,
+        );
+        show(s.children, `${indent}  `);
+      }
+    };
+    show(steps, '    ');
     print(
-      `To:   ${workspaces.get(target)} [${target}] / space "${space.name}" [${space.id}] (no doc with this name yet)`,
+      `\n${toCreate} page(s) to create, ${kept} already there. Content uploaded as-is (text/md)${escape ? ', except escaped table pipes' : ''}.`,
     );
     if (run === 'dry-run') return print('Run again with --yes instead of --dry-run to copy.');
 
     targetFence.targetWorkspace = target;
-    const created = await v3<{ id: string }>(tgt(), 'POST', `/workspaces/${enc(target)}/docs`, {
-      name: docName,
-      parent: { id: space.id, type: 4 }, // 4 = Space (official PublicDocsParentDto)
-      create_page: false,
-    });
-    print(`created doc "${docName}" [${created.id}]`);
-    const toPlanPages = (ps: LocalPage[]): PlanPage[] =>
-      ps.map((p) => ({ name: p.title, content: p.content, children: toPlanPages(p.children) }));
-    await createPages(target, created.id, undefined, toPlanPages(pages));
-    print(`Done. Doc ID for sync-docs: ${created.id}`);
+    let docId = resumeId;
+    if (!docId) {
+      const space = need('space');
+      const created = await v3<{ id: string }>(tgt(), 'POST', `/workspaces/${enc(target)}/docs`, {
+        name: docName,
+        parent: { id: space, type: 4 }, // 4 = Space (official PublicDocsParentDto)
+        create_page: false,
+      });
+      docId = created.id;
+      print(`created doc "${docName}" [${docId}]`);
+    }
+    const apply = async (ss: Step[], parentId: string | undefined) => {
+      for (const s of ss) {
+        let id = s.existingId;
+        if (!id) {
+          id = await createPage(target, docId!, parentId, { name: s.page.title, content: s.content, children: [] });
+          print(`  created page "${s.page.title}" [${id}]`);
+        }
+        await apply(s.children, id);
+      }
+    };
+    await apply(steps, undefined);
+    print(`Done. Doc ID for sync-docs: ${docId}`);
   },
 
   /** Tasks from a JSON file ([{ "name", "description" }]) → a list in the target workspace, status "to do". */
