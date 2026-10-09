@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CONFIG, LIST, TOKEN, cli, fakeApi, json, tempProject, type TempProject } from '../test-utils.test-helper.js';
-import { collectDocFiles } from './clickup.js';
+import { collectDocFiles, pageMarkdown } from './clickup.js';
 
 let project: TempProject;
 afterEach(() => project?.cleanup());
@@ -306,6 +306,33 @@ describe('clickup sync-docs', () => {
     project = tempProject();
     const r = await cli(['clickup', 'sync-docs'], { cwd: project.dir });
     expect(r.err).toContain('no ClickUp Doc IDs');
+  });
+
+  it('adds "# <page name>" when the content has no heading', () => {
+    expect(pageMarkdown('Login Spec', 'FR-1 text')).toBe('# Login Spec\n\nFR-1 text\n');
+    expect(pageMarkdown('Empty', '')).toBe('# Empty\n');
+    expect(pageMarkdown('Not a heading', '#hashtag first\n')).toBe('# Not a heading\n\n#hashtag first\n');
+  });
+
+  it('does not add a second heading when the content already starts with one', () => {
+    expect(pageMarkdown('implementation – 01 architecture', '# Architecture\n\nText\n\n')).toBe(
+      '# Architecture\n\nText\n',
+    );
+    expect(pageMarkdown('x', '\n  ## Sub heading\nText')).toBe('\n  ## Sub heading\nText\n');
+    expect(pageMarkdown('x', `${String.fromCharCode(0xfeff)}# With BOM\n`)).toBe('# With BOM\n');
+  });
+
+  it('round-trips a page uploaded from a synced file without doubling the heading', async () => {
+    project = tempProject({
+      config: { ...CONFIG, clickup: { ...CONFIG.clickup, workspaceId: 'W', docs: { ids: ['D1'] } } },
+    });
+    const api = fakeApi().on('GET /v3/workspaces/W/docs/D1/pages', [
+      { id: 'p1', name: 'implementation – 01 architecture', content: '# Architecture\n\nLayers.\n' },
+    ]);
+    await cli(['clickup', 'sync-docs'], { cwd: project.dir, api });
+    expect(readFileSync(join(project.dir, 'docs', 'clickup', 'implementation-01-architecture.md'), 'utf8')).toBe(
+      '# Architecture\n\nLayers.\n',
+    );
   });
 
   it('gives duplicate page names unique file names', () => {

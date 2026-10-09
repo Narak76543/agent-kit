@@ -244,6 +244,16 @@ function statusName(project: Project, role: Role): string {
   return project.config ? statusForRole(project.config, role) : DEFAULT_STATUSES[role];
 }
 
+/**
+ * A page as a Markdown file. Adds `# <page name>` only when the content does not already start with a
+ * heading, so a page that was uploaded from a synced file (which has its own heading) is not doubled.
+ */
+export function pageMarkdown(name: string, content: string): string {
+  const body = content.charCodeAt(0) === 0xfeff ? content.slice(1) : content;
+  if (/^\s*#{1,6}\s/.test(body)) return `${body.trimEnd()}\n`;
+  return `# ${name}\n\n${body.trimEnd()}\n`.replace(/\n\n\n$/, '\n');
+}
+
 /** Flattens nested Doc pages into files; skips deleted and archived pages. */
 export function collectDocFiles(docs: ClickUpDocPage[][]): { file: string; name: string; content: string }[] {
   const slug = (s: string) =>
@@ -262,7 +272,7 @@ export function collectDocFiles(docs: ClickUpDocPage[][]): { file: string; name:
       let file = `${base}.md`;
       for (let n = 2; used.has(file); n++) file = `${base}-${n}.md`;
       used.add(file);
-      files.push({ file, name, content: `# ${name}\n\n${p.content ?? ''}\n` });
+      files.push({ file, name, content: pageMarkdown(name, p.content ?? '') });
       if (p.pages?.length) walk(p.pages, `${base}__`);
     }
   };
