@@ -19,6 +19,9 @@
  *   tasks      --list <listId>                    open tasks in a list
  *
  * Copy commands (always run with --dry-run first, then --yes):
+ *   copy-local-docs --dir <folder> --target <id> --doc-name <name> [--groups implementation,onboarding]
+ *              Markdown files (e.g. a synced docs/clickup, INDEX.md ignored) → one new doc with one page per
+ *              file; `<root>__<group>__*.md` files go under a "<Group>" parent page. Needs only --env.
  *   copy-docs  --source <id> --target <id> --docs <docId,docId> [--into-doc <docId>] (--dry-run | --yes)
  *              Without --into-doc: one new doc per source doc in the target workspace.
  *              With --into-doc: one top-level page per source doc inside that existing target doc.
@@ -29,8 +32,9 @@
  */
 import { basename, dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { ClickUpClient, KitError, createLogger, loadEnv } from '../packages/core/dist/index.js';
+import { ClickUpClient, KitError, clickUpErrorHint, createLogger, loadEnv } from '../packages/core/dist/index.js';
 import type { ClickUpDocPage, ClickUpTask, Logger } from '../packages/core/dist/index.js';
+import { planLocalDocs, type LocalPage } from './local-docs-plan.ts';
 import { fencedFetch, newFence, type Fence } from './write-fence.ts';
 
 interface Doc {
@@ -61,6 +65,9 @@ const { values: opts, positionals } = parseArgs({
     'into-doc': { type: 'string' },
     tasks: { type: 'string' },
     'target-list': { type: 'string' },
+    dir: { type: 'string' },
+    'doc-name': { type: 'string' },
+    groups: { type: 'string' },
     'dry-run': { type: 'boolean', default: false },
     yes: { type: 'boolean', default: false },
   },
@@ -218,10 +225,11 @@ function mode(): 'dry-run' | 'yes' {
 
 const commands: Record<string, () => Promise<void>> = {
   async workspaces() {
-    for (const [label, client] of [
-      ['SOURCE token (--source-env, read only)', src()],
-      ['TARGET token (--env, writes allowed only to --target when copying)', tgt()],
-    ] as const) {
+    const clients: [string, ClickUpClient][] = [];
+    if (opts['source-env']) clients.push(['SOURCE token (--source-env, read only)', src()]);
+    if (opts.env) clients.push(['TARGET token (--env, writes allowed only to --target when copying)', tgt()]);
+    if (!clients.length) throw new KitError('pass --env and/or --source-env');
+    for (const [label, client] of clients) {
       const me = await client.getUser();
       print(`${label}: user ${me.username} (id ${me.id})`);
       for (const [id, name] of await workspaceNames(client)) print(`  ${id}  ${name}`);
@@ -318,6 +326,55 @@ const commands: Record<string, () => Promise<void>> = {
     print('Done.');
   },
 
+  /** Local Markdown folder (e.g. a synced docs/clickup) → one new doc in the target workspace. */
+  async 'copy-local-docs'() {
+    const run = mode();
+    const dir = resolve(need('dir'));
+    const target = need('target');
+    const docName = need('doc-name');
+    const groups = (opts.groups ?? 'implementation,onboarding')
+      .split(',')
+      .map((g) => g.trim())
+      .filter(Boolean);
+    const pages = planLocalDocs(dir, groups);
+    if (!pages.length) throw new KitError(`no .md files in ${dir}`);
+
+    print(`${run === 'dry-run' ? 'DRY RUN — nothing is created' : 'COPYING'}`);
+    print(`From: ${dir} (local files, read only)`);
+    print(`\n+ new doc "${docName}"`);
+    const walk = (ps: LocalPage[], indent: string): number =>
+      ps.reduce((n, p) => {
+        print(`${indent}- ${p.title}  (${p.file ?? 'empty group page'}, ${p.content.length} chars)`);
+        return n + 1 + walk(p.children, `${indent}  `);
+      }, 0);
+    const total = walk(pages, '    ');
+    print(`\n1 doc, ${total} page(s). Content is uploaded as-is (text/md).`);
+
+    // Target checks (need a working --env token).
+    const workspaces = await workspaceNames(tgt());
+    if (!workspaces.has(target)) throw new KitError(`the --env token cannot see target workspace ${target}`);
+    const existing = (await listDocs(tgt(), target)).find((d) => d.name.trim() === docName.trim());
+    if (existing)
+      throw new KitError(
+        `a doc named "${docName}" already exists in the target [${existing.id}]; not creating a second one`,
+      );
+    print(`To:   ${workspaces.get(target)} [${target}] (no doc with this name yet)`);
+    if (run === 'dry-run') return print('Run again with --yes instead of --dry-run to copy.');
+
+    targetFence.targetWorkspace = target;
+    const created = await v3<{ id: string }>(tgt(), 'POST', `/workspaces/${enc(target)}/docs`, {
+      name: docName,
+      parent: { id: target, type: 12 }, // 12 = Workspace (official PublicDocsParentDto)
+      visibility: 'PRIVATE',
+      create_page: false,
+    });
+    print(`created doc "${docName}" [${created.id}]`);
+    const toPlanPages = (ps: LocalPage[]): PlanPage[] =>
+      ps.map((p) => ({ name: p.title, content: p.content, children: toPlanPages(p.children) }));
+    await createPages(target, created.id, undefined, toPlanPages(pages));
+    print(`Done. Doc ID for sync-docs: ${created.id}`);
+  },
+
   async 'copy-tasks'() {
     const run = mode();
     const source = need('source');
@@ -406,5 +463,7 @@ main().catch((e: unknown) => {
     return;
   }
   log.error(`ERROR: ${(e as Error).message}`);
+  const hint = clickUpErrorHint(e);
+  if (hint) log.error(`FIX: ${hint}`);
   process.exitCode = 1;
 });
