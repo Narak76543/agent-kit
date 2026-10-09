@@ -19,7 +19,7 @@
  *   tasks      --list <listId>                    open tasks in a list
  *
  * Copy commands (always run with --dry-run first, then --yes):
- *   copy-local-docs --dir <folder> --target <id> --doc-name <name> [--groups implementation,onboarding]
+ *   copy-local-docs --dir <folder> --target <id> --space <spaceId> --doc-name <name> [--groups a,b]
  *              Markdown files (e.g. a synced docs/clickup, INDEX.md ignored) → one new doc with one page per
  *              file; `<root>__<group>__*.md` files go under a "<Group>" parent page. Needs only --env.
  *   copy-docs  --source <id> --target <id> --docs <docId,docId> [--into-doc <docId>] (--dry-run | --yes)
@@ -72,6 +72,7 @@ const { values: opts, positionals } = parseArgs({
     'doc-name': { type: 'string' },
     groups: { type: 'string' },
     file: { type: 'string' },
+    space: { type: 'string' },
     'dry-run': { type: 'boolean', default: false },
     yes: { type: 'boolean', default: false },
   },
@@ -362,14 +363,19 @@ const commands: Record<string, () => Promise<void>> = {
       throw new KitError(
         `a doc named "${docName}" already exists in the target [${existing.id}]; not creating a second one`,
       );
-    print(`To:   ${workspaces.get(target)} [${target}] (no doc with this name yet)`);
+    // ClickUp refused docs at the Workspace level (403 EXTRA_AUTHZ_002); create the doc inside a Space.
+    const spaceId = need('space');
+    const space = (await tgt().getSpaces(target)).find((s) => s.id === spaceId);
+    if (!space) throw new KitError(`space ${spaceId} is not in the target workspace ${target}`);
+    print(
+      `To:   ${workspaces.get(target)} [${target}] / space "${space.name}" [${space.id}] (no doc with this name yet)`,
+    );
     if (run === 'dry-run') return print('Run again with --yes instead of --dry-run to copy.');
 
     targetFence.targetWorkspace = target;
     const created = await v3<{ id: string }>(tgt(), 'POST', `/workspaces/${enc(target)}/docs`, {
       name: docName,
-      parent: { id: target, type: 12 }, // 12 = Workspace (official PublicDocsParentDto)
-      visibility: 'PRIVATE',
+      parent: { id: space.id, type: 4 }, // 4 = Space (official PublicDocsParentDto)
       create_page: false,
     });
     print(`created doc "${docName}" [${created.id}]`);
