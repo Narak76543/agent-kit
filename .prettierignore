@@ -2,3 +2,4 @@ dist
 coverage
 pnpm-lock.yaml
 TOSSANA_AGENT_KIT_PLAN.md
+packages/templates
