@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fakeApi, type FakeApi } from '../../core/src/clickup/fake-api.test-helper.js';
+import type { Exec, ExecResult } from './exec.js';
 import { runCli } from './program.js';
 
 export { fakeApi, json } from '../../core/src/clickup/fake-api.test-helper.js';
@@ -64,7 +65,15 @@ export interface CliResult {
 
 export async function cli(
   args: string[],
-  opts: { cwd: string; api?: FakeApi; stdin?: string; processEnv?: Record<string, string>; interactive?: boolean },
+  opts: {
+    cwd: string;
+    api?: FakeApi;
+    stdin?: string;
+    processEnv?: Record<string, string>;
+    interactive?: boolean;
+    exec?: Exec;
+    platform?: NodeJS.Platform;
+  },
 ): Promise<CliResult> {
   let out = '';
   let err = '';
@@ -73,6 +82,8 @@ export async function cli(
     processEnv: opts.processEnv ?? {},
     fetch: (opts.api ?? fakeApi()).fetch,
     now: () => new Date('2026-10-09T12:00:00Z'),
+    exec: opts.exec ?? fakeExec(),
+    platform: opts.platform ?? 'linux',
     io: {
       out: (t) => (out += t),
       err: (t) => (err += t),
@@ -81,4 +92,35 @@ export async function cli(
     },
   });
   return { code, out, err };
+}
+
+/**
+ * A fake `exec`: answers "cmd arg1 arg2" from a table (prefix match, longest wins).
+ * Default: git/npm/pnpm/opencode are installed and the folder is a git repo with .env ignored.
+ */
+export function fakeExec(overrides: Record<string, Partial<ExecResult> | null> = {}): Exec & { calls: string[] } {
+  const table: Record<string, Partial<ExecResult> | null> = {
+    'git --version': { code: 0, stdout: 'git version 2.56.0.windows.1\n' },
+    'git rev-parse --is-inside-work-tree': { code: 0, stdout: 'true\n' },
+    'git check-ignore -q .env': { code: 0 },
+    'npm --version': { code: 0, stdout: '11.17.0\n' },
+    'pnpm --version': { code: 0, stdout: '12.10.1\n' },
+    'opencode --version': { code: 0, stdout: '1.18.35\n' },
+    ...overrides,
+  };
+  const calls: string[] = [];
+  const run = ((cmd: string, args: string[]) => {
+    const line = [cmd, ...args].join(' ');
+    calls.push(line);
+    const key = Object.keys(table)
+      .filter((k) => line === k || line.startsWith(`${k} `))
+      .sort((a, b) => b.length - a.length)[0];
+    const hit = key === undefined ? undefined : table[key];
+    if (hit === null || hit === undefined) {
+      return { code: null, stdout: '', stderr: '', error: new Error(`spawn ${cmd} ENOENT`) };
+    }
+    return { code: 0, stdout: '', stderr: '', ...hit };
+  }) as Exec & { calls: string[] };
+  run.calls = calls;
+  return run;
 }

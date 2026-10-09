@@ -17,6 +17,7 @@ import {
   type KitEnv,
   type Logger,
 } from '@tossana/agents-core';
+import { exec, type Exec } from './exec.js';
 
 export interface CliIO {
   /** Raw write to stdout (include your own newline). */
@@ -28,6 +29,9 @@ export interface CliIO {
 }
 
 export interface CliContext {
+  /** Runs other programs (git, opencode…); replaced in tests. */
+  exec: Exec;
+  platform: NodeJS.Platform;
   cwd: string;
   /** The real process environment (not .env). */
   processEnv: Record<string, string | undefined>;
@@ -47,6 +51,8 @@ export function createContext(options: {
   io?: Partial<CliIO>;
   fetch?: FetchLike;
   now?: () => Date;
+  exec?: Exec;
+  platform?: NodeJS.Platform;
 }): CliContext {
   const io: CliIO = {
     out: (t) => process.stdout.write(t),
@@ -57,6 +63,8 @@ export function createContext(options: {
   };
   const logger = createLogger({ stdout: (l) => io.out(`${l}\n`), stderr: (l) => io.err(`${l}\n`) });
   return {
+    exec: options.exec ?? exec,
+    platform: options.platform ?? process.platform,
     cwd: options.cwd ?? process.cwd(),
     processEnv: options.processEnv ?? process.env,
     io,
@@ -109,4 +117,11 @@ async function readProcessStdin(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk as Buffer));
   return Buffer.concat(chunks).toString('utf8');
+}
+
+/** Ends a command with an exit code after it has already printed everything (e.g. doctor failures). */
+export class SilentExit extends Error {
+  constructor(readonly exitCode: number) {
+    super(`exit ${exitCode}`);
+  }
 }

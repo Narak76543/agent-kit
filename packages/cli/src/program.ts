@@ -2,7 +2,8 @@ import { resolve } from 'node:path';
 import { Command, CommanderError } from 'commander';
 import { DoneGuardError, KitError, clickUpErrorHint } from '@tossana/agents-core';
 import { registerClickupCommands } from './commands/clickup.js';
-import { createContext, type CliContext } from './context.js';
+import { registerDoctorCommand } from './commands/doctor.js';
+import { SilentExit, createContext, type CliContext } from './context.js';
 import { KIT_VERSION } from './version.js';
 
 export type ContextOptions = Parameters<typeof createContext>[0];
@@ -21,6 +22,7 @@ export function createProgram(ctx: CliContext): Command {
     });
 
   registerClickupCommands(program, ctx);
+  registerDoctorCommand(program, ctx);
 
   // Subcommands share the parent's output and exit behaviour.
   const inherit = (cmd: Command) => {
@@ -49,6 +51,7 @@ export async function runCli(argv: string[], options: ContextOptions = {}): Prom
 }
 
 function reportError(ctx: CliContext, e: unknown): number {
+  if (e instanceof SilentExit) return e.exitCode;
   if (e instanceof CommanderError) {
     // Commander already printed the message (or help/version).
     return e.exitCode;
