@@ -27,4 +27,4 @@ jobs:
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm build
-      - run: pnpm test
+      - run: pnpm coverage # tests + 100% coverage gate for guard and protocol
