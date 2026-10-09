@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
+import { exec } from '../exec.js';
 import { readManifest } from '../kit-manifest.js';
 import type { Prompts } from '../prompts.js';
 import { MANAGED_TEXT } from '../templates.js';
@@ -139,9 +140,10 @@ describe('init --yes', () => {
     expect(r.out).not.toContain('Updated .gitignore');
   });
 
-  it('keeps an existing AGENTS.md unchanged below the marker, once', async () => {
+  it('keeps an existing AGENTS.md byte for byte (CRLF too) below the marker, once', async () => {
     project = rnProject();
-    const old = '# AGENTS.md — rules for every AI agent in this repo\n\n## 1. Project overview\nEkmong Mobile...\n';
+    const old =
+      '# AGENTS.md — rules for every AI agent in this repo\r\n\r\n## 1. Project overview\r\nEkmong Mobile...\r\n';
     project.write('AGENTS.md', old);
     await cli(['init', '--yes', '--list', 'L1', '--no-doctor'], { cwd: project.dir, api: api() });
     const first = read(project, 'AGENTS.md');
@@ -397,6 +399,32 @@ describe('helpers', () => {
     setEnvValue(project.dir, 'CLICKUP_API_TOKEN', 'pk_new_value');
     setEnvValue(project.dir, 'CLICKUP_OWNER_USER_ID', '5');
     expect(read(project, '.env')).toBe('# mine\nA=1\nCLICKUP_API_TOKEN=pk_new_value\nCLICKUP_OWNER_USER_ID=5\n');
+  });
+
+  it('ensureGitignore keeps .env.example committable with an EKMONG-style .gitignore', () => {
+    project = tempProject();
+    project.write('.gitignore', 'node_modules/\r\n.env*\r\n!.env.example\r\n.agents/handoff/*\r\n.agents/logs/\r\n');
+    ensureGitignore(project.dir);
+    const added = read(project, '.gitignore').split('# Tossana agent kit')[1]!;
+    expect(added).not.toContain('.env');
+    expect(added).not.toContain('.agents/handoff/');
+    expect(added).toContain('.agents/tmp/');
+    // git itself agrees: .env ignored, .env.example not.
+    const check = (f: string) => exec('git', ['check-ignore', '--no-index', '-q', f], { cwd: project.dir }).code;
+    exec('git', ['init', '-q'], { cwd: project.dir });
+    expect(check('.env')).toBe(0);
+    expect(check('.env.example')).toBe(1);
+    expect(check('.agents/tmp/x.md')).toBe(0);
+  });
+
+  it('ensureGitignore re-adds !.env.example after a new .env.* rule', () => {
+    project = tempProject();
+    project.write('.gitignore', '!.env.example\n');
+    ensureGitignore(project.dir);
+    const text = read(project, '.gitignore');
+    expect(text.lastIndexOf('!.env.example')).toBeGreaterThan(text.indexOf('.env.*'));
+    exec('git', ['init', '-q'], { cwd: project.dir });
+    expect(exec('git', ['check-ignore', '--no-index', '-q', '.env.example'], { cwd: project.dir }).code).toBe(1);
   });
 
   it('ensureGitignore adds only missing lines, once', () => {

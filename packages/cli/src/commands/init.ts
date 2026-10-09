@@ -296,12 +296,32 @@ export function ensureGitignore(cwd: string): boolean {
   const file = join(cwd, '.gitignore');
   const text = existsSync(file) ? readFileSync(file, 'utf8').replace(/\r\n/g, '\n') : '';
   const present = new Set(text.split('\n').map((l) => l.trim()));
-  const missing = GITIGNORE_LINES.filter((l) => !present.has(l));
+  const missing = GITIGNORE_LINES.filter((l) => !gitignoreCovers(present, l));
   if (!missing.length) return false;
+  // In .gitignore the last matching rule wins: a new ".env.*" must be followed by "!.env.example"
+  // again, or .env.example (which must be committed) becomes ignored.
+  if (missing.includes('.env.*') && !missing.includes('!.env.example')) missing.push('!.env.example');
   const block = [...(present.has(GITIGNORE_HEADER) ? [] : [GITIGNORE_HEADER]), ...missing].join('\n');
   const sep = !text ? '' : text.endsWith('\n') ? '\n' : '\n\n';
   writeFileSync(file, `${text}${sep}${block}\n`);
   return true;
+}
+
+/** True when .gitignore already has this rule or an equivalent/broader one (e.g. ".env*" covers ".env.*"). */
+function gitignoreCovers(present: Set<string>, line: string): boolean {
+  if (present.has(line)) return true;
+  if (line.startsWith('!')) return false;
+  const bare = line.replace(/\/$/, '');
+  const forms = [bare, `${bare}/`, `${bare}/*`, `${bare}/**`, `/${bare}`, `/${bare}/`, `/${bare}/*`];
+  if (forms.some((f) => present.has(f))) return true;
+  if (line.startsWith('.env') && (present.has('.env*') || present.has('/.env*'))) return true;
+  // A parent folder rule (".agents/") covers everything inside it.
+  const parts = bare.split('/');
+  for (let i = 1; i < parts.length; i++) {
+    const parent = parts.slice(0, i).join('/');
+    if ([parent, `${parent}/`, `/${parent}/`, `${parent}/*`, `${parent}/**`].some((f) => present.has(f))) return true;
+  }
+  return false;
 }
 
 const ALIASES: Record<Role, string[]> = {

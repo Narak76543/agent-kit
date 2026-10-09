@@ -43,24 +43,24 @@ interface Current {
 
 function readCurrent(ctx: CliContext, file: KitFile, projectSection: string): Current {
   const full = projectPath(ctx.cwd, file.path);
-  const exists = existsSync(full);
-  const text = exists ? readFileSync(full, 'utf8').replace(/\r\n/g, '\n') : null;
-  if (file.path !== 'AGENTS.md') return { kitText: text, compose: (k) => k };
+  // `raw` keeps the person's bytes (CRLF included) for the part the kit never owns.
+  const raw = existsSync(full) ? readFileSync(full, 'utf8') : null;
+  if (file.path !== 'AGENTS.md') return { kitText: raw, compose: (k) => k };
 
-  if (text === null)
+  if (raw === null)
     return { kitText: null, compose: (k) => `${norm(k)}\n${PROJECT_MARKER}\n\n${norm(projectSection)}` };
-  const at = findMarker(text);
+  const at = findMarker(raw);
   if (at < 0) {
-    // AGENTS.md written before the kit: keep all of it, unchanged, below the marker.
-    return { kitText: null, compose: (k) => `${norm(k)}\n${PROJECT_MARKER}\n\n${text}` };
+    // AGENTS.md written before the kit: keep all of it, byte for byte, below the marker.
+    return { kitText: null, compose: (k) => `${norm(k)}\n${PROJECT_MARKER}\n\n${raw}` };
   }
-  const below = text.slice(at + PROJECT_MARKER.length);
-  return { kitText: text.slice(0, at), compose: (k) => `${norm(k)}\n${PROJECT_MARKER}${below}` };
+  const below = raw.slice(at + PROJECT_MARKER.length);
+  return { kitText: raw.slice(0, at), compose: (k) => `${norm(k)}\n${PROJECT_MARKER}${below}` };
 }
 
 /** Index of the marker on a line of its own (the kit text mentions it inline), or -1. */
 export function findMarker(text: string): number {
-  const m = /^<!-- PROJECT -->[ \t]*$/m.exec(text);
+  const m = /^<!-- PROJECT -->[ \t]*\r?$/m.exec(text);
   return m ? m.index : -1;
 }
 
