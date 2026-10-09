@@ -18,7 +18,7 @@ export type ProjectType = (typeof PROJECT_TYPES)[number];
 export const ROLES = ['todo', 'coding', 'review', 'testing', 'human'] as const;
 export type Role = (typeof ROLES)[number];
 
-export const RUNNERS = ['opencode', 'claude-code', 'custom'] as const;
+export const RUNNERS = ['opencode', 'claude-code', 'custom', 'antigravity'] as const;
 export type RunnerName = (typeof RUNNERS)[number];
 
 export const DEFAULT_STATUSES: Record<Role, string> = {
