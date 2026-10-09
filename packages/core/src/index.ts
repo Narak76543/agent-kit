@@ -1,3 +1,7 @@
 export * from './errors.js';
 export * from './logger.js';
 export * from './protocol.js';
+export * from './clickup/guard.js';
+export * from './clickup/rate-limiter.js';
+export * from './clickup/client.js';
+export type * from './clickup/types.js';
