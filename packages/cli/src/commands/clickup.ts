@@ -3,7 +3,7 @@
  * EKMONG_MOBILE scripts/clickup.ts; `status` now takes role names instead of raw status names.
  */
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import type { Command } from 'commander';
 import {
   DEFAULT_STATUSES,
@@ -78,6 +78,7 @@ export function registerClickupCommands(program: Command, ctx: CliContext): void
       const text = await readText(ctx, words, opts, 'comment <taskId> "<text>" | --file <path> | -');
       await setup().client.postComment(taskId, text);
       if (isValidTaskId(taskId)) appendHandoff(ctx.cwd, taskId, 'ClickUp comment', text, ctx.now());
+      removeAgentTempFile(ctx, opts);
       print(`OK: comment posted on ${taskId}`);
     });
 
@@ -89,6 +90,7 @@ export function registerClickupCommands(program: Command, ctx: CliContext): void
       const { project, client } = setup();
       await client.notify(taskId, text, project.env.CLICKUP_OWNER_USER_ID ?? '');
       if (isValidTaskId(taskId)) appendHandoff(ctx.cwd, taskId, 'Owner notified', text, ctx.now());
+      removeAgentTempFile(ctx, opts);
       print(`OK: owner notified on ${taskId}`);
     });
 
@@ -99,6 +101,7 @@ export function registerClickupCommands(program: Command, ctx: CliContext): void
       if (!isValidTaskId(taskId)) throw new KitError(`invalid task id "${taskId}"`);
       const text = await readText(ctx, words, opts, 'handoff <taskId> "<text>" | --file <path> | -');
       const file = appendHandoff(ctx.cwd, taskId, 'Notes', text, ctx.now());
+      removeAgentTempFile(ctx, opts);
       print(`OK: appended to ${relative(ctx.cwd, file)}`);
     });
 
@@ -265,4 +268,14 @@ export function collectDocFiles(docs: ClickUpDocPage[][]): { file: string; name:
   };
   for (const pages of docs) walk(pages, '');
   return files;
+}
+
+/** Agents write comment text to .agents/tmp/ (no shell quoting); remove it once it has been used. */
+export const AGENT_TMP_DIR = join('.agents', 'tmp');
+
+function removeAgentTempFile(ctx: CliContext, opts: TextOptions): void {
+  if (!opts.file) return;
+  const file = resolve(ctx.cwd, opts.file);
+  const rel = relative(resolve(ctx.cwd, AGENT_TMP_DIR), file);
+  if (rel && !rel.startsWith('..') && !isAbsolute(rel)) rmSync(file, { force: true });
 }

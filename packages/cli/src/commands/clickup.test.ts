@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CONFIG, LIST, TOKEN, cli, fakeApi, json, tempProject, type TempProject } from '../test-utils.test-helper.js';
@@ -94,6 +94,26 @@ describe('clickup comment / notify / handoff', () => {
     expect((api.calls[0]!.body as { comment_text: string }).comment_text).toBe(
       '[AGENT: coder] [RESULT: DONE_CODING]\nSummary: "ok"',
     );
+  });
+
+  it('deletes a comment file written in .agents/tmp after posting, but never other files', async () => {
+    project = tempProject();
+    project.write('.agents/tmp/T1-reviewer.md', 'from tmp');
+    project.write('keep.md', 'keep me');
+    const api = taskApi();
+    await cli(['clickup', 'comment', 'T1', '--file', '.agents/tmp/T1-reviewer.md'], { cwd: project.dir, api });
+    await cli(['clickup', 'comment', 'T1', '--file', 'keep.md'], { cwd: project.dir, api });
+    expect(existsSync(join(project.dir, '.agents', 'tmp', 'T1-reviewer.md'))).toBe(false);
+    expect(existsSync(join(project.dir, 'keep.md'))).toBe(true);
+  });
+
+  it('keeps the temp file when posting fails', async () => {
+    project = tempProject();
+    project.write('.agents/tmp/T1-coder.md', 'retry me');
+    const api = fakeApi().on('POST /v2/task/T1/comment', json({ err: 'boom' }, 400));
+    const r = await cli(['clickup', 'comment', 'T1', '--file', '.agents/tmp/T1-coder.md'], { cwd: project.dir, api });
+    expect(r.code).toBe(1);
+    expect(existsSync(join(project.dir, '.agents', 'tmp', 'T1-coder.md'))).toBe(true);
   });
 
   it('reads stdin with -', async () => {
