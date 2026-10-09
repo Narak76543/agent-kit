@@ -67,10 +67,17 @@ export interface ClickUpFolder {
   lists?: ClickUpList[];
 }
 
+/** PublicDocsPageV3Dto from the official ClickUp v3 OpenAPI spec (fields the kit uses). */
 export interface ClickUpDocPage {
   id: string;
+  doc_id?: string;
+  parent_page_id?: string;
   name?: string;
-  title?: string;
+  sub_title?: string;
+  /** In the requested content_format (text/md). */
   content?: string;
   pages?: ClickUpDocPage[];
+  deleted?: boolean;
+  archived?: boolean;
+  date_updated?: number;
 }

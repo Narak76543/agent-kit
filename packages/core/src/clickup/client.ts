@@ -257,7 +257,11 @@ export class ClickUpClient {
 
   // ---------- docs (API v3) ----------
 
-  /** All pages of a ClickUp Doc, nested, with markdown content. */
+  /**
+   * All pages of a ClickUp Doc, nested, with markdown content.
+   * Official: GET /api/v3/workspaces/{workspace_id}/docs/{doc_id}/pages (operationId getDocPagesPublic),
+   * returns an array of pages. The { pages } form is accepted defensively.
+   */
   async getDocPages(docId: string): Promise<ClickUpDocPage[]> {
     if (!this.workspaceId) throw new ConfigError('CLICKUP_WORKSPACE_ID is missing in .env (needed for ClickUp Docs)');
     const res = await this.request<ClickUpDocPage[] | { pages?: ClickUpDocPage[] }>(
