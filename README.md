@@ -13,6 +13,18 @@ The full spec is in [TOSSANA_AGENT_KIT_PLAN.md](./TOSSANA_AGENT_KIT_PLAN.md).
 | `packages/templates` | (bundled into the CLI) | Agent files, `AGENTS.base.md`, Antigravity workflows, skills |
 | `apps/dashboard`     | (later)                | Team dashboard                                               |
 
+## Commands
+
+```
+tossana-agents init                     # set up a project (asks a few questions; --yes for none)
+tossana-agents doctor                   # check everything; shows how to fix each problem
+tossana-agents run --task <taskId>      # run one task through the agents (--next, --all, --dry-run, --no-agent)
+tossana-agents update                   # update kit files to the installed version
+tossana-agents clickup <command>        # ClickUp commands used by the agents (get, comment, status, ...)
+```
+
+On Windows, see [docs/windows.md](./docs/windows.md) (PowerShell 7 or Windows Terminal recommended).
+
 ## Develop
 
 Needs Node.js 20.19+ and pnpm (`npm i -g pnpm`).
