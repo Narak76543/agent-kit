@@ -18,6 +18,7 @@ import {
   type Logger,
 } from '@tossana/agents-core';
 import { exec, type Exec } from './exec.js';
+import type { Prompts } from './prompts.js';
 
 export interface CliIO {
   /** Raw write to stdout (include your own newline). */
@@ -38,6 +39,8 @@ export interface CliContext {
   io: CliIO;
   logger: Logger;
   fetch?: FetchLike;
+  /** Interactive questions (clack); replaced in tests. */
+  prompts?: Prompts;
   now: () => Date;
 }
 
@@ -50,6 +53,8 @@ export function createContext(options: {
   processEnv?: Record<string, string | undefined>;
   io?: Partial<CliIO>;
   fetch?: FetchLike;
+  /** Interactive questions (clack); replaced in tests. */
+  prompts?: Prompts;
   now?: () => Date;
   exec?: Exec;
   platform?: NodeJS.Platform;
@@ -70,6 +75,7 @@ export function createContext(options: {
     io,
     logger,
     fetch: options.fetch,
+    prompts: options.prompts,
     now: options.now ?? (() => new Date()),
   };
 }

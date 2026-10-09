@@ -3,6 +3,7 @@ import { Command, CommanderError } from 'commander';
 import { DoneGuardError, KitError, clickUpErrorHint } from '@tossana/agents-core';
 import { registerClickupCommands } from './commands/clickup.js';
 import { registerDoctorCommand } from './commands/doctor.js';
+import { registerInitCommand } from './commands/init.js';
 import { SilentExit, createContext, type CliContext } from './context.js';
 import { KIT_VERSION } from './version.js';
 
@@ -23,6 +24,7 @@ export function createProgram(ctx: CliContext): Command {
 
   registerClickupCommands(program, ctx);
   registerDoctorCommand(program, ctx);
+  registerInitCommand(program, ctx, ctx.prompts);
 
   // Subcommands share the parent's output and exit behaviour.
   const inherit = (cmd: Command) => {
