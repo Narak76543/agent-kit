@@ -1,0 +1,26 @@
+{
+  "name": "@tossana/agents-core",
+  "version": "0.1.0",
+  "description": "Shared library for the Tossana agent kit: ClickUp client, Done guard, config, comment protocol.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  }
+}

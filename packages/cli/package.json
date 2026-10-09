@@ -1,0 +1,25 @@
+{
+  "name": "@tossana/agents",
+  "version": "0.1.0",
+  "description": "Plug the Tossana multi-agent coding workflow (ClickUp-driven) into any project.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "tossana-agents": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tossana/agents-core": "workspace:*"
+  }
+}

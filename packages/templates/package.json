@@ -1,0 +1,7 @@
+{
+  "name": "@tossana/agents-templates",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent templates bundled into @tossana/agents. Not published on its own.",
+  "license": "UNLICENSED"
+}
