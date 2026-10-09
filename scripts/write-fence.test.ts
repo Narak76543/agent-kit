@@ -16,6 +16,29 @@ describe('write fence', () => {
     expect(blockReason('get', `${API}/v2/task/T1`, newFence())).toBeNull();
   });
 
+  it('a never-opened fence (the source client) blocks every write, anywhere', async () => {
+    const source = newFence();
+    const sent: string[] = [];
+    const fetch = fencedFetch(source, async (url) => {
+      sent.push(url);
+      return new Response('{}');
+    });
+    for (const [method, path] of [
+      ['POST', '/v2/task/T1/comment'],
+      ['PUT', '/v2/task/T1'],
+      ['DELETE', '/v2/task/T1'],
+      ['POST', '/v2/list/L1/task'],
+      ['POST', '/v3/workspaces/COMPANY/docs'],
+      ['POST', '/v3/workspaces/TEST_WS/docs/D/pages'],
+      ['PATCH', '/v3/workspaces/COMPANY/docs/D/pages/P'],
+    ] as const) {
+      expect((await fetch(`${API}${path}`, { method })).status).toBe(403);
+    }
+    await fetch(`${API}/v2/task/T1`, { method: 'GET' });
+    expect(sent).toEqual([`${API}/v2/task/T1`]);
+    expect(source.violations).toHaveLength(7);
+  });
+
   it('blocks every write before a target is set', () => {
     expect(blockReason('POST', `${API}/v3/workspaces/TEST_WS/docs`, newFence())).toMatch(/no target workspace set/);
   });
