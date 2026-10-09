@@ -16,7 +16,7 @@
     "templates"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/postbuild.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

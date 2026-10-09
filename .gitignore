@@ -10,3 +10,5 @@ coverage/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+packages/cli/templates/
+packages/cli/schema/
