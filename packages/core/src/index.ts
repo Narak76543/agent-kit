@@ -8,3 +8,4 @@ export type * from './clickup/types.js';
 export * from './config.js';
 export * from './handoff.js';
 export * from './detect.js';
+export * from './clickup/error-hints.js';

@@ -20,6 +20,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tossana/agents-core": "workspace:*"
+    "@clack/prompts": "^1.8.1",
+    "@tossana/agents-core": "workspace:*",
+    "commander": "^14.0.3",
+    "cross-spawn": "^7.0.6",
+    "diff": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/cross-spawn": "^6.0.6"
   }
 }
