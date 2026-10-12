@@ -210,3 +210,9 @@ pnpm format       # fix formatting
   a temp project outside the monorepo, path with spaces and an apostrophe: `--version`, `init --help`, `doctor`
   without token (exit 1, FIX lines, no stack trace), `init --yes --list 123` without token (all 11 files) all work.
   Script: session scratchpad `pack-test.ps1` (not in the repo).
+- **Item 4 — Phase 4 prep (done, no code changes needed):** a minimal Next.js 16 project (create-next-app shape,
+  npm, `tsconfig.json`, `app/page.tsx`) in a temp folder with a space, `init --yes --list L1` against a local fake
+  ClickUp (`TOSSANA_CLICKUP_API_URL=http://127.0.0.1:…`): type `nextjs`, skill `frontend-master`, npm, commands
+  `npm install` / `npm run lint` / `npx tsc --noEmit` (no `test`: create-next-app has no test script, so the gate is
+  lint + typecheck until the project adds one), folder tree `app/`, doctor 14/14 green, `run --dry-run` shows
+  `--dir`, `opencode agent list` loads all four agents. Scripts: session scratchpad `p4/` (not in the repo).
