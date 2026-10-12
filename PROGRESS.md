@@ -4,7 +4,7 @@ Status of the Tossana Agent Kit build. Read this first when you continue the wor
 The full spec is [TOSSANA_AGENT_KIT_PLAN.md](./TOSSANA_AGENT_KIT_PLAN.md). This file records what is done, what is next,
 and every decision that changes or clarifies the spec.
 
-Last updated: 2026-10-09 (end of Phase 2)
+Last updated: 2026-10-12 (Phase 2 waiting on ClickUp statuses)
 
 ## Phase status
 
@@ -163,3 +163,17 @@ pnpm format       # fix formatting
   numbering, empty `>` lines). No text lost. Headings are no longer doubled.
 - Read-only Phase 2 checks against the test list: all PASS except `doctor` → the list still has the default statuses
   (to do / in progress / complete). Waiting for the user to set custom statuses on the list.
+
+## Session 2026-10-12
+
+- Read-only doctor against the test list: 13 ok, 1 failed ("Role statuses exist on the list"). The API still
+  returns to do / in progress / complete for every list and Space, and the list has `override_statuses=false`
+  (it inherits the Space's statuses). Board view columns are not proof; `tossana-agents clickup statuses` is.
+  Phase 2 stays open until doctor is green.
+- `D:\Ek-Mobile-test` created with `git clone --no-hardlinks D:\Ek-Mobile` (original only read). It holds the
+  committed app only: the old pipeline files in `D:\Ek-Mobile` (`.agents/`, `.opencode/`, `AGENTS.md`,
+  `docs/clickup/`, `scripts/clickup.ts`, `scripts/run-pipeline.ts`) are untracked there, so `init` in the clone is a
+  fresh install, not an upgrade. No `.env`, no `node_modules`.
+- Antigravity format checked (antigravity.google/docs, 2026-10-12): skills in `.agents/skills/<name>/SKILL.md`
+  (`.agent/` is legacy), invokable as `/<name>`; custom subagents in `.agents/agents/<name>.md`; rules read
+  `AGENTS.md` automatically. Workflows are being migrated to skills. EKMONG's files already use this format.
