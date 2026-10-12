@@ -191,7 +191,7 @@ pnpm format       # fix formatting
   No migration: only test copies had the old path.
 - init now writes 11 kit files (was 6).
 - **Real OpenCode 1.18.35 check** (temp project, orchestrator agent): writing `.agents/tmp/T1-orchestrator.md`
-  allowed (OpenCode matches it as `.agents	mp\*`), editing `README.md` denied; token in no file except `.env`.
+  allowed (OpenCode matches it as `.agents\tmp\*`), editing `README.md` denied; token in no file except `.env`.
 - **Bug found and fixed:** OpenCode takes its project folder from `PWD` when set. With `--cwd` or a stale `PWD`
   (Git Bash, tool shells) it ran in the wrong folder, could not find `orchestrator` and failed with `UnknownError`.
   `run` now passes `--dir <project>` to `opencode run` and sets `PWD` for every agent process.
