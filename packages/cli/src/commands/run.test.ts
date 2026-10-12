@@ -61,9 +61,8 @@ describe('run --dry-run', () => {
     const r = await run(project, ['--task', 'T1', '--dry-run'], api);
     expect(r.code).toBe(0);
     expect(r.out).toContain('  git: create task/T1 from main');
-    expect(r.out).toContain(
-      '  $ opencode run --agent orchestrator "Work on ClickUp task T1. Follow AGENTS.md and your agent instructions."',
-    );
+    const args = ['run', '--agent', 'orchestrator', '--dir', project.dir, taskPrompt('T1')];
+    expect(r.out).toContain(`  $ ${formatCommand({ cmd: 'opencode', args })}`);
     expect(api.calls).toHaveLength(0);
     expect(git(project, 'branch', '--show-current')).toBe('main');
   });
@@ -131,6 +130,12 @@ describe('run --task', () => {
     const r = await run(project, ['--task', 'T1']);
     expect(r.out).toContain('STOPPED: T1 left uncommitted changes on task/T1');
     expect(git(project, 'branch', '--show-current')).toBe('task/T1');
+  });
+
+  it('gives the agent the project folder as PWD, not the caller PWD (OpenCode prefers PWD)', async () => {
+    project = gitProject({ agentCmd: 'node -e "console.log(\'pwd=\' + process.env.PWD)" {prompt}' });
+    const r = await run(project, ['--task', 'T1']);
+    expect(r.out).toContain(`pwd=${project.dir}`);
   });
 
   it('skips a closed task', async () => {

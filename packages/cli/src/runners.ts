@@ -31,8 +31,13 @@ export function opencodeAdapter(exec: Exec, cwd: string): RunnerAdapter {
     headless: true,
     isInstalled: async () => versionOf(exec, 'opencode', cwd) !== null,
     // https://opencode.ai/docs/cli/ — `opencode run [message..]` with `--agent`. No `--auto`: the agent
-    // files are default-deny with no "ask" rules, so nothing can wait for approval.
-    buildCommand: ({ agent, prompt }) => ({ cmd: 'opencode', args: ['run', '--agent', agent, prompt] }),
+    // files are default-deny with no "ask" rules, so nothing can wait for approval. `--dir` because
+    // OpenCode prefers an inherited PWD (Git Bash, `--cwd`) over the process cwd and would then run in,
+    // and load the agents of, the wrong folder (seen with OpenCode 1.18.35 on Windows).
+    buildCommand: ({ agent, prompt, cwd }) => ({
+      cmd: 'opencode',
+      args: ['run', '--agent', agent, '--dir', cwd, prompt],
+    }),
     installHint: 'Install OpenCode: npm install -g opencode-ai  (then: opencode auth login)',
   };
 }

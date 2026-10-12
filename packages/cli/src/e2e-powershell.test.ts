@@ -181,8 +181,8 @@ describe.skipIf(!enabled)('PowerShell 5.1 end-to-end (built CLI)', () => {
   it('run --dry-run prints the exact command', async () => {
     const r = await ps(`node $cli run --task T1 --dry-run`);
     expect(r.code).toBe(0);
-    expect(r.out).toContain(
-      '$ opencode run --agent orchestrator "Work on ClickUp task T1. Follow AGENTS.md and your agent instructions."',
+    expect(r.out).toMatch(
+      /\$ opencode run --agent orchestrator --dir \S.* "Work on ClickUp task T1\. Follow AGENTS\.md and your agent instructions\."/,
     );
   });
 });

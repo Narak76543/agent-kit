@@ -237,6 +237,8 @@ function runAgent(
   return new Promise((resolve, reject) => {
     const child = spawn(command.cmd, command.args, {
       cwd: ctx.cwd,
+      // A stale PWD (Git Bash, `--cwd`) would point Node/Bun-based agents at the wrong folder.
+      env: { ...process.env, PWD: ctx.cwd },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
