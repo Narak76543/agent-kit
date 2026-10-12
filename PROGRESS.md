@@ -8,16 +8,16 @@ Last updated: 2026-10-12 (see "Next steps" — waiting on ClickUp statuses in th
 
 ## Phase status
 
-| Phase                     | Status      | Notes                                                            |
-| ------------------------- | ----------- | ---------------------------------------------------------------- |
-| 0 — Setup                 | ✅ Done     | CI written but never run (nothing pushed yet)                    |
-| 1 — Core                  | ✅ Done     | 168 tests; guard + protocol at 100% coverage                     |
-| 2 — CLI                   | 🟡 Built    | Only doctor's status check fails (list has no custom statuses)   |
-| 3 — Templates             | 🟡 Built    | 328 tests (with Figma); left: one real task, Antigravity check   |
-| 4 — Second project        | 🟡 Prepared | Next.js sample checked, no code changes needed; real project TBD |
-| 5 — Dashboard             | 🟡 Started  | Board + timeline on sample data; no ClickUp, no login yet        |
-| 6 — Distribution, docs    | 🟡 Started  | Docs written; tarball tested; registry not chosen                |
-| 7 — Roles, tools, library | 🟡 Designed | Plan §12 Phase 7; build order a–d below                          |
+| Phase                     | Status      | Notes                                                                |
+| ------------------------- | ----------- | -------------------------------------------------------------------- |
+| 0 — Setup                 | ✅ Done     | CI written but never run (nothing pushed yet)                        |
+| 1 — Core                  | ✅ Done     | 168 tests; guard + protocol at 100% coverage                         |
+| 2 — CLI                   | 🟡 Built    | Only doctor's status check fails (list has no custom statuses)       |
+| 3 — Templates             | 🟡 Built    | 328 tests (with Figma); left: one real task, Antigravity check       |
+| 4 — Second project        | 🟡 Prepared | Next.js sample checked, no code changes needed; real project TBD     |
+| 5 — Dashboard             | 🟡 Started  | Board + timeline on sample data; no ClickUp, no login yet            |
+| 6 — Distribution, docs    | 🟡 Started  | Docs written; tarball tested; registry not chosen                    |
+| 7 — Roles, tools, library | 🟡 a–d done | Roles, skill scopes, Claude Code, Codex; library repo + editing next |
 
 ## How to work on this repo
 
@@ -181,14 +181,16 @@ IDs of the personal test workspace are kept out of this repo on purpose (see the
    - Screens: **Needs human** (tasks in the human status, NEEDS_HUMAN first) and **Stats** (ready-for-review per
      week, average rounds, common reviewer issues, first-round pass rate).
    - Deploy: ask the user (Vercel or internal server); add a `Dockerfile` either way.
-6. **Phase 7 — plug-and-play roles, tools and team library** (design: plan §12 "Phase 7"). Build order, updating
-   this file after each step:
-   a) read-only dashboard pages on sample data (Agents/roles, Skills, MCP catalog, Projects; roles and tool per task);
-   b) config schema for custom roles (`roles` in order, each with purpose, skills, MCP servers, permission preset)
-   and skill scopes (team / user / project, project wins), keeping the 4-role default byte-identical;
-   c) Claude Code generator + `run` adapter; d) Codex generator + `run` adapter (formats from current docs).
-   Later: the `tossana-agent-library` repo with pinned versions, dashboard editing via pull requests, login with
-   viewer/editor/approver roles. Open questions: GitHub org and repo, who approves, GitHub App or token for PRs.
+6. **Phase 7 — plug-and-play roles, tools and team library** (design: plan §12 "Phase 7"). Steps a–d are **done**
+   (see the Phase 7 sections at the end). Left, in order:
+   - **Real runs per tool:** one task through Claude Code (`runner: "claude-code"`) and, on a machine with Codex,
+     one through Codex (`runner: "codex"`; trust the project first). Codex output is unit-tested only.
+   - **Antigravity:** custom-role names in `/start-task` and the Figma snippets (still say coder/reviewer/tester).
+   - **Dashboard:** show the real tool per task (from the run log or a `[TOOL: …]` note in the STARTED comment —
+     needs a small protocol addition), plus the rest of Phase 5 (real ClickUp data, login, Needs-human, Stats).
+   - **Team library:** the `tossana-agent-library` repo with pinned versions in `init`/`update`, dashboard editing
+     via pull requests, login with viewer/editor/approver roles. Open questions: GitHub org and repo, who approves,
+     GitHub App or token for PRs.
 7. **Later:** real skills content (waiting for the skills folder path), Phase 4 on a real second project, publish
    registry (GitHub Packages under `@tossana`?) and the first release (`docs/maintaining.md`), push + run CI once.
 
@@ -338,3 +340,24 @@ IDs of the personal test workspace are kept out of this repo on purpose (see the
 - Not done: a full task run through Claude Code against ClickUp (needs the test account fixed). Note: piping JSON
   into the `npx.cmd` shim from Windows PowerShell 5.1 loses stdin; Claude Code itself passes it fine.
 - Docs: `docs/claude-code.md`.
+
+### Phase 7 (d) — Codex + drafts folder (done 2026-10-12)
+
+- **Drafts moved to `.tossana/tmp/`** for every tool (Codex docs, "Protected paths in writable roots": in
+  `workspace-write`, `.git` is always read-only, `.agents` and `.codex` when they exist as folders). `init`/`update`
+  move leftover drafts from `.agents/tmp/` once and git-ignore `.tossana/tmp/`. (A bulk rename briefly broke the
+  move itself; fixed in `62e4f2d` with a test.)
+- `tools` may include `codex`; `runner` may be `codex`. Kit-owned: `.codex/agents/<role>.toml` (`name`,
+  `description`, `sandbox_mode` = `read-only` for read-only roles else `workspace-write`, `developer_instructions` =
+  a short Codex note + the OpenCode instructions), `.codex/orchestrator.md` (main session; posts read-only roles'
+  comments for them), `.codex/rules/tossana.rules` (`forbidden`: push, reset/rebase/merge/clean/switch/checkout,
+  `commit --amend`, branch delete; `allow` = outside the sandbox: `git add|commit`, `tossana-agents clickup`, the
+  install command). `.codex/config.toml` (`approval_policy = "never"`, `sandbox_mode = "workspace-write"`, Figma with
+  `enabled_tools`) only when absent or kit-owned; a user's file is never changed (the kit prints what to add).
+- `run`: `codex exec --sandbox workspace-write -c approval_policy=never "<task> You are the orchestrator: read
+.codex/orchestrator.md …"` (Codex has no `--agent`). doctor: Codex installed; **project trusted** in
+  `$CODEX_HOME/config.toml` (default `~/.codex`), because Codex ignores `.codex/` otherwise.
+- Limits: Codex rules are project-wide, so "tests only" is an instruction there; read-only roles are enforced by
+  their sandbox. **Not run against a real Codex** (not installed here) — formats are from the docs, covered by unit
+  tests and the `all-tools` golden case (all four tools at once, for review).
+- Docs: `docs/codex.md`. Tests: 364.
