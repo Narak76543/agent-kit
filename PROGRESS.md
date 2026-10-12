@@ -203,3 +203,5 @@ pnpm format       # fix formatting
 - **Item 1 — wrong-account hint (done):** when the list cannot be read or role statuses are missing, `doctor` prints
   a `HINT:` line naming the token's workspace(s) (one extra `GET /team`, only on failure). `clickup statuses` and
   `init` print the same hint with their missing-status warning.
+- **Item 2 — Phase 6 docs (done):** `docs/getting-started.md`, `clickup-setup.md`, `agents.md`, `maintaining.md`,
+  `antigravity.md`, linked from the README. The publish registry is still open (`maintaining.md` says so).

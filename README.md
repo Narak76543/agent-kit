@@ -23,7 +23,14 @@ tossana-agents update                   # update kit files to the installed vers
 tossana-agents clickup <command>        # ClickUp commands used by the agents (get, comment, status, ...)
 ```
 
-On Windows, see [docs/windows.md](./docs/windows.md) (PowerShell 7 or Windows Terminal recommended).
+## Guides
+
+- [Getting started](./docs/getting-started.md): install, init, doctor, run one task
+- [ClickUp setup](./docs/clickup-setup.md): the 6 statuses, list templates, the wrong-account mistake
+- [How the agents work](./docs/agents.md): roles, comment format, handoff files, the Done rule
+- [Antigravity](./docs/antigravity.md): `/start-task` and checking the subagent tool names
+- [Windows](./docs/windows.md): PowerShell 7 or Windows Terminal recommended
+- [Maintaining the kit](./docs/maintaining.md): how to release a new version
 
 ## Develop
 

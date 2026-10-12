@@ -1,0 +1,167 @@
+# Getting started
+
+This guide shows how to add the Tossana agent kit to a project and run your first task.
+It takes about 15 minutes.
+
+## What the kit does
+
+You write a task in ClickUp. The kit gives the task to AI agents:
+
+1. The **coder** writes the code on a new git branch.
+2. The **reviewer** checks the code.
+3. The **tester** runs lint, type check and tests.
+4. If something is wrong, the coder fixes it (up to 5 rounds).
+5. When everything passes, the task moves to **ready for review**. Now it is your turn.
+
+The agents **never** push, merge, or set a task to Done. Only a human does that.
+More details: [agents.md](./agents.md).
+
+## What you need
+
+- **Node.js 20.19 or newer** (`node --version`).
+- **Git** (on Windows: Git for Windows).
+- **OpenCode**, logged in to a model provider: `npm install -g opencode-ai`, then `opencode auth login`.
+  (Or Antigravity, see [antigravity.md](./antigravity.md).)
+- A **ClickUp list** with the 6 statuses: to do, coding, in review, testing, ready for review, done.
+  See [clickup-setup.md](./clickup-setup.md).
+- Your **ClickUp API token**: ClickUp → avatar → Settings → Apps → API Token. It starts with `pk_`.
+- On Windows: PowerShell 7 or Windows Terminal is best. See [windows.md](./windows.md).
+
+## 1. Install
+
+The package is `@tossana/agents`. The command is `tossana-agents`.
+
+In a Node.js project (has `package.json`), install it in the project:
+
+```
+pnpm add -D @tossana/agents       # or: npm install -D @tossana/agents
+```
+
+Then use `npx tossana-agents …`.
+
+In other projects (Flutter, backend in another language), install it once on your computer:
+
+```
+npm install -g @tossana/agents
+```
+
+Then use `tossana-agents …`.
+
+> The package is not published yet. Until it is, ask the kit maintainer for the `.tgz` file and
+> install that file instead: `pnpm add -D ./tossana-agents-0.1.0.tgz`.
+
+## 2. Set up the project: `init`
+
+Open a terminal in the project folder (the git repo) and run:
+
+```
+npx tossana-agents init
+```
+
+`init` asks a few questions:
+
+- **ClickUp token** (input is hidden). It is saved in `.env`, which is git-ignored.
+- **ClickUp list**: pick the list where the tasks are.
+- **Statuses**: check that each role has the right status name.
+- **Project type and skill**: `init` detects them. Press Enter if they are right.
+
+`init` creates these files:
+
+| File                                 | What it is                                                        |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| `agent.config.json`                  | Project settings (list ID, statuses, commands). Commit it.        |
+| `.env`                               | Your token. **Never commit it.** `init` adds it to .gitignore.    |
+| `AGENTS.md`                          | Rules for all agents. Add project notes below `<!-- PROJECT -->`. |
+| `.opencode/agents/*.md`              | The four OpenCode agents.                                         |
+| `.agents/skills/`, `.agents/agents/` | Antigravity skills and subagents, and the coding skill.           |
+
+Commit the new files (not `.env`):
+
+```
+git add -A
+git commit -m "chore: add Tossana agent kit"
+```
+
+`init` is safe to run again. It does not change files you edited without asking.
+
+## 3. Check the setup: `doctor`
+
+```
+npx tossana-agents doctor
+```
+
+Every line should be ✅. For each ❌, doctor shows a `FIX:` line. Fix the **first** ❌ and run doctor again.
+
+Common problems:
+
+- **"Role statuses exist on the list" fails**: the list does not have the 6 statuses yet, or you made them in
+  another ClickUp account. See [clickup-setup.md](./clickup-setup.md).
+- **"ClickUp token works" fails**: the token is wrong or old. Make a new one and put it in `.env`.
+
+## 4. Run one task
+
+Pick a small task in the list with status **to do**. Copy its ID from the task URL
+(`app.clickup.com/t/<taskId>`).
+
+First, see what will happen (nothing is changed):
+
+```
+npx tossana-agents run --task <taskId> --dry-run
+```
+
+Then run it:
+
+```
+npx tossana-agents run --task <taskId>
+```
+
+What `run` does:
+
+1. Checks that your git tree is clean (commit or stash your work first).
+2. Creates the branch `task/<taskId>` from `main`.
+3. Starts the orchestrator agent in OpenCode. You see its output in the terminal.
+4. When the agents finish, switches back to `main`. The work stays on `task/<taskId>`.
+
+A full log is saved in `.agents/logs/`. Press Ctrl+C to stop.
+
+Other ways to run:
+
+- `run --next`: the next "to do" task assigned to you.
+- `run --all`: all your "to do" tasks, one after another.
+- `run --task <taskId> --no-agent`: only create the branch. Then work with the agents yourself.
+
+## 5. What you see in ClickUp
+
+While the agents work, the task moves through the statuses and gets comments:
+
+| Status           | What is happening                      |
+| ---------------- | -------------------------------------- |
+| to do            | Waiting                                |
+| coding           | The coder is writing or fixing code    |
+| in review        | The reviewer is checking the code      |
+| testing          | The tester is running checks and tests |
+| ready for review | Done by the agents. **Your turn.**     |
+
+Each agent writes one comment per step, for example:
+
+```
+[AGENT: reviewer] [RESULT: CHANGES_NEEDED] [ROUND: 1]
+Summary: The empty state is missing.
+Issues:
+- src/features/orders/OrdersScreen.tsx:42 - no empty state (AC-3)
+Next: coder
+```
+
+At the end you get a notification (if `CLICKUP_OWNER_USER_ID` is set in `.env`):
+
+- `[RESULT: PASS]`: everything passed. Check the branch `task/<taskId>`, test it, then merge it and set the
+  task to Done yourself.
+- `[RESULT: NEEDS_HUMAN]`: the agents could not finish. The comment says why.
+
+To ask for changes: write a normal comment on the task (no `[AGENT: …]` tag) and run
+`run --task <taskId>` again. The agents read your comment first and continue on the same branch.
+
+## Next steps
+
+- Keep the project part of `AGENTS.md` (below `<!-- PROJECT -->`) up to date. Agents follow it.
+- `npx tossana-agents update` after you install a new kit version.
