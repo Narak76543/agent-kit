@@ -292,3 +292,24 @@ IDs of the personal test workspace are kept out of this repo on purpose (see the
 - Board cards show the tool that ran the task; the task page shows the project's roles in order (current role
   highlighted) and "Ran with <tool>". Tool per task is sample data for now (later: from the run log / comment).
 - Checked with Playwright + Edge at 1440 px and 390 px on all pages: no horizontal overflow, Google Sans Flex loads.
+
+### Phase 7 (b) — configurable roles + skill scopes (done 2026-10-12)
+
+- `agent.config.json` → optional `roles` (in order): `name` (kebab-case, not `orchestrator`), `preset`
+  (`read-only` | `edit-code` | `edit-tests-only`), `purpose`, `skills` (default `[project.skill]`), `mcp`
+  (catalog: `figma`, needs `figma.enabled`), `status` (`coding` | `review` | `testing`, default from preset).
+  Validation: unique names, at least one `edit-code`, roles before the first `edit-code` must be `read-only`.
+  Core: `pipelineRoles(config)` (default = coder → reviewer → tester), kinds `plan` / `code` / `check`.
+- Protocol: any kebab-case role name is a valid `[AGENT: …]`; new result `PLANNED` (planners).
+- Templates are **preset templates** with `{{role.*}}` / `{{pipeline.*}}` placeholders (`packages/cli/src/role-vars.ts`):
+  planner (new) / coder / reviewer / tester; the default loop text lives in `templates/orchestrator/loop-default.md`,
+  custom pipelines get a generated loop (plan once → code roles → checks in order, any failure back to the first
+  coder). **Golden tests** (`packages/cli/src/__golden__/`, `UPDATE_GOLDEN=1` to accept) prove the default output is
+  byte-identical to before; a `custom-roles` golden case shows the custom output.
+- Skills: `resolveSkill` = project `.agents/skills/<n>` (not kit-written, per manifest) → user `~/.agents/skills/<n>` →
+  team (bundled). Only team skills are copied; agents get the resolved path. `init` accepts a project/user skill as
+  `project.skill`. Docs: `docs/agents.md` → "Custom roles", "Skills: three places".
+- Known gaps: the Antigravity `/start-task` text and the Figma snippets still name coder/reviewer/tester in places
+  (fine for the default; slightly off for custom roles). Per-role `mcp` other than figma waits for the library catalog.
+- Dashboard: Agents page text is generic (no project name), the orchestrator card says "Runs the pipeline"; the
+  Projects page shows each project's quality-gate commands.
