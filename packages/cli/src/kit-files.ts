@@ -154,7 +154,7 @@ export async function applyKitFiles(
  * Moves leftover drafts once; returns how many files moved.
  */
 export function migrateDraftsDir(cwd: string): number {
-  const oldDir = join(cwd, '.tossana', 'tmp');
+  const oldDir = join(cwd, '.agents', 'tmp');
   if (!existsSync(oldDir)) return 0;
   const newDir = join(cwd, '.tossana', 'tmp');
   mkdirSync(newDir, { recursive: true });

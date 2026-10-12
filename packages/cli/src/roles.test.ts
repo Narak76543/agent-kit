@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { migrateDraftsDir } from './kit-files.js';
 import { readManifest } from './kit-manifest.js';
 import { LIST, TOKEN, cli, fakeApi, tempProject, type TempProject } from './test-utils.test-helper.js';
 
@@ -87,5 +88,17 @@ describe('comment drafts folder', () => {
     expect(read('.tossana/tmp/T1-coder.md')).toBe('draft');
     expect(existsSync(join(project.dir, '.agents', 'tmp'))).toBe(false);
     expect(read('.gitignore')).toContain('.tossana/tmp/');
+  });
+
+  it('never moves a draft over an existing one, and leaves .tossana/tmp alone', () => {
+    project = rnProject();
+    project.write('.agents/tmp/a.md', 'old');
+    project.write('.tossana/tmp/a.md', 'new');
+    project.write('.tossana/tmp/b.md', 'keep');
+    expect(migrateDraftsDir(project.dir)).toBe(0);
+    expect(read('.tossana/tmp/a.md')).toBe('new');
+    expect(read('.agents/tmp/a.md')).toBe('old');
+    expect(migrateDraftsDir(project.dir)).toBe(0);
+    expect(read('.tossana/tmp/b.md')).toBe('keep');
   });
 });
