@@ -220,6 +220,9 @@ export async function runDoctor(ctx: CliContext): Promise<Check[]> {
     checks.push(...listChecks);
   }
 
+  // ---------- Claude Code (when it is one of the tools) ----------
+  if (config?.tools.includes('claude-code')) checks.push(claudeGuardCheck(ctx.cwd), guardRunsCheck(ctx));
+
   // ---------- Figma (optional) ----------
   if (config) checks.push(...(await figmaChecks(ctx.cwd, config, ctx.fetch ?? fetch)));
 
@@ -320,6 +323,16 @@ function runnerCheck(ctx: CliContext, config: AgentConfig, env: KitEnv): Check {
           fix: 'Install OpenCode: npm install -g opencode-ai  (then log in to your model provider: opencode auth login)',
         };
   }
+  if (runner === 'claude-code') {
+    const v = versionOf(ctx.exec, 'claude', ctx.cwd);
+    return v
+      ? { name: `Claude Code ${v}`, status: 'ok' }
+      : {
+          name: 'Claude Code installed',
+          status: 'fail',
+          fix: 'Install Claude Code (https://code.claude.com/docs/en/setup), then run "claude" once to log in.',
+        };
+  }
   if (runner === 'custom') {
     return env.AGENT_CMD?.trim()
       ? { name: 'AGENT_CMD set for the custom runner', status: 'ok' }
@@ -330,6 +343,44 @@ function runnerCheck(ctx: CliContext, config: AgentConfig, env: KitEnv): Check {
         };
   }
   return { name: `Runner "${runner}"`, status: 'ok', detail: 'No headless runner; use /start-task in the IDE.' };
+}
+
+function claudeGuardCheck(cwd: string): Check {
+  const name = 'Claude Code guard hook in .claude/settings.json';
+  try {
+    const text = readFileSync(join(cwd, '.claude', 'settings.json'), 'utf8');
+    if (text.includes('tossana-agents guard')) return { name, status: 'ok' };
+  } catch {
+    // missing file: reported below
+  }
+  return {
+    name,
+    status: 'fail',
+    detail: 'Without it, Claude Code agents are not limited to their role (reviewer read-only, tester tests only).',
+    fix: 'Run: tossana-agents update',
+  };
+}
+
+/**
+ * Claude Code treats a hook that fails to start (exit code other than 2) as a non-blocking error, so a missing
+ * kit would let every call through. Check that the guard command can run.
+ */
+function guardRunsCheck(ctx: CliContext): Check {
+  const name = 'Guard command can run (tossana-agents installed)';
+  const isNode = existsSync(join(ctx.cwd, 'package.json'));
+  const ok = isNode
+    ? existsSync(join(ctx.cwd, 'node_modules', '@tossana', 'agents', 'package.json'))
+    : versionOf(ctx.exec, 'tossana-agents', ctx.cwd) !== null;
+  return ok
+    ? { name, status: 'ok' }
+    : {
+        name,
+        status: 'fail',
+        detail: 'Claude Code lets a tool call through when its hook cannot start, so agents would not be limited.',
+        fix: isNode
+          ? 'Run your install command (the kit is a devDependency).'
+          : 'Install the kit: npm install -g @tossana/agents',
+      };
 }
 
 function kitFilesCheck(ctx: CliContext): Check {

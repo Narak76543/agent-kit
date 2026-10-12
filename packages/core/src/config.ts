@@ -20,6 +20,9 @@ export const ROLES = ['todo', 'coding', 'review', 'testing', 'human'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const RUNNERS = ['opencode', 'claude-code', 'custom', 'antigravity'] as const;
+/** Agent tools the kit generates files for (plan Phase 7). */
+export const AGENT_TOOLS = ['opencode', 'antigravity', 'claude-code'] as const;
+export type AgentTool = (typeof AGENT_TOOLS)[number];
 export type RunnerName = (typeof RUNNERS)[number];
 
 export const DEFAULT_STATUSES: Record<Role, string> = {
@@ -136,6 +139,11 @@ export const configSchema = z
           ),
       })
       .prefault({}),
+    tools: z
+      .array(z.enum(AGENT_TOOLS))
+      .min(1)
+      .default(['opencode', 'antigravity'])
+      .describe('Agent tools to generate files for (several allowed)'),
     roles: z
       .array(pipelineRoleSchema)
       .min(1)

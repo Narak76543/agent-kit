@@ -24,9 +24,9 @@ const pathRules = (patterns: string[], action: 'allow' | 'deny') =>
 
 const lines = (rules: string[]) => rules.join('\n');
 
-const TMP_EDIT = ['.agents/tmp/*', '*/.agents/tmp/*'];
+export const TMP_EDIT = ['.agents/tmp/*', '*/.agents/tmp/*'];
 
-const TEST_GLOBS: Record<string, string[]> = {
+export const TEST_GLOBS: Record<string, string[]> = {
   js: [
     '*.test.*',
     '*.spec.*',
@@ -51,7 +51,7 @@ const TEST_DESCRIPTION: Record<string, string> = {
   other: '`*_test.go`, `test_*.py`, `*_test.py`, `*.test.*`, `*.spec.*`, `tests/`, `test/`',
 };
 
-const testKind = (type: AgentConfig['project']['type']) =>
+export const testKind = (type: AgentConfig['project']['type']) =>
   type === 'flutter' ? 'flutter' : ['react-native', 'nextjs', 'react', 'node-backend'].includes(type) ? 'js' : 'other';
 
 const IGNORED_DIRS = new Set([

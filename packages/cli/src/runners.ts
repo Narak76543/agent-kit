@@ -3,6 +3,7 @@
  * Commands are argv arrays (no shell), so prompts and paths with spaces or quotes are passed
  * exactly, on Windows too.
  */
+import { CLAUDE_RUN_SETTINGS } from './claude.js';
 import { KitError, type AgentConfig, type KitEnv } from '@tossana/agents-core';
 import { versionOf, type Exec } from './exec.js';
 
@@ -66,6 +67,24 @@ export function customAdapter(agentCmd: string | undefined, taskId: string): Run
   };
 }
 
+/**
+ * Claude Code, headless: `claude -p <prompt> --agent orchestrator` (https://code.claude.com/docs/en/headless).
+ * `--permission-mode dontAsk` denies anything that would prompt, so a run never waits for a person;
+ * `--settings` adds the kit's allow/deny rules for this run only. Per-role limits come from the guard hook.
+ */
+export function claudeCodeAdapter(exec: Exec, cwd: string): RunnerAdapter {
+  return {
+    name: 'claude-code',
+    headless: true,
+    isInstalled: async () => versionOf(exec, 'claude', cwd) !== null,
+    buildCommand: ({ agent, prompt }) => ({
+      cmd: 'claude',
+      args: ['-p', prompt, '--agent', agent, '--permission-mode', 'dontAsk', '--settings', CLAUDE_RUN_SETTINGS],
+    }),
+    installHint: 'Install Claude Code (https://code.claude.com/docs/en/setup), then run "claude" once to log in.',
+  };
+}
+
 export function antigravityAdapter(): RunnerAdapter {
   return {
     name: 'antigravity',
@@ -86,6 +105,8 @@ export function adapterFor(config: AgentConfig, env: KitEnv, exec: Exec, cwd: st
       return customAdapter(env.AGENT_CMD, taskId);
     case 'antigravity':
       return antigravityAdapter();
+    case 'claude-code':
+      return claudeCodeAdapter(exec, cwd);
     default:
       throw new KitError(`runner "${config.pipeline.runner}" is not supported yet. Use opencode or custom.`);
   }

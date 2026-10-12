@@ -13,6 +13,7 @@ import {
   type AgentConfig,
   type ResolvedSkill,
 } from '@tossana/agents-core';
+import { claudeKitFiles } from './claude.js';
 import { readManifest } from './kit-manifest.js';
 import { pipelineVars, roleTemplate, roleVars } from './role-vars.js';
 import { KIT_VERSION } from './version.js';
@@ -90,25 +91,34 @@ export function kitFiles(
   const add = (path: string, template: string, v: Record<string, string>) =>
     files.push({ path, content: withManagedHeader(render(readTemplate(template), v, template)) });
 
-  add('.opencode/agents/orchestrator.md', 'opencode/agents/orchestrator.md', all);
-  for (const role of roles) {
-    add(`.opencode/agents/${role.name}.md`, `opencode/agents/${roleTemplate(role)}.md`, {
-      ...all,
-      ...roleVars(config, role, skills, all),
+  // OpenCode agents are also the instruction source for Antigravity (its wrappers read them) and Claude Code.
+  const opencode: KitFile[] = [];
+  const agent = (name: string, template: string, v: Record<string, string>) =>
+    opencode.push({
+      path: `.opencode/agents/${name}.md`,
+      content: withManagedHeader(render(readTemplate(template), v, template)),
     });
+  agent('orchestrator', 'opencode/agents/orchestrator.md', all);
+  for (const role of roles) {
+    agent(role.name, `opencode/agents/${roleTemplate(role)}.md`, { ...all, ...roleVars(config, role, skills, all) });
   }
+  const tools = new Set(config.tools);
+  if (tools.has('opencode') || tools.has('antigravity')) files.push(...opencode);
   files.push({
     path: 'AGENTS.md',
     content: withManagedHeader(render(readTemplate('AGENTS.base.md'), all, 'AGENTS.base.md')),
   });
-  for (const name of ANTIGRAVITY_SKILLS) add(`.agents/${name}`, `antigravity/${name}`, all);
-  for (const role of roles) {
-    const wrapper = roleTemplate(role) === 'planner' ? 'reviewer' : roleTemplate(role);
-    add(`.agents/agents/${role.name}.md`, `antigravity/agents/${wrapper}.md`, {
-      ...all,
-      ...roleVars(config, role, skills, all),
-    });
+  if (tools.has('antigravity')) {
+    for (const name of ANTIGRAVITY_SKILLS) add(`.agents/${name}`, `antigravity/${name}`, all);
+    for (const role of roles) {
+      const wrapper = roleTemplate(role) === 'planner' ? 'reviewer' : roleTemplate(role);
+      add(`.agents/agents/${role.name}.md`, `antigravity/agents/${wrapper}.md`, {
+        ...all,
+        ...roleVars(config, role, skills, all),
+      });
+    }
   }
+  if (tools.has('claude-code')) files.push(...claudeKitFiles(config, opencode, `# ${MANAGED_TEXT(KIT_VERSION)}`));
   for (const skill of skills.values()) if (skill.scope === 'team') files.push(...skillFiles(skill.name));
   return files;
 }

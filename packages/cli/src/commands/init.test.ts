@@ -87,6 +87,7 @@ describe('init --yes', () => {
       },
       commands: { install: 'pnpm install', lint: 'pnpm lint', typecheck: 'pnpm typecheck', test: 'pnpm test' },
       figma: { enabled: false },
+      tools: ['opencode', 'antigravity'],
       pipeline: {
         maxRounds: 5,
         branchPrefix: 'task/',
@@ -342,6 +343,10 @@ describe('init interactive', () => {
         return true;
       },
       text: async (_m, initial) => initial ?? '',
+      multiselect: async (message, _choices, initial) => {
+        asked.push(message);
+        return [...initial, 'claude-code'] as never;
+      },
       password: async (message) => {
         asked.push(message);
         return TOKEN;
@@ -368,6 +373,7 @@ describe('init interactive', () => {
       'Skill for the coder',
       'Use these commands?',
       'Does this project use Figma designs?',
+      'Which agent tools does the team use? (files are generated for each)',
       expect.stringContaining('Your ClickUp API token'),
       "Which ClickUp list holds this project's tasks?",
       expect.stringContaining('Status mapping: todo → "to do"'),
@@ -377,6 +383,9 @@ describe('init interactive', () => {
     expect(JSON.parse(read(project, 'agent.config.json')).clickup).toMatchObject({ listId: 'L1', workspaceId: 'W9' });
     expect(JSON.parse(read(project, 'agent.config.json')).figma).toEqual({ enabled: true });
     expect(existsSync(join(project.dir, 'opencode.json'))).toBe(true);
+    expect(JSON.parse(read(project, 'agent.config.json')).tools).toEqual(['opencode', 'antigravity', 'claude-code']);
+    expect(existsSync(join(project.dir, '.claude', 'agents', 'orchestrator.md'))).toBe(true);
+    expect(read(project, '.mcp.json')).toContain('"figma"');
     expect(out).not.toContain(TOKEN);
     for (const file of Object.keys(snapshot(project.dir)).filter((f) => !f.endsWith('.env'))) {
       expect(readFileSync(join(project.dir, file), 'utf8')).not.toContain(TOKEN);

@@ -80,6 +80,7 @@ describe('update', () => {
         return true;
       },
       text: async () => '',
+      multiselect: async (_m, _c, initial) => initial,
       password: async () => '',
     };
     let out = '';

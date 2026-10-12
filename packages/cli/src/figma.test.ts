@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 import { parseConfig } from '@tossana/agents-core';
-import { ANTIGRAVITY_MCP_CONFIG, OPENCODE_CONFIG, applyFigmaMcp, figmaChecks } from './figma.js';
+import { ANTIGRAVITY_MCP_CONFIG, CLAUDE_MCP_CONFIG, OPENCODE_CONFIG, applyFigmaMcp, figmaChecks } from './figma.js';
 import { CONFIG, LIST, TOKEN, cli, fakeApi, tempProject, type TempProject } from './test-utils.test-helper.js';
 
 let project: TempProject;
@@ -18,7 +18,7 @@ describe('applyFigmaMcp', () => {
     project = tempProject();
     project.write(OPENCODE_CONFIG, { model: 'my/model', mcp: { other: { type: 'local', command: ['x'] } } });
     const results = applyFigmaMcp(project.dir, config({ enabled: true }));
-    expect(results.map((r) => r.action)).toEqual(['added', 'added']);
+    expect(results.slice(0, 2).map((r) => r.action)).toEqual(['added', 'added']);
     expect(readJson(OPENCODE_CONFIG)).toEqual({
       model: 'my/model',
       mcp: {
@@ -29,19 +29,21 @@ describe('applyFigmaMcp', () => {
     expect(readJson(ANTIGRAVITY_MCP_CONFIG)).toEqual({
       mcpServers: { figma: { serverUrl: 'http://127.0.0.1:3845/mcp' } },
     });
-    expect(applyFigmaMcp(project.dir, config({ enabled: true })).map((r) => r.action)).toEqual([
-      'unchanged',
-      'unchanged',
-    ]);
+    expect(
+      applyFigmaMcp(project.dir, config({ enabled: true }))
+        .slice(0, 2)
+        .map((r) => r.action),
+    ).toEqual(['unchanged', 'unchanged']);
   });
 
   it('switches to the remote server (OAuth, no token stored) and removes only its own entry when disabled', () => {
     project = tempProject();
     applyFigmaMcp(project.dir, config({ enabled: true }));
-    expect(applyFigmaMcp(project.dir, config({ enabled: true, server: 'remote' })).map((r) => r.action)).toEqual([
-      'updated',
-      'updated',
-    ]);
+    expect(
+      applyFigmaMcp(project.dir, config({ enabled: true, server: 'remote' }))
+        .slice(0, 2)
+        .map((r) => r.action),
+    ).toEqual(['updated', 'updated']);
     expect(readJson(OPENCODE_CONFIG).mcp.figma).toEqual({
       type: 'remote',
       url: 'https://mcp.figma.com/mcp',
@@ -56,14 +58,29 @@ describe('applyFigmaMcp', () => {
 
   it('leaves a figma server the user set up differently, and never creates files when disabled', () => {
     project = tempProject();
-    expect(applyFigmaMcp(project.dir, config({ enabled: false })).map((r) => r.action)).toEqual([
-      'unchanged',
-      'unchanged',
-    ]);
+    expect(
+      applyFigmaMcp(project.dir, config({ enabled: false }))
+        .slice(0, 2)
+        .map((r) => r.action),
+    ).toEqual(['unchanged', 'unchanged']);
     expect(existsSync(join(project.dir, OPENCODE_CONFIG))).toBe(false);
     project.write(OPENCODE_CONFIG, { mcp: { figma: { type: 'local', command: ['my-figma'] } } });
     applyFigmaMcp(project.dir, config({ enabled: false }));
     expect(readJson(OPENCODE_CONFIG).mcp.figma).toEqual({ type: 'local', command: ['my-figma'] });
+  });
+
+  it('adds Figma to .mcp.json only when Claude Code is one of the tools', () => {
+    project = tempProject();
+    applyFigmaMcp(project.dir, config({ enabled: true }));
+    expect(existsSync(join(project.dir, CLAUDE_MCP_CONFIG))).toBe(false);
+    project.write(CLAUDE_MCP_CONFIG, { mcpServers: { mine: { type: 'stdio', command: 'x' } } });
+    const withClaude = parseConfig({ ...CONFIG, figma: { enabled: true }, tools: ['claude-code'] });
+    expect(applyFigmaMcp(project.dir, withClaude)[2]!.action).toBe('added');
+    expect(readJson(CLAUDE_MCP_CONFIG)).toEqual({
+      mcpServers: { mine: { type: 'stdio', command: 'x' }, figma: { type: 'http', url: 'http://127.0.0.1:3845/mcp' } },
+    });
+    applyFigmaMcp(project.dir, config({ enabled: true }));
+    expect(readJson(CLAUDE_MCP_CONFIG)).toEqual({ mcpServers: { mine: { type: 'stdio', command: 'x' } } });
   });
 
   it('does not touch a JSONC file and says what to add by hand', () => {

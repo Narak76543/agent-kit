@@ -6,6 +6,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import type { Command } from 'commander';
 import {
+  AGENT_TOOLS,
   CONFIG_FILE,
   DEFAULT_STATUSES,
   ENV_FILE,
@@ -23,11 +24,13 @@ import {
   type AgentConfig,
   type ClickUpClient,
   type ClickUpStatus,
+  type AgentTool,
   type ProjectType,
   type Role,
 } from '@tossana/agents-core';
 import { wrongAccountHint } from '../account-hint.js';
-import { applyFigmaMcp, printFigmaResults } from '../figma.js';
+import { applyClaudeSettings } from '../claude.js';
+import { applyFigmaMcp, printFigmaResults, printMergeResults } from '../figma.js';
 import { createClient, type CliContext } from '../context.js';
 import { applyKitFiles, findMarker, printKitFileResults } from '../kit-files.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
@@ -43,6 +46,26 @@ export interface InitOptions {
   force?: boolean;
   doctor?: boolean;
   figma?: boolean;
+  tools?: string;
+}
+
+const DEFAULT_TOOLS: AgentTool[] = ['opencode', 'antigravity'];
+const TOOL_LABELS: Record<AgentTool, string> = {
+  opencode: 'OpenCode',
+  antigravity: 'Antigravity',
+  'claude-code': 'Claude Code',
+};
+
+function parseTools(list: string): AgentTool[] {
+  const tools = list
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const bad = tools.filter((t) => !(AGENT_TOOLS as readonly string[]).includes(t));
+  if (bad.length || !tools.length) {
+    throw new KitError(`unknown tool(s) ${bad.join(', ') || '(none)'}. Use: ${AGENT_TOOLS.join(', ')}`);
+  }
+  return [...new Set(tools)] as AgentTool[];
 }
 
 /** Project types without a UI: Figma support is off unless asked for. */
@@ -73,6 +96,7 @@ export function registerInitCommand(program: Command, ctx: CliContext, prompts: 
     .option('--no-doctor', 'do not run doctor at the end')
     .option('--figma', 'agents read Figma designs linked in tasks (Figma MCP server, read only)')
     .option('--no-figma', 'no Figma support')
+    .option('--tools <list>', `agent tools to generate files for, comma-separated (${AGENT_TOOLS.join(', ')})`)
     .action(async (opts: InitOptions) => {
       if (!opts.yes && !ctx.io.interactive) {
         throw new KitError('init needs answers: run it in a terminal, or pass --yes (and --list <listId>)');
@@ -142,6 +166,16 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
   let figma = opts.figma ?? existing?.figma.enabled ?? (prompts ? !NO_UI_TYPES.includes(type) : false);
   if (prompts && opts.figma === undefined) {
     figma = await prompts.confirm('Does this project use Figma designs?', figma);
+  }
+
+  // Agent tools: files are generated for each one (several allowed).
+  let tools = opts.tools ? parseTools(opts.tools) : (existing?.tools ?? [...DEFAULT_TOOLS]);
+  if (prompts && !opts.tools) {
+    tools = await prompts.multiselect(
+      'Which agent tools does the team use? (files are generated for each)',
+      AGENT_TOOLS.map((t) => ({ value: t, label: TOOL_LABELS[t] })),
+      tools,
+    );
   }
 
   // 3. token
@@ -225,6 +259,7 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
     },
     commands: dropEmpty(commands),
     figma: { ...(rawExisting.figma as object), enabled: figma },
+    tools,
     pipeline: { ...(rawExisting.pipeline as object) },
   };
   const config = parseConfig(raw);
@@ -256,6 +291,7 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
   log('\nKit files:');
   printKitFileResults(ctx, results);
   printFigmaResults(ctx, applyFigmaMcp(ctx.cwd, config));
+  printMergeResults(ctx, applyClaudeSettings(ctx.cwd, config, vars['kit.cmd']!), 'Claude Code');
   if (unmarkedAgentsMd) {
     log(
       '  Note: your old AGENTS.md is kept unchanged below <!-- PROJECT -->. Remove rules that are now in the kit part above it.',

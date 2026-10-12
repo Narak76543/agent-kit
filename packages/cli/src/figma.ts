@@ -17,6 +17,7 @@ export const FIGMA_READ_TOOLS = ['get_design_context', 'get_metadata', 'get_vari
 
 export const OPENCODE_CONFIG = 'opencode.json';
 export const ANTIGRAVITY_MCP_CONFIG = '.agents/mcp_config.json';
+export const CLAUDE_MCP_CONFIG = '.mcp.json';
 
 const OUR_URLS = new Set(Object.values(FIGMA_MCP_URL));
 const stripBom = (s: string) => (s.charCodeAt(0) === 0xfeff ? s.slice(1) : s);
@@ -47,6 +48,16 @@ export function applyFigmaMcp(cwd: string, config: AgentConfig): FigmaFileResult
       $schema: 'https://opencode.ai/config.json',
     }),
     mergeEntry(cwd, ANTIGRAVITY_MCP_CONFIG, 'mcpServers', config.figma.enabled ? antigravityEntry(config) : null, {}),
+    // Claude Code's project MCP file (https://code.claude.com/docs/en/mcp), only when Claude Code is used.
+    mergeEntry(
+      cwd,
+      CLAUDE_MCP_CONFIG,
+      'mcpServers',
+      config.figma.enabled && config.tools.includes('claude-code')
+        ? { type: 'http', url: FIGMA_MCP_URL[config.figma.server] }
+        : null,
+      {},
+    ),
   ];
 }
 
@@ -87,9 +98,14 @@ function mergeEntry(cwd: string, rel: string, key: string, entry: Json | null, b
 }
 
 export function printFigmaResults(ctx: CliContext, results: FigmaFileResult[]): void {
+  printMergeResults(ctx, results, 'Figma MCP server');
+}
+
+/** Prints merged (not kit-owned) config files: only the kit's own entries were added or removed. */
+export function printMergeResults(ctx: CliContext, results: FigmaFileResult[], what: string): void {
   for (const r of results) {
-    if (r.action === 'manual') ctx.logger.warn(`  Figma: ${r.hint}`);
-    else if (r.action !== 'unchanged') ctx.logger.info(`  ${r.action.padEnd(8)} ${r.path} (Figma MCP server)`);
+    if (r.action === 'manual') ctx.logger.warn(`  ${what}: ${r.hint}`);
+    else if (r.action !== 'unchanged') ctx.logger.info(`  ${r.action.padEnd(8)} ${r.path} (${what})`);
   }
 }
 

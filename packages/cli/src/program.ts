@@ -3,6 +3,7 @@ import { Command, CommanderError } from 'commander';
 import { DoneGuardError, KitError, clickUpErrorHint } from '@tossana/agents-core';
 import { registerClickupCommands } from './commands/clickup.js';
 import { registerDoctorCommand } from './commands/doctor.js';
+import { registerGuardCommand } from './commands/guard.js';
 import { registerInitCommand } from './commands/init.js';
 import { registerRunCommand } from './commands/run.js';
 import { registerUpdateCommand } from './commands/update.js';
@@ -26,6 +27,7 @@ export function createProgram(ctx: CliContext): Command {
 
   registerClickupCommands(program, ctx);
   registerDoctorCommand(program, ctx);
+  registerGuardCommand(program, ctx);
   registerInitCommand(program, ctx, ctx.prompts);
   registerRunCommand(program, ctx);
   registerUpdateCommand(program, ctx, ctx.prompts);
