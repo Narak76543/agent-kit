@@ -26,6 +26,7 @@ import {
   type Role,
 } from '@tossana/agents-core';
 import { wrongAccountHint } from '../account-hint.js';
+import { applyFigmaMcp, printFigmaResults } from '../figma.js';
 import { createClient, type CliContext } from '../context.js';
 import { applyKitFiles, findMarker, printKitFileResults } from '../kit-files.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
@@ -40,7 +41,11 @@ export interface InitOptions {
   skill?: string;
   force?: boolean;
   doctor?: boolean;
+  figma?: boolean;
 }
+
+/** Project types without a UI: Figma support is off unless asked for. */
+const NO_UI_TYPES: ProjectType[] = ['node-backend', 'other'];
 
 export const SCHEMA_PATH = './node_modules/@tossana/agents/schema/agent.config.schema.json';
 
@@ -65,6 +70,8 @@ export function registerInitCommand(program: Command, ctx: CliContext, prompts: 
     .option('--skill <skill>', 'skill for the coder (e.g. mobile-master)')
     .option('--force', 'replace kit files you edited locally (a backup is kept)')
     .option('--no-doctor', 'do not run doctor at the end')
+    .option('--figma', 'agents read Figma designs linked in tasks (Figma MCP server, read only)')
+    .option('--no-figma', 'no Figma support')
     .action(async (opts: InitOptions) => {
       if (!opts.yes && !ctx.io.interactive) {
         throw new KitError('init needs answers: run it in a terminal, or pass --yes (and --list <listId>)');
@@ -125,6 +132,12 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
         test: await ask('test'),
       };
     }
+  }
+
+  // Figma: default yes for UI projects, no for backends; --yes keeps the existing setting.
+  let figma = opts.figma ?? existing?.figma.enabled ?? (prompts ? !NO_UI_TYPES.includes(type) : false);
+  if (prompts && opts.figma === undefined) {
+    figma = await prompts.confirm('Does this project use Figma designs?', figma);
   }
 
   // 3. token
@@ -207,6 +220,7 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
       statuses,
     },
     commands: dropEmpty(commands),
+    figma: { ...(rawExisting.figma as object), enabled: figma },
     pipeline: { ...(rawExisting.pipeline as object) },
   };
   const config = parseConfig(raw);
@@ -237,6 +251,7 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
   });
   log('\nKit files:');
   printKitFileResults(ctx, results);
+  printFigmaResults(ctx, applyFigmaMcp(ctx.cwd, config));
   if (unmarkedAgentsMd) {
     log(
       '  Note: your old AGENTS.md is kept unchanged below <!-- PROJECT -->. Remove rules that are now in the kit part above it.',

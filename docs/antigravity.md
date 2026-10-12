@@ -67,6 +67,35 @@ names (`view_file`, `replace_file_content`, `grep_search`, `run_command`), so ch
 5. If a name is wrong: tell the kit maintainer. The fix goes in `packages/templates/antigravity/agents/`.
    Do not edit the files in the project (`update` would replace them).
 
+## Figma in Antigravity
+
+If the project uses Figma (`figma.enabled` in `agent.config.json`, see
+[getting-started.md](./getting-started.md#figma-designs-optional)), `init` writes the project MCP config
+`.agents/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "figma": { "serverUrl": "http://127.0.0.1:3845/mcp" }
+  }
+}
+```
+
+Antigravity reads this file for the workspace (the per-user file `~/.gemini/config/mcp_config.json` is not
+needed). Figma lists Antigravity in its MCP catalog as **local server only, read only**, so use the desktop server.
+
+Steps for each developer:
+
+1. Open the Figma desktop app, log in with your own account (Dev or Full seat), open a design file, press
+   Shift+D (Dev Mode) and click **Enable desktop MCP server**.
+2. Open the project in Antigravity. Open **Agent settings → Customizations → MCP servers**. `figma` should be
+   listed and connected. If not, click refresh, or check that the Figma app is still open.
+3. Test it in the chat: "Use the figma MCP server to call whoami." It should answer with your Figma account.
+4. Then use `/start-task <taskId>` as usual.
+
+In Antigravity, the main agent (the orchestrator) reads each Figma frame once and saves a summary to the handoff
+file. The coder and reviewer subagents use that summary, because subagents may not have the Figma tools.
+
 ## `/explore`
 
 Type `/explore` to refresh the synced ClickUp specs (`clickup sync-docs`) and update the project part of

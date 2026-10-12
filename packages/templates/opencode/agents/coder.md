@@ -12,6 +12,7 @@ permission:
   glob: allow
   grep: allow
   lsp: allow
+{{perm.figma}}
   edit:
     "*": allow
 {{perm.editDeny}}
@@ -74,6 +75,7 @@ in the command line.
 
 - Fix **every** issue you were given (reviewer `Issues`, tester `Issues`, human comments) — and nothing
   unrelated. If you disagree with an issue, don't silently skip it: explain why under Issues.
+{{figma.coder}}
 
 ## Before you hand over
 

@@ -19,6 +19,7 @@ frontmatter: that is OpenCode permission config). `AGENTS.md` rules always apply
 The procedure expects the task branch to exist. Run `git branch --show-current`. If it is not
 `{{pipeline.branchPrefix}}<taskId>`, run `{{kit.cmd}} run --task <taskId> --no-agent` once (it checks the task,
 refuses a dirty tree and creates or switches to the branch). If that command fails, report its output and stop.
+{{figma.startTask}}
 
 ## How to "invoke" a role in Antigravity
 

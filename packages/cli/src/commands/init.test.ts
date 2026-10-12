@@ -86,6 +86,7 @@ describe('init --yes', () => {
         },
       },
       commands: { install: 'pnpm install', lint: 'pnpm lint', typecheck: 'pnpm typecheck', test: 'pnpm test' },
+      figma: { enabled: false },
       pipeline: {
         maxRounds: 5,
         branchPrefix: 'task/',
@@ -366,6 +367,7 @@ describe('init interactive', () => {
       expect.stringContaining('Project type (detected: react-native'),
       'Skill for the coder',
       'Use these commands?',
+      'Does this project use Figma designs?',
       expect.stringContaining('Your ClickUp API token'),
       "Which ClickUp list holds this project's tasks?",
       expect.stringContaining('Status mapping: todo → "to do"'),
@@ -373,6 +375,8 @@ describe('init interactive', () => {
     ]);
     expect(read(project, '.env')).toBe(`CLICKUP_API_TOKEN=${TOKEN}\nCLICKUP_OWNER_USER_ID=777\n`);
     expect(JSON.parse(read(project, 'agent.config.json')).clickup).toMatchObject({ listId: 'L1', workspaceId: 'W9' });
+    expect(JSON.parse(read(project, 'agent.config.json')).figma).toEqual({ enabled: true });
+    expect(existsSync(join(project.dir, 'opencode.json'))).toBe(true);
     expect(out).not.toContain(TOKEN);
     for (const file of Object.keys(snapshot(project.dir)).filter((f) => !f.endsWith('.env'))) {
       expect(readFileSync(join(project.dir, file), 'utf8')).not.toContain(TOKEN);

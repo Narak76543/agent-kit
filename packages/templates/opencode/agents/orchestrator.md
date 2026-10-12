@@ -68,6 +68,7 @@ text in the command line: quotes break on Windows.
    - none
    Next: coder
    ```
+{{figma.orchestrator}}
 
 ## 1. Loop — round = 1 … {{pipeline.maxRounds}}
 

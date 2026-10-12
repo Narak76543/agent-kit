@@ -11,6 +11,7 @@ import { loadProject, requireConfig, type CliContext } from '../context.js';
 import { applyKitFiles, printKitFileResults } from '../kit-files.js';
 import { readManifest } from '../kit-manifest.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
+import { applyFigmaMcp, printFigmaResults } from '../figma.js';
 import { templateVars } from '../template-vars.js';
 import { kitFiles, readTemplate, render } from '../templates.js';
 import { KIT_VERSION } from '../version.js';
@@ -36,5 +37,6 @@ export function registerUpdateCommand(program: Command, ctx: CliContext, prompts
       });
       ctx.logger.info(`Kit files ${before && before !== KIT_VERSION ? `v${before} → ` : ''}v${KIT_VERSION}:`);
       printKitFileResults(ctx, results);
+      printFigmaResults(ctx, applyFigmaMcp(ctx.cwd, config));
     });
 }

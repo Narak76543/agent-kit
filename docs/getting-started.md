@@ -161,6 +161,54 @@ At the end you get a notification (if `CLICKUP_OWNER_USER_ID` is set in `.env`):
 To ask for changes: write a normal comment on the task (no `[AGENT: …]` tag) and run
 `run --task <taskId>` again. The agents read your comment first and continue on the same branch.
 
+## Figma designs (optional)
+
+If your tasks link to Figma designs, the agents can read them through Figma's official MCP server (read only).
+The coder builds the design with your project's components and design tokens, and the reviewer compares the result
+with the Figma frame. Tasks without a Figma link work exactly as before.
+
+### Turn it on
+
+`init` asks "Does this project use Figma designs?" (default: yes for app and web projects, no for backends).
+Or run `npx tossana-agents init --figma` (and `--no-figma` to turn it off). This adds a `figma` server to:
+
+- `opencode.json` (OpenCode), and
+- `.agents/mcp_config.json` (Antigravity).
+
+The kit only adds or removes its own `figma` entry. Your other settings in these files stay. **No Figma token is
+ever saved in the project.** Commit both files.
+
+### Which Figma server
+
+| `figma.server` in `agent.config.json` | How it works                                                                       |
+| ------------------------------------- | ---------------------------------------------------------------------------------- |
+| `desktop` (default)                   | The Figma desktop app runs a local server. No token, you are logged in to the app. |
+| `remote`                              | Figma's hosted server with your own Figma login (OAuth).                           |
+
+We use `desktop` because Figma's hosted server only accepts the apps in Figma's MCP catalog. Antigravity is
+listed there as "local server only", and OpenCode is not listed. Check the catalog
+(figma.com/mcp-catalog) if you want to try `remote`; after changing it, run `init` again.
+
+### Every developer, once
+
+1. Install the **Figma desktop app** and log in with **your own** Figma account.
+2. You need a **Dev or Full seat**. View and Collab seats get only **20 Figma MCP calls per month**, which is not
+   enough for agents.
+3. Open any design file, switch to **Dev Mode** (Shift+D), and in the right panel click
+   **Enable desktop MCP server**.
+4. Keep the Figma app open while the agents work on a task with a Figma link.
+5. Run `npx tossana-agents doctor`. It checks the config files and whether the Figma server is running.
+6. For `remote` instead: run `opencode mcp auth figma` once and log in in the browser.
+
+### Writing tasks with designs
+
+Paste the link to the **frame** (right-click the frame → Copy link to selection) into the task description. The
+link has `node-id=` in it. Link one frame per screen or component.
+
+To save Figma calls, the coder reads each frame **once per task** and saves a summary in
+`.agents/handoff/<taskId>.md`. Later rounds and the reviewer use that summary. If Figma is not available (app
+closed), the agents stop with `NEEDS_HUMAN` instead of guessing the design.
+
 ## Next steps
 
 - Keep the project part of `AGENTS.md` (below `<!-- PROJECT -->`) up to date. Agents follow it.

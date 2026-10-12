@@ -12,6 +12,7 @@ permission:
   glob: allow
   grep: allow
   lsp: allow
+{{perm.figma}}
   edit:
     "*": deny
 {{perm.tmpEdit}}
@@ -60,6 +61,7 @@ To post a comment, write the text to `.agents/tmp/<taskId>-reviewer.md`, then ru
 **Blocking** = wrong behavior, spec not met, crash risk, security issue, or an `AGENTS.md` rule broken.
 Style nits are not blocking: mention them after "Nits:" in the Summary at most. Do not invent problems to
 look thorough. If there are zero blocking issues, the result is APPROVED.
+{{figma.reviewer}}
 
 ## Report
 

@@ -22,6 +22,7 @@ import {
   type KitEnv,
 } from '@tossana/agents-core';
 import { wrongAccountHint } from '../account-hint.js';
+import { figmaChecks } from '../figma.js';
 import { SilentExit, createClient, type CliContext } from '../context.js';
 import { versionOf } from '../exec.js';
 import { MANIFEST_PATH, projectPath, readManifest } from '../kit-manifest.js';
@@ -218,6 +219,9 @@ export async function runDoctor(ctx: CliContext): Promise<Check[]> {
     if (missing) missing.hint = await wrongAccountHint(client!);
     checks.push(...listChecks);
   }
+
+  // ---------- Figma (optional) ----------
+  if (config) checks.push(...(await figmaChecks(ctx.cwd, config, ctx.fetch ?? fetch)));
 
   // ---------- runner ----------
   if (config) add(runnerCheck(ctx, config, env));

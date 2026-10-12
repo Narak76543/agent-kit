@@ -5,6 +5,8 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROLES, type AgentConfig } from '@tossana/agents-core';
+import { FIGMA_READ_TOOLS, FIGMA_SERVER_NAME } from './figma.js';
+import { readTemplate } from './templates.js';
 import { KIT_VERSION } from './version.js';
 
 const KIT_PREFIXES = ['tossana-agents', 'npx tossana-agents'];
@@ -101,6 +103,7 @@ export function templateVars(
   const cmds = (['install', 'lint', 'typecheck', 'test'] as const).filter((k) => commands[k]);
   const gate = (['lint', 'typecheck', 'test'] as const).flatMap((k) => (commands[k] ? [`\`${commands[k]}\``] : []));
   const kind = testKind(project.type);
+  const figmaText = (name: string) => (config.figma.enabled ? readTemplate(`figma/${name}.md`) : '');
 
   const kitRules = (subcommands: string[]) =>
     lines(KIT_PREFIXES.flatMap((p) => subcommands.map((s) => rule(`${p} clickup ${s}`, 'allow'))));
@@ -128,6 +131,12 @@ export function templateVars(
       : '| (none yet) | set "commands" in agent.config.json |',
     'tests.description': TEST_DESCRIPTION[kind]!,
     'perm.readDeny': lines([rule('*.env', 'deny'), rule('*.env.*', 'deny'), rule('*.env.example', 'allow')]),
+    // Optional Figma support: empty (line removed) unless figma.enabled.
+    'perm.figma': config.figma.enabled ? lines(FIGMA_READ_TOOLS.map((t) => `  ${FIGMA_SERVER_NAME}_${t}: allow`)) : '',
+    'figma.orchestrator': figmaText('orchestrator'),
+    'figma.coder': figmaText('coder'),
+    'figma.reviewer': figmaText('reviewer'),
+    'figma.startTask': figmaText('start-task'),
     'perm.tmpEdit': lines(pathRules(TMP_EDIT, 'allow')),
     'perm.testEdit': lines(pathRules(TEST_GLOBS[kind]!, 'allow')),
     'perm.editDeny': lines([

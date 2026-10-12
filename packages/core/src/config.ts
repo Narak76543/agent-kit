@@ -55,6 +55,15 @@ const statusesSchema = z
     }
   });
 
+export const FIGMA_SERVERS = ['desktop', 'remote'] as const;
+export type FigmaServer = (typeof FIGMA_SERVERS)[number];
+
+/** Figma MCP endpoints (https://developers.figma.com/docs/figma-mcp-server/). */
+export const FIGMA_MCP_URL: Record<FigmaServer, string> = {
+  desktop: 'http://127.0.0.1:3845/mcp',
+  remote: 'https://mcp.figma.com/mcp',
+};
+
 const command = z.string().trim().describe('Shell command, run from the project root');
 
 export const configSchema = z
@@ -84,6 +93,21 @@ export const configSchema = z
         lint: command.optional(),
         typecheck: command.optional(),
         test: command.optional(),
+      })
+      .prefault({}),
+    figma: z
+      .object({
+        enabled: z
+          .boolean()
+          .default(false)
+          .describe('Agents read Figma designs linked in tasks through the Figma MCP server (read only)'),
+        server: z
+          .enum(FIGMA_SERVERS)
+          .default('desktop')
+          .describe(
+            'desktop = the Figma desktop app (Dev Mode → enable desktop MCP server); ' +
+              "remote = Figma's hosted server (OAuth; only clients in Figma's MCP catalog can connect)",
+          ),
       })
       .prefault({}),
     pipeline: z
