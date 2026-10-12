@@ -9,6 +9,7 @@ import spawn from 'cross-spawn';
 import type { Command } from 'commander';
 import {
   KitError,
+  RUNNERS,
   isClosedType,
   isValidTaskId,
   parseAgentComment,
@@ -18,6 +19,7 @@ import {
   type ClickUpClient,
 } from '@tossana/agents-core';
 import { createClient, loadProject, requireConfig, type CliContext } from '../context.js';
+import { assertToolFiles, recordRunStart, resumeTask } from './resume.js';
 import { ORCHESTRATOR, adapterFor, formatCommand, taskPrompt, type RunnerCommand } from '../runners.js';
 
 export interface RunOptions {
@@ -27,6 +29,12 @@ export interface RunOptions {
   dryRun?: boolean;
   /** commander's --no-agent sets agent=false */
   agent?: boolean;
+  /** Continue a task another tool started (keeps the branch and the round). */
+  resume?: boolean;
+  /** Use this runner instead of pipeline.runner for this run. */
+  runner?: string;
+  /** With --resume: commit leftover changes without asking. */
+  yes?: boolean;
 }
 
 export const LOG_DIR = join('.agents', 'logs');
@@ -40,6 +48,9 @@ export function registerRunCommand(program: Command, ctx: CliContext): void {
     .option('--all', 'run all "todo" tasks assigned to me, one at a time')
     .option('--dry-run', 'show what would happen (and the exact command) without changing anything')
     .option('--no-agent', 'only prepare the task branch (then work in OpenCode/Antigravity yourself)')
+    .option('--resume', 'continue a task another tool started: keeps its branch and round (with --task)')
+    .option('--runner <runner>', `use this runner for this run (${RUNNERS.join(', ')})`)
+    .option('-y, --yes', 'with --resume: commit leftover changes as "WIP: handoff from …" without asking')
     .action((opts: RunOptions) => runTasks(ctx, opts));
 }
 
@@ -53,8 +64,25 @@ export async function runTasks(ctx: CliContext, opts: RunOptions): Promise<void>
   if (modes !== 1) throw new KitError('choose one: --task <taskId>, --next or --all');
 
   const project = loadProject(ctx);
-  const config = requireConfig(project);
+  const config = withRunner(requireConfig(project), opts.runner);
   const log = (s: string) => ctx.logger.info(s);
+  if (opts.resume) {
+    if (!opts.task) throw new KitError('--resume needs --task <taskId>');
+    const client = opts.dryRun ? null : createClient(ctx, project);
+    return resumeTask(
+      ctx,
+      project,
+      config,
+      client,
+      { ...opts, task: opts.task },
+      {
+        git: (args) => git(ctx, args),
+        runAgent: (command) => runAgent(ctx, command, opts.task!, config.pipeline.timeoutMinutes),
+        lastResult,
+      },
+    );
+  }
+  if (opts.runner) assertToolFiles(ctx.cwd, config, config.pipeline.runner);
   const todo = statusForRole(config, 'todo');
 
   // A dry run for one task needs no ClickUp access at all.
@@ -102,6 +130,7 @@ export async function runTasks(ctx: CliContext, opts: RunOptions): Promise<void>
     }
 
     prepareBranch(ctx, config, branch);
+    recordRunStart(ctx, task.id, config.pipeline.runner);
     log(`[run] on branch ${branch}`);
 
     if (!command) {
@@ -139,6 +168,15 @@ export async function runTasks(ctx: CliContext, opts: RunOptions): Promise<void>
     for (const line of summary) log(`  ${line}`);
     log('  Nothing was pushed. Review the task branch(es) locally.');
   }
+}
+
+/** `--runner` overrides pipeline.runner for this run only. */
+function withRunner(config: AgentConfig, runner: string | undefined): AgentConfig {
+  if (!runner) return config;
+  if (!(RUNNERS as readonly string[]).includes(runner)) {
+    throw new KitError(`unknown runner "${runner}". Use one of: ${RUNNERS.join(', ')}`);
+  }
+  return { ...config, pipeline: { ...config.pipeline, runner: runner as AgentConfig['pipeline']['runner'] } };
 }
 
 async function myTodoTasks(client: ClickUpClient, config: AgentConfig, limit: number): Promise<TaskRef[]> {

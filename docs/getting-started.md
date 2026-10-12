@@ -130,6 +130,30 @@ Other ways to run:
 - `run --all`: all your "to do" tasks, one after another.
 - `run --task <taskId> --no-agent`: only create the branch. Then work with the agents yourself.
 
+## Switching tools mid-task
+
+If one tool stops in the middle of a task (for example you hit your usage limit in Antigravity), another tool can
+finish it:
+
+```
+npx tossana-agents run --task <taskId> --resume --runner codex
+```
+
+`--runner` is `opencode`, `claude-code`, `codex` or `antigravity`. What happens:
+
+1. The task must be in an agent status (to do, coding, in review, testing). A task in **ready for review** or
+   **done** is never touched.
+2. The kit switches to the existing `task/<taskId>` branch and keeps it. Nothing is reset.
+3. If the previous tool left uncommitted changes, the kit asks before committing them as
+   `WIP: handoff from <previous tool>`. Without a terminal it stops, unless you add `--yes`.
+4. It posts a comment `[AGENT: orchestrator] [RESULT: STARTED] … Resumed with codex after antigravity`, so the
+   task and the dashboard show the switch.
+5. The new tool reads the handoff file, the latest agent comment and the git log first, and continues from that
+   round. If the last turn has no comment (the tool stopped mid-turn), it redoes that turn.
+
+The new tool's files must exist in the project. If they don't, the kit tells you the command to add them
+(`npx tossana-agents init --yes --tools <tools you use>,<new tool>`). Try `--dry-run` first to see the plan.
+
 ## 5. What you see in ClickUp
 
 While the agents work, the task moves through the statuses and gets comments:

@@ -373,3 +373,23 @@ IDs of the personal test workspace are kept out of this repo on purpose (see the
   (`rounded-md`: cards, columns), 10px max (`rounded-lg`); only tiny dots/check icons stay round.
 - Contrast checked for every text/background token pair: dark ≥ 5.79:1, light ≥ 4.75:1.
 - Plan §10.4 updated (dark default, light optional, radius 6/8/10px). The library fixture now shows `.tossana/tmp/`.
+
+### Switching tools mid-task: `run --resume` (done 2026-10-12)
+
+- `tossana-agents run --task <id> --resume [--runner opencode|claude-code|codex|antigravity] [--yes] [--dry-run]`
+  (`packages/cli/src/commands/resume.ts`). `--runner` also works without `--resume` (one-run override).
+- Only agent statuses (todo, coding, review, testing); `human` and closed are refused, nothing posted. Needs the
+  existing `task/<id>` branch (kept, never reset). Leftover changes (tracked or new files) → confirm in a terminal,
+  `--yes` otherwise, then commit `WIP: handoff from <previous tool>`; no → stop.
+- The chosen tool's files must exist (`.opencode/agents/orchestrator.md`, `.claude/agents/orchestrator.md`,
+  `.codex/orchestrator.md`, `.agents/skills/start-task/SKILL.md`), else the error gives the `init --tools` command.
+- Every run now records `Run started with <runner>` in the handoff file; a resume records `Resumed with X after Y`.
+  The previous tool = the last such entry ("an earlier run" if none, e.g. a task started by hand in an IDE).
+- The kit posts `[AGENT: orchestrator] [RESULT: STARTED] [ROUND: <last round>]` "Resumed with X after Y …" (round and
+  `Next` taken from the last agent comment), and the resume prompt tells the orchestrator to read the handoff file,
+  the latest agent comment and `git log <base>..HEAD` first, continue from that round, redo an unfinished turn, and
+  not post another STARTED. Antigravity: the kit prints `/start-task <id>` plus the resume text to paste.
+- Codex: handoff notes are written by `tossana-agents clickup handoff/comment`, which `.codex/rules/tossana.rules`
+  runs outside the sandbox (`.agents/` is read-only inside it); the rule now carries a handoff `match` example, so
+  Codex validates it when it loads the rules. Not run against a real Codex (not installed here).
+- Docs: `docs/getting-started.md` → "Switching tools mid-task". Tests: 11 new (375 total).

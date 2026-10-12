@@ -1,4 +1,5 @@
 /** Runs the CLI in-process against a fake ClickUp API and a temp project folder. */
+import type { Prompts } from './prompts.js';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -73,6 +74,7 @@ export async function cli(
     interactive?: boolean;
     exec?: Exec;
     platform?: NodeJS.Platform;
+    prompts?: Prompts;
   },
 ): Promise<CliResult> {
   let out = '';
@@ -84,6 +86,7 @@ export async function cli(
     now: () => new Date('2026-10-09T12:00:00Z'),
     exec: opts.exec ?? fakeExec(),
     platform: opts.platform ?? 'linux',
+    prompts: opts.prompts,
     io: {
       out: (t) => (out += t),
       err: (t) => (err += t),

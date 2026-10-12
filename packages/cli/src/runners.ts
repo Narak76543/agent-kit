@@ -27,6 +27,15 @@ export const ORCHESTRATOR = 'orchestrator';
 export const taskPrompt = (taskId: string) =>
   `Work on ClickUp task ${taskId}. Follow AGENTS.md and your agent instructions.`;
 
+/** Prompt for `run --resume`: continue where the previous tool stopped, never restart the task. */
+export const resumePrompt = (taskId: string, previous: string, baseBranch: string) =>
+  `Resume ClickUp task ${taskId}; it was being worked on with ${previous}. Do not restart the task. First read ` +
+  `.agents/handoff/${taskId}.md, the latest agent comment (tossana-agents clickup comments ${taskId}) and ` +
+  `git log ${baseBranch}..HEAD, then continue from that point and round. If the last turn has no agent comment ` +
+  `(the tool stopped mid-turn), treat that turn as unfinished and redo it. The STARTED comment for this resume is ` +
+  `already posted and the status is already set: do not post another STARTED comment or reset the status. ` +
+  `Follow AGENTS.md and your agent instructions.`;
+
 export function opencodeAdapter(exec: Exec, cwd: string): RunnerAdapter {
   return {
     name: 'opencode',

@@ -94,13 +94,21 @@ export function codexKitFiles(config: AgentConfig, opencode: KitFile[], managedH
   return files;
 }
 
-const rule = (pattern: (string | string[])[], decision: 'allow' | 'forbidden', justification: string, match: string) =>
+const rule = (
+  pattern: (string | string[])[],
+  decision: 'allow' | 'forbidden',
+  justification: string,
+  match: string | string[],
+) =>
   [
     'prefix_rule(',
     `    pattern = ${JSON.stringify(pattern).replace(/,/g, ', ')},`,
     `    decision = "${decision}",`,
     `    justification = ${JSON.stringify(justification)},`,
-    `    match = [${JSON.stringify(match)}],`,
+    `    match = [${[match]
+      .flat()
+      .map((m) => JSON.stringify(m))
+      .join(', ')}],`,
     ')',
   ].join('\n');
 
@@ -131,8 +139,8 @@ export function rulesFile(config: AgentConfig, managedHeader: string): string {
     rule(
       ['tossana-agents', 'clickup'],
       'allow',
-      'ClickUp calls need network; the kit itself refuses Done/Complete/Closed.',
-      'tossana-agents clickup get T1',
+      'ClickUp calls need network, and handoff notes go to .agents/ (read-only in the sandbox); the kit refuses Done.',
+      ['tossana-agents clickup get T1', 'tossana-agents clickup handoff T1 --file .tossana/tmp/T1-coder.md'],
     ),
     rule(
       ['npx', 'tossana-agents', 'clickup'],

@@ -40,8 +40,8 @@ prefix_rule(
 prefix_rule(
     pattern = ["tossana-agents", "clickup"],
     decision = "allow",
-    justification = "ClickUp calls need network; the kit itself refuses Done/Complete/Closed.",
-    match = ["tossana-agents clickup get T1"],
+    justification = "ClickUp calls need network, and handoff notes go to .agents/ (read-only in the sandbox); the kit refuses Done.",
+    match = ["tossana-agents clickup get T1", "tossana-agents clickup handoff T1 --file .tossana/tmp/T1-coder.md"],
 )
 
 prefix_rule(
