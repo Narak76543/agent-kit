@@ -4,19 +4,19 @@ Status of the Tossana Agent Kit build. Read this first when you continue the wor
 The full spec is [TOSSANA_AGENT_KIT_PLAN.md](./TOSSANA_AGENT_KIT_PLAN.md). This file records what is done, what is next,
 and every decision that changes or clarifies the spec.
 
-Last updated: 2026-10-12 (Phase 3 templates built; waiting on ClickUp statuses for the real task)
+Last updated: 2026-10-12 (see "Next steps" — waiting on ClickUp statuses in the right account)
 
 ## Phase status
 
-| Phase                  | Status         | Notes                                                          |
-| ---------------------- | -------------- | -------------------------------------------------------------- |
-| 0 — Setup              | ✅ Done        | CI written but never run (nothing pushed yet)                  |
-| 1 — Core               | ✅ Done        | 168 tests; guard + protocol at 100% coverage                   |
-| 2 — CLI                | 🟡 Built       | Only doctor's status check fails (list has no custom statuses) |
-| 3 — Templates          | 🟡 Built       | 318 tests; left: init in Ek-Mobile-test + one real task        |
-| 4 — Second project     | ⏳ Not started | Project not chosen yet                                         |
-| 5 — Dashboard          | ⏳ Not started | Will be built later with another tool                          |
-| 6 — Distribution, docs | ⏳ Not started |                                                                |
+| Phase                  | Status      | Notes                                                            |
+| ---------------------- | ----------- | ---------------------------------------------------------------- |
+| 0 — Setup              | ✅ Done     | CI written but never run (nothing pushed yet)                    |
+| 1 — Core               | ✅ Done     | 168 tests; guard + protocol at 100% coverage                     |
+| 2 — CLI                | 🟡 Built    | Only doctor's status check fails (list has no custom statuses)   |
+| 3 — Templates          | 🟡 Built    | 328 tests (with Figma); left: one real task, Antigravity check   |
+| 4 — Second project     | 🟡 Prepared | Next.js sample checked, no code changes needed; real project TBD |
+| 5 — Dashboard          | 🟡 Started  | Board + timeline on sample data; no ClickUp, no login yet        |
+| 6 — Distribution, docs | 🟡 Started  | Docs written; tarball tested; registry not chosen                |
 
 ## How to work on this repo
 
@@ -36,20 +36,23 @@ pnpm format       # fix formatting
 
 ## Where things are
 
-| Path                                    | What                                                                                      |
-| --------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `packages/core/src/clickup/`            | `client.ts` (REST v2 + Docs v3), `guard.ts`, `rate-limiter.ts`, `types.ts`                |
-| `packages/core/src/protocol.ts`         | Agent comment format/parse (single source of truth)                                       |
-| `packages/core/src/config.ts`           | `agent.config.json` zod schema, JSON Schema, `.env` loader                                |
-| `packages/core/src/handoff.ts`          | `.agents/handoff/<taskId>.md`                                                             |
-| `packages/core/src/detect.ts`           | Project type / skill / package manager / commands                                         |
-| `packages/core/src/logger.ts`           | Token redaction; the only place core writes output                                        |
-| `packages/cli/src/commands/`            | `clickup`, `doctor`, `init`, `run`, `update`                                              |
-| `packages/cli/src/`                     | `kit-files.ts` (manifest/backup/marker), `templates.ts`, `template-vars.ts`, `runners.ts` |
-| `scripts/phase2-real-clickup-check.ps1` | Manual check against real ClickUp (user runs it)                                          |
-| `docs/windows.md`                       | PowerShell 5.1 quotes, exit codes                                                         |
-| `packages/templates/`                   | Agent templates (Phase 2/3)                                                               |
-| `*.test.ts` next to each module         | vitest; HTTP is faked by injecting `fetch` (`fake-api.test-helper.ts`)                    |
+| Path                                    | What                                                                                       |
+| --------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `packages/core/src/clickup/`            | `client.ts` (REST v2 + Docs v3), `guard.ts`, `rate-limiter.ts`, `types.ts`                 |
+| `packages/core/src/protocol.ts`         | Agent comment format/parse (single source of truth)                                        |
+| `packages/core/src/config.ts`           | `agent.config.json` zod schema, JSON Schema, `.env` loader                                 |
+| `packages/core/src/handoff.ts`          | `.agents/handoff/<taskId>.md`                                                              |
+| `packages/core/src/detect.ts`           | Project type / skill / package manager / commands                                          |
+| `packages/core/src/logger.ts`           | Token redaction; the only place core writes output                                         |
+| `packages/cli/src/commands/`            | `clickup`, `doctor`, `init`, `run`, `update`                                               |
+| `packages/cli/src/`                     | `kit-files.ts` (manifest/backup/marker), `templates.ts`, `template-vars.ts`, `runners.ts`  |
+| `scripts/phase2-real-clickup-check.ps1` | Manual check against real ClickUp (user runs it)                                           |
+| `docs/windows.md`                       | PowerShell 5.1 quotes, exit codes                                                          |
+| `packages/cli/src/figma.ts`             | Optional Figma MCP config merge + doctor checks (`packages/templates/figma/`)              |
+| `apps/dashboard/`                       | Dashboard preview (Next.js, `fixtures/tasks.json`); `pnpm --filter @tossana/dashboard dev` |
+| `docs/`                                 | User guides: getting started, ClickUp setup, agents, Antigravity, Windows, maintaining     |
+| `packages/templates/`                   | Agent templates (Phase 2/3)                                                                |
+| `*.test.ts` next to each module         | vitest; HTTP is faked by injecting `fetch` (`fake-api.test-helper.ts`)                     |
 
 ## Decisions (beyond or different from the spec)
 
@@ -141,12 +144,44 @@ pnpm format       # fix formatting
 - Result of `scripts/phase2-real-clickup-check.ps1` with the user's token.
 - Phase 4 project, GitHub org, company email domain, dashboard hosting, dashboard token: later phases.
 
-## Next steps
+## Next steps (handover — read this first)
 
-1. The user fixes the statuses on the test list. Then: read-only doctor → Phase 2 done.
-2. `init` in `D:\Ek-Mobile-test` against the test list (token only via the process environment), `pnpm install`.
-3. The user runs task `z8qu5d2v09` (AppText) from To Do to Ready for Review and watches it.
-4. Someone with Antigravity checks that `/start-task` and the three subagents load (tool names are unverified).
+State on 2026-10-12: Phases 0–3 built, Phase 6 docs written, Phase 4 checked on a Next.js sample, Phase 5 started
+(preview on sample data), optional Figma support added. 328 tests, `pnpm check` green. Nothing is pushed.
+IDs of the personal test workspace are kept out of this repo on purpose (see the local notes, not git).
+
+1. **Real ClickUp test (blocker for everything below).** The user was logged in to the wrong ClickUp account when
+   making the statuses. In the account that owns the token in `D:\Ek-Mobile\.env`:
+   - Make a Space (or list) with the 6 statuses: to do, coding, in review, testing, ready for review (active),
+     done (closed). Steps: `docs/clickup-setup.md`. Check with `tossana-agents clickup statuses` — it must list all 6.
+   - Re-create the 5 test tasks in that list with `scripts/copy-test-data.ts` (create-tasks; `--dry-run` first).
+     The AppText task gets a **new task ID**.
+   - Run doctor read-only against the list (temp project, token only in the process environment). All ✅ →
+     mark Phase 2 done in the table above.
+2. **First real agent run (AppText task).**
+   - `init --yes --list <listId> --no-figma` in `D:\Ek-Mobile-test` (git clone of `D:\Ek-Mobile`; never touch the
+     original). Pass the token only through the process environment; init writes it to the clone's git-ignored
+     `.env`. Then `pnpm install` there and commit the kit files in the clone.
+   - The user runs it and watches: `npx tossana-agents run --task <AppText task ID>` in `D:\Ek-Mobile-test`
+     (`--dry-run` first). Expect statuses to move coding → in review → testing → ready for review, one comment per
+     step, a branch `task/<id>`, and never Done. Log: `.agents/logs/`.
+   - Write down what went wrong (prompts, permissions, timeouts) and fix the templates.
+3. **Antigravity check** (someone with Antigravity): steps in `docs/antigravity.md` → "Check the subagent tool
+   names". The `tools` names in `packages/templates/antigravity/agents/*.md` are unverified (only 4 of 9 are in the
+   docs; a wrong name can hang a subagent). Also check that `/start-task` and `/explore` show up as skills, and
+   (if Figma is used) that `.agents/mcp_config.json` connects.
+4. **Figma, real test** (optional): a task with a Figma frame link, Figma desktop app open (Dev/Full seat), run it,
+   check that the frame is read once and summarised in the handoff file. If OpenCode ever appears in Figma's MCP
+   catalog, `figma.server: "remote"` becomes an option.
+5. **Dashboard, rest of Phase 5** (`apps/dashboard`, plan §10):
+   - Real data: server-side ClickUp reads with a `DASHBOARD_CLICKUP_TOKEN` (read-only bot account),
+     `dashboard.config.json` with the projects, 30–60 s cache; replace `lib/data.ts`'s fixture reader.
+   - Login: Auth.js with Google, only the company email domain (**ask the user for the domain**).
+   - Screens: **Needs human** (tasks in the human status, NEEDS_HUMAN first) and **Stats** (ready-for-review per
+     week, average rounds, common reviewer issues, first-round pass rate).
+   - Deploy: ask the user (Vercel or internal server); add a `Dockerfile` either way.
+6. **Later:** real skills content (waiting for the skills folder path), Phase 4 on a real second project, publish
+   registry (GitHub Packages under `@tossana`?) and the first release (`docs/maintaining.md`), push + run CI once.
 
 ## Test data in the personal ClickUp test workspace (2026-10-10)
 
@@ -224,5 +259,16 @@ pnpm format       # fix formatting
   filters in the URL) and task timeline. Auto-refresh 60 s. No auth, no ClickUp, no Needs-human/Stats screens yet.
   Run: `pnpm --filter @tossana/dashboard dev` → http://localhost:3100. Checked with Playwright + installed Edge at
   1440 px and 390 px: no horizontal overflow. (Headless Edge alone cannot go below ~500 px wide.)
-- **Item 6 — Figma (queued, not started):** optional Figma MCP (read-only), asked by `init`; see the user's request
-  of 2026-10-12. Ask before starting if time is short.
+- **Item 6 — Figma (done):** `figma.enabled` / `figma.server` in `agent.config.json`; `init` asks (default yes for
+  UI project types, no for `node-backend`/`other`; `--yes` keeps the existing value, else off; `--figma`/`--no-figma`).
+  The kit merges only its `figma` entry into `opencode.json` (`mcp`) and `.agents/mcp_config.json` (`mcpServers`,
+  the documented Antigravity **workspace** MCP file — not only the global one, as first assumed). Default server is
+  **desktop** (`http://127.0.0.1:3845/mcp`, Figma app, no token): Figma's remote server (`https://mcp.figma.com/mcp`,
+  OAuth) only accepts clients in its MCP catalog, which lists Antigravity as "local server only" and does not list
+  OpenCode. Coder and reviewer get 5 read-only tools (`figma_get_design_context`, `_get_metadata`,
+  `_get_variable_defs`, `_get_screenshot`, `_whoami`); everything else stays denied. Instructions (only when
+  enabled): orchestrator passes `figma.com` links on; coder reads each frame once and saves a `## Figma <link>`
+  summary to the handoff file; reviewer compares against it; "Figma not available" → NEEDS_HUMAN. In Antigravity the
+  main agent reads the frame (subagents may lack MCP tools). doctor: both configs, desktop server reachable (warn),
+  seat note (View/Collab = 20 calls/month). Real OpenCode 1.18.35: config loads, `figma_*` permissions applied to
+  coder and reviewer only; with the Figma app closed, `opencode run` still finishes (it logs "server unavailable").
