@@ -2,3 +2,4 @@
 *.png binary
 *.jpg binary
 *.ico binary
+packages/cli/src/__golden__/** -text

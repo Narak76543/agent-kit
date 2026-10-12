@@ -7,3 +7,4 @@ packages/cli/templates
 packages/cli/schema
 .next
 next-env.d.ts
+packages/cli/src/__golden__
