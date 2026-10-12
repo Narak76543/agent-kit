@@ -21,6 +21,7 @@ import {
   type ClickUpList,
   type KitEnv,
 } from '@tossana/agents-core';
+import { wrongAccountHint } from '../account-hint.js';
 import { SilentExit, createClient, type CliContext } from '../context.js';
 import { versionOf } from '../exec.js';
 import { MANIFEST_PATH, projectPath, readManifest } from '../kit-manifest.js';
@@ -33,6 +34,8 @@ export interface Check {
   status: CheckStatus;
   detail?: string;
   fix?: string;
+  /** Extra advice printed after the fix (e.g. the wrong-account hint). */
+  hint?: string;
 }
 
 const MIN_NODE_MAJOR = 20;
@@ -202,6 +205,7 @@ export async function runDoctor(ctx: CliContext): Promise<Check[]> {
         fix:
           clickUpErrorHint(e) ??
           `Check clickup.listId in ${CONFIG_FILE}. Find list IDs with: tossana-agents clickup lists`,
+        hint: await wrongAccountHint(client),
       });
     }
   }
@@ -209,7 +213,10 @@ export async function runDoctor(ctx: CliContext): Promise<Check[]> {
   if (!config || !list) {
     add(skipped('Role statuses exist on the list', 'list not available'));
   } else {
-    checks.push(...statusChecks(config, list));
+    const listChecks = statusChecks(config, list);
+    const missing = listChecks.find((c) => c.name === MISSING_STATUSES && c.status === 'fail');
+    if (missing) missing.hint = await wrongAccountHint(client!);
+    checks.push(...listChecks);
   }
 
   // ---------- runner ----------
@@ -255,6 +262,8 @@ function envIgnoredCheck(ctx: CliContext, inRepo: boolean): Check {
     : { name, status: 'fail', fix };
 }
 
+const MISSING_STATUSES = 'Role statuses exist on the list';
+
 function statusChecks(config: AgentConfig, list: ClickUpList): Check[] {
   const checks: Check[] = [];
   const statuses = list.statuses ?? [];
@@ -282,7 +291,7 @@ function statusChecks(config: AgentConfig, list: ClickUpList): Check[] {
   }
   if (missing.length) {
     checks.unshift({
-      name: 'Role statuses exist on the list',
+      name: MISSING_STATUSES,
       status: 'fail',
       detail: `Missing: ${missing.join(', ')}`,
       fix:
@@ -358,6 +367,7 @@ export function printChecks(ctx: CliContext, checks: Check[]): void {
     print(`${icons[c.status]} ${c.name}`);
     if (c.detail) for (const line of c.detail.split('\n')) print(`       ${line}`);
     if (c.fix && c.status !== 'ok') print(`       FIX: ${c.fix}`);
+    if (c.hint && c.status !== 'ok') print(`       HINT: ${c.hint}`);
   }
   const count = (s: CheckStatus) => checks.filter((c) => c.status === s).length;
   print(`\n${count('ok')} ok, ${count('fail')} failed, ${count('warn')} warnings, ${count('skip')} skipped`);

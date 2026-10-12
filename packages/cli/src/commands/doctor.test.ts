@@ -86,6 +86,36 @@ describe('doctor', () => {
     expect(r.out).toContain('contains spaces');
   });
 
+  it('hints at a wrong ClickUp account when role statuses are missing', async () => {
+    project = readyProject();
+    const api = goodApi()
+      .on('GET /v2/list/L1', { ...LIST, statuses: LIST.statuses.slice(0, 1) })
+      .on('GET /v2/team', { teams: [{ id: '9001', name: 'Dara Test' }] });
+    const r = await doctor(project, { api });
+    expect(r.code).toBe(1);
+    expect(line(r.out, 'Role statuses exist on the list')).toMatch(/^❌ /);
+    expect(r.out).toContain(
+      'HINT: Check that ClickUp in your browser is logged in to the same account as your token ' +
+        '(workspace Dara Test, ID 9001). Changes made in another account or workspace are not visible to this token.',
+    );
+  });
+
+  it('hints at a wrong ClickUp account when the list is not found (generic if workspaces fail too)', async () => {
+    project = readyProject();
+    const api = goodApi().on('GET /v2/list/L1', json({ err: 'List not found', ECODE: 'ITEM_015' }, 404));
+    const r = await doctor(project, { api });
+    expect(line(r.out, 'ClickUp list L1 is accessible')).toMatch(/^❌ /);
+    expect(r.out).toContain("same account as your token (the token's workspace (run: tossana-agents clickup spaces))");
+    expect(line(r.out, 'Role statuses exist on the list')).toMatch(/^⏭️ /);
+  });
+
+  it('does not ask for workspaces when everything is fine', async () => {
+    project = readyProject();
+    const api = goodApi();
+    await doctor(project, { api });
+    expect(api.calls.map((c) => c.path)).not.toContain('/v2/team');
+  });
+
   it('fails without agent.config.json and says to run init', async () => {
     project = tempProject({ config: null });
     const r = await doctor(project);

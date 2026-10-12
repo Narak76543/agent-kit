@@ -21,6 +21,7 @@ import {
   type ClickUpDocPage,
   type Role,
 } from '@tossana/agents-core';
+import { wrongAccountHint } from '../account-hint.js';
 import { createClient, loadProject, requireConfig, type CliContext, type Project } from '../context.js';
 
 interface TextOptions {
@@ -184,7 +185,10 @@ export function registerClickupCommands(program: Command, ctx: CliContext): void
       }
       const names = (list.statuses ?? []).map((s) => s.status.toLowerCase());
       const missing = client.agentStatuses.filter((a) => !names.includes(a.toLowerCase()));
-      if (missing.length) print(`\nWARNING: missing statuses the agents need: ${missing.join(', ')}`);
+      if (missing.length) {
+        print(`\nWARNING: missing statuses the agents need: ${missing.join(', ')}`);
+        print(await wrongAccountHint(client));
+      }
     });
 
   cu.command('sync-docs')

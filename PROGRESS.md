@@ -195,3 +195,11 @@ pnpm format       # fix formatting
 - **Bug found and fixed:** OpenCode takes its project folder from `PWD` when set. With `--cwd` or a stale `PWD`
   (Git Bash, tool shells) it ran in the wrong folder, could not find `orchestrator` and failed with `UnknownError`.
   `run` now passes `--dir <project>` to `opencode run` and sets `PWD` for every agent process.
+
+### After Phase 3 (2026-10-12, user-approved list; no ClickUp writes until the test account is sorted out)
+
+- The user had been logged in to the wrong ClickUp account, so the custom statuses and the "Agent Test" Space were
+  made in a workspace the token cannot see.
+- **Item 1 — wrong-account hint (done):** when the list cannot be read or role statuses are missing, `doctor` prints
+  a `HINT:` line naming the token's workspace(s) (one extra `GET /team`, only on failure). `clickup statuses` and
+  `init` print the same hint with their missing-status warning.

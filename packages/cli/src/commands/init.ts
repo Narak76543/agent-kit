@@ -25,6 +25,7 @@ import {
   type ProjectType,
   type Role,
 } from '@tossana/agents-core';
+import { wrongAccountHint } from '../account-hint.js';
 import { createClient, type CliContext } from '../context.js';
 import { applyKitFiles, findMarker, printKitFileResults } from '../kit-files.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
@@ -167,7 +168,8 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
     if (missing.length) {
       ctx.logger.warn(
         `WARNING: the list has no status for: ${missing.map((r) => `${r} ("${statuses[r]}")`).join(', ')}.\n` +
-          '  Add them in ClickUp: open the list → ⋯ → List settings → Statuses (exact names), then run: tossana-agents doctor',
+          '  Add them in ClickUp: open the list → ⋯ → List settings → Statuses (exact names), then run: tossana-agents doctor\n' +
+          `  ${await wrongAccountHint(client)}`,
       );
     }
   } else {
