@@ -32,7 +32,8 @@
       "assignee": "Dara",
       "status": "to do",
       "statusSince": "2026-10-12T08:10:00Z",
-      "comments": []
+      "comments": [],
+      "tool": null
     },
     {
       "id": "86wb2001",
@@ -41,7 +42,8 @@
       "assignee": "Sokha",
       "status": "to do",
       "statusSince": "2026-10-11T16:40:00Z",
-      "comments": []
+      "comments": [],
+      "tool": null
     },
     {
       "id": "86ek1002",
@@ -66,7 +68,8 @@
           "date": "2026-10-12T14:30:00Z",
           "text": "[AGENT: reviewer] [RESULT: CHANGES_NEEDED] [ROUND: 1]\nSummary: Two raw colors and one raw font size are left.\nIssues:\n- src/features/orders/OrdersTab.tsx:48 - raw color #1A73E8, use colors.primary\n- src/features/profile/ProfileTab.tsx:22 - fontSize 13, use AppText variant=\"caption\"\nNext: coder"
         }
-      ]
+      ],
+      "tool": "opencode"
     },
     {
       "id": "86wb2002",
@@ -86,7 +89,8 @@
           "date": "2026-10-12T14:47:00Z",
           "text": "[AGENT: coder] [RESULT: DONE_CODING] [ROUND: 1]\nSummary: Added zod schema and inline error messages for name, email and message.\nIssues:\n- none\nNext: reviewer"
         }
-      ]
+      ],
+      "tool": "claude-code"
     },
     {
       "id": "86ek1003",
@@ -126,7 +130,8 @@
           "date": "2026-10-12T14:04:00Z",
           "text": "[AGENT: reviewer] [RESULT: APPROVED] [ROUND: 2]\nSummary: Fix is minimal and correct.\nIssues:\n- none\nNext: tester"
         }
-      ]
+      ],
+      "tool": "antigravity"
     },
     {
       "id": "86ek1004",
@@ -161,7 +166,8 @@
           "date": "2026-10-12T10:20:00Z",
           "text": "[AGENT: orchestrator] [RESULT: PASS] [ROUND: 1]\nSummary: Orders tab empty state built and tested. Branch task/86ek1004 (local, not pushed).\nIssues:\n- none (manual checks for the human: pull-to-refresh on a real device; open questions: none)\nNext: human"
         }
-      ]
+      ],
+      "tool": "opencode"
     },
     {
       "id": "86wb2003",
@@ -211,7 +217,8 @@
           "date": "2026-10-12T12:55:00Z",
           "text": "[AGENT: orchestrator] [RESULT: NEEDS_HUMAN] [ROUND: 5]\nSummary: 5 rounds without passing review + tests. Branch task/86wb2003 has the latest attempt.\nIssues:\n- app/rss.xml/route.ts:30 - the site URL is not configured anywhere; the feed needs it for <link>\nNext: human"
         }
-      ]
+      ],
+      "tool": "claude-code"
     },
     {
       "id": "86ek1005",
@@ -241,7 +248,8 @@
           "date": "2026-10-12T09:15:00Z",
           "text": "Please also fail when a km value is still the English text. Run it again after that."
         }
-      ]
+      ],
+      "tool": "antigravity"
     }
   ]
 }

@@ -4,6 +4,7 @@
  */
 import { parseAgentComment, type AgentComment, type AgentResult } from '@tossana/agents-core';
 import fixtures from '../fixtures/tasks.json';
+import { libraryProjects } from './library';
 
 export const ROLES = ['todo', 'coding', 'review', 'testing', 'human'] as const;
 export type Role = (typeof ROLES)[number];
@@ -44,6 +45,10 @@ export interface Task {
   round: number | null;
   /** The newest agent comment. */
   last: AgentComment | null;
+  /** Agent tool that ran the task (from the run log), null before the first run. */
+  tool: string | null;
+  /** The project's pipeline roles in order (from its profile). */
+  roles: string[];
 }
 
 export const NOW = new Date(fixtures.now);
@@ -69,6 +74,8 @@ export function getTasks(): Task[] {
       timeline,
       round: rounds.length ? Math.max(...rounds) : null,
       last: agentComments.at(-1) ?? null,
+      tool: t.tool,
+      roles: libraryProjects.find((p) => p.id === t.project)?.roles ?? ['coder', 'reviewer', 'tester'],
     };
   });
 }

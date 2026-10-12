@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { AutoRefresh } from '@/components/auto-refresh';
+import { Nav } from '@/components/nav';
 import { NOW } from '@/lib/data';
 import './globals.css';
 
@@ -24,20 +25,24 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-screen font-sans antialiased">
         <AutoRefresh seconds={60} />
         <header className="border-b border-line bg-card">
-          <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-8">
-            <Link href="/" className="flex items-center gap-2.5">
-              <span className="grid size-8 place-items-center rounded-lg bg-accent text-sm font-semibold text-white">
-                T
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-8">
+            <div className="flex items-center justify-between gap-4 pt-4 pb-1">
+              <Link href="/" className="flex items-center gap-2.5">
+                <span className="grid size-8 place-items-center rounded-lg bg-accent text-sm font-semibold text-white">
+                  T
+                </span>
+                <span className="text-lg font-medium whitespace-nowrap">Agent Pipelines</span>
+              </Link>
+              <span className="text-right text-sm text-muted">
+                Read-only preview
+                <span className="hidden sm:inline">
+                  {' '}
+                  · sample data ·{' '}
+                  {NOW.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })} UTC
+                </span>
               </span>
-              <span className="text-lg font-medium whitespace-nowrap">Agent Pipelines</span>
-            </Link>
-            <span className="text-right text-sm text-muted">
-              Sample data
-              <span className="hidden sm:inline">
-                {' '}
-                · {NOW.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })} UTC
-              </span>
-            </span>
+            </div>
+            <Nav />
           </div>
         </header>
         <main className="mx-auto max-w-[1440px] px-4 py-6 sm:px-8 sm:py-8">{children}</main>

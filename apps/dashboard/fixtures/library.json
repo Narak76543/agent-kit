@@ -1,0 +1,445 @@
+{
+  "version": "v0.3.0",
+  "agents": [
+    {
+      "name": "orchestrator",
+      "title": "Orchestrator",
+      "preset": "coordinator",
+      "order": 0,
+      "mode": "primary",
+      "steps": 150,
+      "description": "Runs ONE ClickUp task end-to-end for ekmong-mobile. Delegates to coder, reviewer and tester in a loop (max 5 rounds) and moves the task to \"ready for review\". Never writes code, never sets Done.",
+      "purpose": "You are the orchestrator for ekmong-mobile. You run exactly ONE ClickUp task (the task ID is in the user's message) from start to \"ready for review\". You coordinate; you never write or edit code yourself.",
+      "permission": {
+        "*": "deny",
+        "read": {
+          "*": "allow",
+          "*.env": "deny",
+          "*.env.*": "deny",
+          "*.env.example": "allow"
+        },
+        "glob": "allow",
+        "grep": "allow",
+        "lsp": "allow",
+        "edit": {
+          "*": "deny",
+          ".agents/tmp/*": "allow",
+          ".agents\\tmp\\*": "allow",
+          "*/.agents/tmp/*": "allow",
+          "*\\.agents\\tmp\\*": "allow"
+        },
+        "task": {
+          "*": "deny",
+          "coder": "allow",
+          "reviewer": "allow",
+          "tester": "allow"
+        },
+        "bash": {
+          "*": "deny",
+          "tossana-agents clickup *": "allow",
+          "npx tossana-agents clickup *": "allow",
+          "git status*": "allow",
+          "git log*": "allow",
+          "git diff*": "allow",
+          "git branch --show-current*": "allow",
+          "git rev-parse*": "allow",
+          "*tossana-agents clickup status *done*": "deny",
+          "*tossana-agents clickup status *Done*": "deny",
+          "*tossana-agents clickup status *DONE*": "deny",
+          "*tossana-agents clickup status *complete*": "deny",
+          "*tossana-agents clickup status *Complete*": "deny",
+          "*tossana-agents clickup status *COMPLETE*": "deny",
+          "*tossana-agents clickup status *closed*": "deny",
+          "*tossana-agents clickup status *Closed*": "deny",
+          "*tossana-agents clickup status *CLOSED*": "deny",
+          "*api.clickup.com*": "deny",
+          "*CLICKUP_API_TOKEN*": "deny",
+          "*.env": "deny",
+          "*.env *": "deny",
+          "git push*": "deny",
+          "*git push*": "deny"
+        }
+      },
+      "skills": [],
+      "mcp": [],
+      "tools": ["opencode", "antigravity"]
+    },
+    {
+      "name": "coder",
+      "title": "Coder",
+      "preset": "edit-code",
+      "order": 1,
+      "mode": "subagent",
+      "steps": 120,
+      "description": "Developer for ekmong-mobile (react-native). Implements one ClickUp task on branch task/<taskId>, or fixes issues sent back by the reviewer/tester, and commits. Never pushes.",
+      "purpose": "You are the coder for ekmong-mobile. You implement a ClickUp task, or fix the issues sent back to you, and commit the work. You do not review or test your own work beyond the quality gate below, and you never decide that a task is finished.",
+      "permission": {
+        "*": "deny",
+        "read": {
+          "*": "allow",
+          "*.env": "deny",
+          "*.env.*": "deny",
+          "*.env.example": "allow"
+        },
+        "glob": "allow",
+        "grep": "allow",
+        "lsp": "allow",
+        "figma_get_design_context": "allow",
+        "figma_get_metadata": "allow",
+        "figma_get_variable_defs": "allow",
+        "figma_get_screenshot": "allow",
+        "figma_whoami": "allow",
+        "edit": {
+          "*": "allow",
+          "*.env": "deny",
+          "*.env.*": "deny",
+          ".opencode/*": "deny",
+          ".opencode\\*": "deny",
+          "*/.opencode/*": "deny",
+          "*\\.opencode\\*": "deny",
+          ".agents/*": "deny",
+          ".agents\\*": "deny",
+          "*/.agents/*": "deny",
+          "*\\.agents\\*": "deny",
+          ".git/*": "deny",
+          ".git\\*": "deny",
+          "*/.git/*": "deny",
+          "*\\.git\\*": "deny",
+          "agent.config.json": "deny",
+          "*agent.config.json": "deny",
+          ".agents/tmp/*": "allow",
+          ".agents\\tmp\\*": "allow",
+          "*/.agents/tmp/*": "allow",
+          "*\\.agents\\tmp\\*": "allow"
+        },
+        "task": {
+          "*": "deny"
+        },
+        "bash": {
+          "*": "deny",
+          "pnpm install*": "allow",
+          "pnpm lint*": "allow",
+          "pnpm typecheck*": "allow",
+          "pnpm test*": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git add *": "allow",
+          "git commit *": "allow",
+          "git branch --show-current*": "allow",
+          "tossana-agents clickup get *": "allow",
+          "tossana-agents clickup comments *": "allow",
+          "tossana-agents clickup comment *": "allow",
+          "tossana-agents clickup handoff *": "allow",
+          "npx tossana-agents clickup get *": "allow",
+          "npx tossana-agents clickup comments *": "allow",
+          "npx tossana-agents clickup comment *": "allow",
+          "npx tossana-agents clickup handoff *": "allow",
+          "tossana-agents clickup subtask *": "allow",
+          "npx tossana-agents clickup subtask *": "allow",
+          "*tossana-agents clickup status*": "deny",
+          "*api.clickup.com*": "deny",
+          "*CLICKUP_API_TOKEN*": "deny",
+          "*.env": "deny",
+          "*.env *": "deny",
+          "git push*": "deny",
+          "*git push*": "deny",
+          "git reset*": "deny",
+          "git rebase*": "deny",
+          "git merge*": "deny",
+          "git switch*": "deny",
+          "git checkout*": "deny",
+          "git branch -d*": "deny",
+          "git branch -D*": "deny",
+          "git branch --delete*": "deny",
+          "git commit --amend*": "deny",
+          "git clean*": "deny"
+        }
+      },
+      "skills": ["mobile-master"],
+      "mcp": ["figma-desktop"],
+      "tools": ["opencode", "antigravity"]
+    },
+    {
+      "name": "reviewer",
+      "title": "Reviewer",
+      "preset": "read-only",
+      "order": 2,
+      "mode": "subagent",
+      "steps": 60,
+      "description": "Strict read-only code reviewer for ekmong-mobile. Reviews the task branch diff against the ClickUp task, specs and AGENTS.md, and returns APPROVED or CHANGES_NEEDED. Never edits project files.",
+      "purpose": "You are the reviewer for ekmong-mobile. You review code you did not write and find real problems before the tester and the human see them. You are read-only: you never edit project files, never commit, never fix things yourself. The only file you may write is your comment draft in `.agents/tmp/`.",
+      "permission": {
+        "*": "deny",
+        "read": {
+          "*": "allow",
+          "*.env": "deny",
+          "*.env.*": "deny",
+          "*.env.example": "allow"
+        },
+        "glob": "allow",
+        "grep": "allow",
+        "lsp": "allow",
+        "figma_get_design_context": "allow",
+        "figma_get_metadata": "allow",
+        "figma_get_variable_defs": "allow",
+        "figma_get_screenshot": "allow",
+        "figma_whoami": "allow",
+        "edit": {
+          "*": "deny",
+          ".agents/tmp/*": "allow",
+          ".agents\\tmp\\*": "allow",
+          "*/.agents/tmp/*": "allow",
+          "*\\.agents\\tmp\\*": "allow"
+        },
+        "task": {
+          "*": "deny"
+        },
+        "bash": {
+          "*": "deny",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "tossana-agents clickup get *": "allow",
+          "tossana-agents clickup comments *": "allow",
+          "tossana-agents clickup comment *": "allow",
+          "tossana-agents clickup handoff *": "allow",
+          "npx tossana-agents clickup get *": "allow",
+          "npx tossana-agents clickup comments *": "allow",
+          "npx tossana-agents clickup comment *": "allow",
+          "npx tossana-agents clickup handoff *": "allow",
+          "*tossana-agents clickup status*": "deny",
+          "*tossana-agents clickup subtask*": "deny",
+          "*api.clickup.com*": "deny",
+          "*CLICKUP_API_TOKEN*": "deny",
+          "*.env": "deny",
+          "*.env *": "deny",
+          "git push*": "deny",
+          "*git push*": "deny"
+        }
+      },
+      "skills": ["mobile-master"],
+      "mcp": ["figma-desktop"],
+      "tools": ["opencode", "antigravity"]
+    },
+    {
+      "name": "tester",
+      "title": "Tester",
+      "preset": "edit-tests-only",
+      "order": 3,
+      "mode": "subagent",
+      "steps": 100,
+      "description": "QA for ekmong-mobile. Runs the quality gate on the task branch, writes or edits test files only to prove the task's acceptance criteria, and returns PASS or FAIL.",
+      "purpose": "You are the tester for ekmong-mobile. Your job is to prove the task works, not to assume it. You may create or edit test files only (`*.test.*`, `*.spec.*`, `__tests__/`, `__mocks__/`, `tests/`, `test/`, `e2e/`). You never change app code: if app code is wrong, that is a FAIL with a precise issue for the coder.",
+      "permission": {
+        "*": "deny",
+        "read": {
+          "*": "allow",
+          "*.env": "deny",
+          "*.env.*": "deny",
+          "*.env.example": "allow"
+        },
+        "glob": "allow",
+        "grep": "allow",
+        "lsp": "allow",
+        "edit": {
+          "*": "deny",
+          "*.test.*": "allow",
+          "*.spec.*": "allow",
+          "__tests__/*": "allow",
+          "__tests__\\*": "allow",
+          "*/__tests__/*": "allow",
+          "*\\__tests__\\*": "allow",
+          "__mocks__/*": "allow",
+          "__mocks__\\*": "allow",
+          "*/__mocks__/*": "allow",
+          "*\\__mocks__\\*": "allow",
+          "tests/*": "allow",
+          "tests\\*": "allow",
+          "*/tests/*": "allow",
+          "*\\tests\\*": "allow",
+          "test/*": "allow",
+          "test\\*": "allow",
+          "*/test/*": "allow",
+          "*\\test\\*": "allow",
+          "e2e/*": "allow",
+          "e2e\\*": "allow",
+          "*/e2e/*": "allow",
+          "*\\e2e\\*": "allow",
+          ".agents/tmp/*": "allow",
+          ".agents\\tmp\\*": "allow",
+          "*/.agents/tmp/*": "allow",
+          "*\\.agents\\tmp\\*": "allow"
+        },
+        "task": {
+          "*": "deny"
+        },
+        "bash": {
+          "*": "deny",
+          "pnpm lint*": "allow",
+          "pnpm typecheck*": "allow",
+          "pnpm test*": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git add *": "allow",
+          "git commit *": "allow",
+          "tossana-agents clickup get *": "allow",
+          "tossana-agents clickup comments *": "allow",
+          "tossana-agents clickup comment *": "allow",
+          "tossana-agents clickup handoff *": "allow",
+          "npx tossana-agents clickup get *": "allow",
+          "npx tossana-agents clickup comments *": "allow",
+          "npx tossana-agents clickup comment *": "allow",
+          "npx tossana-agents clickup handoff *": "allow",
+          "*tossana-agents clickup status*": "deny",
+          "*tossana-agents clickup subtask*": "deny",
+          "*api.clickup.com*": "deny",
+          "*CLICKUP_API_TOKEN*": "deny",
+          "*.env": "deny",
+          "*.env *": "deny",
+          "git push*": "deny",
+          "*git push*": "deny",
+          "git commit --amend*": "deny",
+          "git add -A*": "deny",
+          "git add .*": "deny",
+          "git add --all*": "deny",
+          "git reset*": "deny",
+          "git switch*": "deny",
+          "git checkout*": "deny"
+        }
+      },
+      "skills": [],
+      "mcp": [],
+      "tools": ["opencode", "antigravity"]
+    }
+  ],
+  "skills": [
+    {
+      "name": "mobile-master",
+      "scope": "team",
+      "types": ["react-native", "flutter"],
+      "description": "React Native / Expo conventions for the coder and reviewer.",
+      "body": "# mobile-master (placeholder)\n\nThis is a placeholder. The team's real `mobile-master` skill replaces this file in Phase 3.\nUntil then, follow the conventions in the project section of `AGENTS.md`."
+    },
+    {
+      "name": "frontend-master",
+      "scope": "team",
+      "types": ["nextjs", "react"],
+      "description": "Web front-end conventions (Next.js, React).",
+      "body": "# Frontend master\n\n> Placeholder: the real skill comes from the team skills folder.\n\n## Rules\n\n- Use the design system components; no raw colors or pixel sizes.\n- Server components by default; `\"use client\"` only where needed.\n- Every data view has loading, empty and error states.\n"
+    },
+    {
+      "name": "backend-master",
+      "scope": "team",
+      "types": ["node-backend"],
+      "description": "Node.js API conventions.",
+      "body": "# Backend master\n\n> Placeholder.\n\n## Rules\n\n- Validate every input at the edge (zod).\n- No secrets or personal data in logs.\n- Every endpoint has a test for the happy path and one error.\n"
+    },
+    {
+      "name": "ekmong-i18n",
+      "scope": "project",
+      "types": ["react-native"],
+      "description": "EKMONG only: English/Khmer keys, never hard-coded text.",
+      "body": "# EKMONG i18n\n\nProject skill in `.agents/skills/ekmong-i18n/` (wins over a team skill with the same name).\n\n| Rule | Example |\n| --- | --- |\n| Every visible string uses a key | `t('orders.empty.title')` |\n| Keys exist in `en` **and** `km` | `pnpm i18n:check` passes |\n| No English text in `km` files | reviewer blocks it |\n"
+    },
+    {
+      "name": "my-shortcuts",
+      "scope": "user",
+      "types": [],
+      "description": "Example of a user-global skill (stays on the developer machine; shown here only as an example).",
+      "body": "# My shortcuts\n\nUser skills live in `~/.agents/skills/` on each developer machine. They are **never uploaded** to the dashboard; this entry only shows the scope.\n"
+    }
+  ],
+  "mcp": [
+    {
+      "id": "figma-desktop",
+      "name": "Figma (desktop app)",
+      "status": "approved",
+      "url": "http://127.0.0.1:3845/mcp",
+      "transport": "HTTP (local)",
+      "access": "read-only",
+      "tools": ["get_design_context", "get_metadata", "get_variable_defs", "get_screenshot", "whoami"],
+      "auth": "Each developer is logged in to the Figma desktop app. No token is stored.",
+      "notes": "Needs a Dev or Full seat (View/Collab: 20 calls per month). Works with OpenCode and Antigravity."
+    },
+    {
+      "id": "figma-remote",
+      "name": "Figma (hosted)",
+      "status": "approved",
+      "url": "https://mcp.figma.com/mcp",
+      "transport": "HTTP (remote, OAuth)",
+      "access": "read-only",
+      "tools": ["get_design_context", "get_metadata", "get_variable_defs", "get_screenshot", "whoami"],
+      "auth": "Each developer logs in with their own Figma account (OAuth). No token is stored in the project.",
+      "notes": "Only for tools listed in Figma's MCP catalog (Claude Code, Codex, Cursor, VS Code …)."
+    },
+    {
+      "id": "context7",
+      "name": "Context7 docs",
+      "status": "pending",
+      "url": "https://mcp.context7.com/mcp",
+      "transport": "HTTP (remote)",
+      "access": "read-only",
+      "tools": ["resolve-library-id", "get-library-docs"],
+      "auth": "No login needed for the free tier.",
+      "notes": "Proposed by an editor: up-to-date library docs for the coder. Waiting for an approver."
+    }
+  ],
+  "projects": [
+    {
+      "id": "ekmong",
+      "name": "EKMONG Mobile",
+      "type": "react-native",
+      "library": "v0.3.0",
+      "tools": ["opencode", "antigravity"],
+      "roles": ["coder", "reviewer", "tester"],
+      "skills": ["mobile-master", "ekmong-i18n"],
+      "mcp": ["figma-desktop"],
+      "figma": true
+    },
+    {
+      "id": "web",
+      "name": "Tossana Web",
+      "type": "nextjs",
+      "library": "v0.3.0",
+      "tools": ["opencode", "claude-code"],
+      "roles": ["coder", "reviewer", "tester"],
+      "skills": ["frontend-master"],
+      "mcp": ["figma-remote"],
+      "figma": true
+    },
+    {
+      "id": "api",
+      "name": "Tossana API",
+      "type": "node-backend",
+      "library": "v0.2.1",
+      "tools": ["codex"],
+      "roles": ["coder", "reviewer", "tester"],
+      "skills": ["backend-master"],
+      "mcp": [],
+      "figma": false
+    }
+  ],
+  "lockedRules": [
+    {
+      "id": "no-done",
+      "text": "Never set a task to Done, Complete or Closed. The last status agents may set is \"ready for review\"."
+    },
+    {
+      "id": "no-push",
+      "text": "Never git push, merge, rebase, or delete branches."
+    },
+    {
+      "id": "default-deny",
+      "text": "Default deny: every tool and command not allowed is refused, with no permission prompts."
+    },
+    {
+      "id": "no-env",
+      "text": "Never read or change .env files (tokens stay on the developer machine)."
+    },
+    {
+      "id": "protocol",
+      "text": "Every agent comment starts with [AGENT: …] [RESULT: …] [ROUND: …]."
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ResultBadge } from '@/components/result-badge';
+import { TOOL_LABEL } from '@/lib/library';
 import { ROLE_LABEL, getTask, since, type TimelineEntry } from '@/lib/data';
 
 export default async function TaskPage({ params }: PageProps<'/tasks/[id]'>) {
@@ -23,6 +24,30 @@ export default async function TaskPage({ params }: PageProps<'/tasks/[id]'>) {
           <Fact label="Assignee" value={task.assignee} />
           <Fact label="Round" value={task.round === null ? '–' : String(task.round)} />
         </dl>
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-4 text-sm">
+          <span className="text-xs text-muted">Pipeline</span>
+          <span className="flex flex-wrap items-center gap-1">
+            {task.roles.map((r, i) => {
+              const active = task.last?.agent === r;
+              return (
+                <span key={r} className="flex items-center gap-1">
+                  {i > 0 && <span className="text-muted">→</span>}
+                  <Link
+                    href={`/agents/${r}`}
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
+                      active ? 'bg-accent text-white' : 'bg-[#f1f3f4] text-[#3c4043] hover:ring-1 hover:ring-[#dadce0]'
+                    }`}
+                  >
+                    {r}
+                  </Link>
+                </span>
+              );
+            })}
+          </span>
+          <span className="text-xs text-muted sm:ml-auto">
+            Ran with <span className="font-medium text-ink">{task.tool ? TOOL_LABEL[task.tool] : 'not run yet'}</span>
+          </span>
+        </div>
         <a
           href={task.url}
           target="_blank"
