@@ -4,19 +4,19 @@ Status of the Tossana Agent Kit build. Read this first when you continue the wor
 The full spec is [TOSSANA_AGENT_KIT_PLAN.md](./TOSSANA_AGENT_KIT_PLAN.md). This file records what is done, what is next,
 and every decision that changes or clarifies the spec.
 
-Last updated: 2026-10-12 (Phase 2 waiting on ClickUp statuses)
+Last updated: 2026-10-12 (Phase 3 templates built; waiting on ClickUp statuses for the real task)
 
 ## Phase status
 
-| Phase                  | Status         | Notes                                                             |
-| ---------------------- | -------------- | ----------------------------------------------------------------- |
-| 0 — Setup              | ✅ Done        | CI written but never run (nothing pushed yet)                     |
-| 1 — Core               | ✅ Done        | 168 tests; guard + protocol at 100% coverage                      |
-| 2 — CLI                | ✅ Done        | 301 tests; waiting for the user's real-ClickUp check              |
-| 3 — Templates          | ⏳ Not started | Antigravity, skills, check agent files in OpenCode, one real task |
-| 4 — Second project     | ⏳ Not started | Project not chosen yet                                            |
-| 5 — Dashboard          | ⏳ Not started | Will be built later with another tool                             |
-| 6 — Distribution, docs | ⏳ Not started |                                                                   |
+| Phase                  | Status         | Notes                                                          |
+| ---------------------- | -------------- | -------------------------------------------------------------- |
+| 0 — Setup              | ✅ Done        | CI written but never run (nothing pushed yet)                  |
+| 1 — Core               | ✅ Done        | 168 tests; guard + protocol at 100% coverage                   |
+| 2 — CLI                | 🟡 Built       | Only doctor's status check fails (list has no custom statuses) |
+| 3 — Templates          | 🟡 Built       | 318 tests; left: init in Ek-Mobile-test + one real task        |
+| 4 — Second project     | ⏳ Not started | Project not chosen yet                                         |
+| 5 — Dashboard          | ⏳ Not started | Will be built later with another tool                          |
+| 6 — Distribution, docs | ⏳ Not started |                                                                |
 
 ## How to work on this repo
 
@@ -137,18 +137,16 @@ pnpm format       # fix formatting
 ## Open questions / waiting on the user
 
 - Skills folder path (`backend-master`, `flutter-master`, `frontend-master`, `mobile-master`). Placeholders exist in
-  `packages/templates/skills/`; replace them in Phase 3.
+  `packages/templates/skills/` and are shipped as-is until the user gives the path.
 - Result of `scripts/phase2-real-clickup-check.ps1` with the user's token.
 - Phase 4 project, GitHub org, company email domain, dashboard hosting, dashboard token: later phases.
 
-## Next steps (Phase 3 — Templates)
+## Next steps
 
-1. Antigravity: verify the current rules/workflows format, then port EKMONG's `.agents/skills/start-task`,
-   `.agents/skills/explore` and `.agents/agents/*.md` (thin wrappers) into `packages/templates/antigravity/` and add
-   them to `kitFiles()` in `packages/cli/src/templates.ts`.
-2. Real skills into `packages/templates/skills/` (or keep placeholders).
-3. Check the `.agents/tmp/*` edit permission in a real OpenCode session (pattern matching on Windows paths).
-4. The user runs one small real task in EKMONG from To Do to Ready for Review.
+1. The user fixes the statuses on the test list. Then: read-only doctor → Phase 2 done.
+2. `init` in `D:\Ek-Mobile-test` against the test list (token only via the process environment), `pnpm install`.
+3. The user runs task `z8qu5d2v09` (AppText) from To Do to Ready for Review and watches it.
+4. Someone with Antigravity checks that `/start-task` and the three subagents load (tool names are unverified).
 
 ## Test data in the personal ClickUp test workspace (2026-10-10)
 
@@ -177,3 +175,23 @@ pnpm format       # fix formatting
 - Antigravity format checked (antigravity.google/docs, 2026-10-12): skills in `.agents/skills/<name>/SKILL.md`
   (`.agent/` is legacy), invokable as `/<name>`; custom subagents in `.agents/agents/<name>.md`; rules read
   `AGENTS.md` automatically. Workflows are being migrated to skills. EKMONG's files already use this format.
+
+### Phase 3 — built 2026-10-12
+
+- **Antigravity templates** (`packages/templates/antigravity/`): `/start-task` and `/explore` as skills in
+  `.agents/skills/`, and `coder`/`reviewer`/`tester` subagent wrappers in `.agents/agents/` (ported from EKMONG, which
+  already used the current layout). No separate rule file: Antigravity reads `AGENTS.md` itself. `/start-task`
+  runs `run --task <id> --no-agent` when the branch is wrong, then follows `.opencode/agents/orchestrator.md`.
+  The reviewer has no write tools, so the orchestrator posts the reviewer's comment for it.
+- **Unverified:** the subagent `tools` names (EKMONG's IDE names: `view_file`, `list_dir`, `find_by_name`,
+  `grep_search`, `write_to_file`, `replace_file_content`, `multi_replace_file_content`, `run_command`,
+  `command_status`). The docs only confirm four of them and warn that a wrong name can make a subagent hang;
+  the SDK uses other names. Check in a real Antigravity session.
+- **Skill folder moved** from `.agents/kit/skills/<skill>/` to `.agents/skills/<skill>/` (Antigravity finds it there).
+  No migration: only test copies had the old path.
+- init now writes 11 kit files (was 6).
+- **Real OpenCode 1.18.35 check** (temp project, orchestrator agent): writing `.agents/tmp/T1-orchestrator.md`
+  allowed (OpenCode matches it as `.agents	mp\*`), editing `README.md` denied; token in no file except `.env`.
+- **Bug found and fixed:** OpenCode takes its project folder from `PWD` when set. With `--cwd` or a stale `PWD`
+  (Git Bash, tool shells) it ran in the wrong folder, could not find `orchestrator` and failed with `UnknownError`.
+  `run` now passes `--dir <project>` to `opencode run` and sets `PWD` for every agent process.
