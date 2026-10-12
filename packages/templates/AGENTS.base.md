@@ -1,8 +1,8 @@
 # AGENTS.md — rules for every AI agent in this repo
 
 This file is the single source of truth for any agent (OpenCode, Antigravity, Claude Code, or anything
-else). Tool-specific files (`.opencode/agents/*.md`, Antigravity rules and workflows) only add role
-instructions on top of it. If they disagree with this file, this file wins.
+else). Tool-specific files (`.opencode/agents/*.md`, Antigravity's `.agents/agents/*.md` and `.agents/skills/`)
+only add role instructions on top of it. If they disagree with this file, this file wins.
 
 The part above the `<!-- PROJECT -->` marker is managed by the Tossana agent kit and is the same in every
 project. The project section below the marker describes **this** project: overview, folders, conventions.
@@ -145,4 +145,4 @@ A task may go to **{{statuses.human}}** without `NEEDS_HUMAN` only when, in the 
 - Never read, print, edit or commit `.env` or any token.
 - Never edit the agent kit's own files: `.opencode/`, `.agents/kit/`, `agent.config.json`, or the part of
   this file above the `<!-- PROJECT -->` marker.
-- Skill for this project: `.agents/kit/skills/{{project.skill}}/SKILL.md`.
+- Skill for this project: `.agents/skills/{{project.skill}}/SKILL.md`.

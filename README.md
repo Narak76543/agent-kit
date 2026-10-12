@@ -6,12 +6,12 @@ The full spec is in [TOSSANA_AGENT_KIT_PLAN.md](./TOSSANA_AGENT_KIT_PLAN.md).
 
 ## Packages
 
-| Folder               | Package                | What it is                                                   |
-| -------------------- | ---------------------- | ------------------------------------------------------------ |
-| `packages/core`      | `@tossana/agents-core` | ClickUp client, Done guard, config, comment protocol         |
-| `packages/cli`       | `@tossana/agents`      | The `tossana-agents` command                                 |
-| `packages/templates` | (bundled into the CLI) | Agent files, `AGENTS.base.md`, Antigravity workflows, skills |
-| `apps/dashboard`     | (later)                | Team dashboard                                               |
+| Folder               | Package                | What it is                                                            |
+| -------------------- | ---------------------- | --------------------------------------------------------------------- |
+| `packages/core`      | `@tossana/agents-core` | ClickUp client, Done guard, config, comment protocol                  |
+| `packages/cli`       | `@tossana/agents`      | The `tossana-agents` command                                          |
+| `packages/templates` | (bundled into the CLI) | Agent files, `AGENTS.base.md`, Antigravity skills + subagents, skills |
+| `apps/dashboard`     | (later)                | Team dashboard                                                        |
 
 ## Commands
 

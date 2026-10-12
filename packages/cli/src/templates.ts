@@ -79,11 +79,25 @@ export function kitFiles(config: AgentConfig, vars: Record<string, string>): Kit
     path: 'AGENTS.md',
     content: withManagedHeader(render(readTemplate('AGENTS.base.md'), vars, 'AGENTS.base.md')),
   });
+  for (const name of ANTIGRAVITY_FILES) {
+    const template = `antigravity/${name}`;
+    files.push({
+      path: `.agents/${name}`,
+      content: withManagedHeader(render(readTemplate(template), vars, template)),
+    });
+  }
   files.push(...skillFiles(config.project.skill));
   return files;
 }
 
-/** The selected skill, copied as-is (Markdown files get the managed header). */
+/** Antigravity skills (`/start-task`, `/explore`) and subagent wrappers, under `.agents/`. */
+const ANTIGRAVITY_FILES = [
+  'skills/start-task/SKILL.md',
+  'skills/explore/SKILL.md',
+  ...AGENT_NAMES.filter((a) => a !== 'orchestrator').map((a) => `agents/${a}.md`),
+];
+
+/** The selected skill (Antigravity and OpenCode both find `.agents/skills/`), copied as-is (Markdown files get the managed header). */
 function skillFiles(skill: string): KitFile[] {
   const dir = join(templatesDir(), 'skills', skill);
   if (!existsSync(dir)) {
@@ -93,7 +107,7 @@ function skillFiles(skill: string): KitFile[] {
     const rel = relative(dir, file).split(sep).join('/');
     const text = readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
     return {
-      path: `.agents/kit/skills/${skill}/${rel}`,
+      path: `.agents/skills/${skill}/${rel}`,
       content: file.endsWith('.md') ? withManagedHeader(text) : text,
     };
   });

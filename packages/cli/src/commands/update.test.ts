@@ -39,7 +39,7 @@ describe('update', () => {
     await initialized();
     const r = await cli(['update'], { cwd: project.dir });
     expect(r.out).toContain(`Kit files v${KIT_VERSION}:`);
-    expect(r.out).toContain('6 file(s) already up to date');
+    expect(r.out).toContain('11 file(s) already up to date');
   });
 
   it('updates files the person did not edit, and records the new version', async () => {
@@ -97,7 +97,7 @@ describe('update', () => {
     ]);
     expect(read('.opencode/agents/coder.md')).not.toContain('Local note.');
     r = await cli(['update'], { cwd: project.dir });
-    expect(r.out).toContain('6 file(s) already up to date');
+    expect(r.out).toContain('11 file(s) already up to date');
   });
 
   it('removes kit files that are no longer needed when the skill changes', async () => {
@@ -106,7 +106,7 @@ describe('update', () => {
     config.project.skill = 'mobile-master';
     project.write('agent.config.json', config);
     const r = await cli(['update'], { cwd: project.dir });
-    expect(r.out).toMatch(/created\s+\.agents\/kit\/skills\/mobile-master\/SKILL\.md/);
-    expect(r.out).toMatch(/removed\s+\.agents\/kit\/skills\/frontend-master\/SKILL\.md/);
+    expect(r.out).toMatch(/created\s+\.agents\/skills\/mobile-master\/SKILL\.md/);
+    expect(r.out).toMatch(/removed\s+\.agents\/skills\/frontend-master\/SKILL\.md/);
   });
 });

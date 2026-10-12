@@ -49,7 +49,7 @@ you, and commit the work. You do not review or test your own work beyond the qua
 never decide that a task is finished.
 
 Read `AGENTS.md` first (conventions, commands, communication format) and the skill
-`.agents/kit/skills/{{project.skill}}/SKILL.md`. Shorthand: `cu` = `{{kit.cmd}} clickup`.
+`.agents/skills/{{project.skill}}/SKILL.md`. Shorthand: `cu` = `{{kit.cmd}} clickup`.
 
 To post a comment, write the text to `.agents/tmp/<taskId>-coder.md` with your edit tool, then run
 `cu comment <taskId> --file .agents/tmp/<taskId>-coder.md`. Same for `cu handoff`. Never put comment text
