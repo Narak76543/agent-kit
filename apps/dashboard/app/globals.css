@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+/* Light mode only (plan §10.4). Google Sans Flex from Google Fonts, Inter-like fallbacks. */
+@theme {
+  --font-sans: 'Google Sans Flex', 'Google Sans', Inter, 'Segoe UI', Roboto, system-ui, sans-serif;
+  --color-page: #f8f9fa;
+  --color-card: #ffffff;
+  --color-line: #e3e5e8;
+  --color-ink: #1f1f1f;
+  --color-muted: #5f6368;
+  --color-accent: #1a73e8;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+}

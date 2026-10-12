@@ -5,3 +5,5 @@ TOSSANA_AGENT_KIT_PLAN.md
 packages/templates
 packages/cli/templates
 packages/cli/schema
+.next
+next-env.d.ts

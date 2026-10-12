@@ -216,3 +216,13 @@ pnpm format       # fix formatting
   `npm install` / `npm run lint` / `npx tsc --noEmit` (no `test`: create-next-app has no test script, so the gate is
   lint + typecheck until the project adds one), folder tree `app/`, doctor 14/14 green, `run --dry-run` shows
   `--dir`, `opencode agent list` loads all four agents. Scripts: session scratchpad `p4/` (not in the repo).
+- **Item 5 — dashboard preview (started):** `apps/dashboard`, Next.js 16.4 (App Router, Turbopack) + Tailwind 4,
+  light mode, Google Sans Flex (Google Fonts). Data from `fixtures/tasks.json` (8 tasks, 2 projects, protocol
+  comments) parsed with core's `parseAgentComment`; core is used from the workspace (built first by `predev`/
+  `prebuild`). Screens: pipeline board (5 role columns, card = project, task, last agent + result badge, round,
+  assignee, time in status; NEEDS_HUMAN sorted first and outlined red; "new comment from a human"; project/assignee
+  filters in the URL) and task timeline. Auto-refresh 60 s. No auth, no ClickUp, no Needs-human/Stats screens yet.
+  Run: `pnpm --filter @tossana/dashboard dev` → http://localhost:3100. Checked with Playwright + installed Edge at
+  1440 px and 390 px: no horizontal overflow. (Headless Edge alone cannot go below ~500 px wide.)
+- **Item 6 — Figma (queued, not started):** optional Figma MCP (read-only), asked by `init`; see the user's request
+  of 2026-10-12. Ask before starting if time is short.
