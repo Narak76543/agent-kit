@@ -313,3 +313,28 @@ IDs of the personal test workspace are kept out of this repo on purpose (see the
   (fine for the default; slightly off for custom roles). Per-role `mcp` other than figma waits for the library catalog.
 - Dashboard: Agents page text is generic (no project name), the orchestrator card says "Runs the pipeline"; the
   Projects page shows each project's quality-gate commands.
+
+### Phase 7 (c) — Claude Code (done 2026-10-12)
+
+- `agent.config.json` → `tools` (`opencode`, `antigravity`, `claude-code`; default the first two, so existing
+  projects and the golden files are unchanged). `init` asks (multi-select) or takes `--tools a,b`. OpenCode agent
+  files are written when OpenCode **or** Antigravity is selected (the Antigravity wrappers read them).
+- Claude Code files (docs checked 2026-10-12: sub-agents, permissions, hooks, headless):
+  `.claude/agents/<role>.md` (+ `orchestrator`, tools per preset, `Agent(<roles>)` for the orchestrator, Figma
+  `mcp__figma__*` read tools for Figma roles; body = the OpenCode instructions), kit-owned
+  `.claude/tossana-run.settings.json` (allow = union of role commands + Edit/Write; deny = git push, `.env`).
+  Merged, user entries kept: `.claude/settings.json` (one PreToolUse hook `… guard`, matcher `*`), `CLAUDE.md`
+  (`@AGENTS.md` line), `.mcp.json` (`figma`, type `http`, only with Figma on).
+- **Per-role limits = `tossana-agents guard`** (hidden command, `packages/cli/src/commands/guard.ts`, policies in
+  `presets.ts`): reads the hook JSON, role from `agent_type`; locked rules + preset rules (commands by prefix, each
+  part of `a && b; c | d` checked; edits by path; test-file globs; MCP tools; only the orchestrator may start roles;
+  other tools default-deny). No `agent_type` (a developer's own session) → allowed. Errors → blocked (exit 2).
+- `run` with `pipeline.runner: "claude-code"`: `claude -p <prompt> --agent orchestrator --permission-mode dontAsk
+--settings .claude/tossana-run.settings.json`. doctor: Claude Code installed, guard hook present, **guard can run**
+  (Claude Code lets a call through when a hook cannot start, so a missing kit = no limits).
+- Real check (Claude Code 2.1.296, kit installed from the packed tarball into a temp project): `--agent coder` →
+  `echo guard-test` was **blocked by the hook** with the kit's message; a reviewer run wrote its draft and refused the
+  forbidden steps by itself. Script: session scratchpad `p4/claude-check.ps1`.
+- Not done: a full task run through Claude Code against ClickUp (needs the test account fixed). Note: piping JSON
+  into the `npx.cmd` shim from Windows PowerShell 5.1 loses stdin; Claude Code itself passes it fine.
+- Docs: `docs/claude-code.md`.
