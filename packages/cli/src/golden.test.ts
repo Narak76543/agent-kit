@@ -63,6 +63,17 @@ export const GOLDEN_CASES: Record<string, { config: object; kitCmd: string; pack
     kitCmd: 'npx tossana-agents',
     packageManager: 'npm',
   },
+  'all-tools': {
+    config: {
+      ...base,
+      project: { name: 'api', type: 'node-backend', skill: 'backend-master' },
+      commands: { install: 'pnpm install', lint: 'pnpm lint', test: 'pnpm test' },
+      figma: { enabled: true },
+      tools: ['opencode', 'antigravity', 'claude-code', 'codex'],
+    },
+    kitCmd: 'npx tossana-agents',
+    packageManager: 'pnpm',
+  },
   'flutter-no-commands': {
     config: { ...base, project: { name: 'shop_app', type: 'flutter', skill: 'flutter-master' } },
     kitCmd: 'tossana-agents',

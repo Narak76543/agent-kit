@@ -14,6 +14,7 @@ import {
   type ResolvedSkill,
 } from '@tossana/agents-core';
 import { claudeKitFiles } from './claude.js';
+import { codexKitFiles } from './codex.js';
 import { readManifest } from './kit-manifest.js';
 import { pipelineVars, roleTemplate, roleVars } from './role-vars.js';
 import { KIT_VERSION } from './version.js';
@@ -119,6 +120,7 @@ export function kitFiles(
     }
   }
   if (tools.has('claude-code')) files.push(...claudeKitFiles(config, opencode, `# ${MANAGED_TEXT(KIT_VERSION)}`));
+  if (tools.has('codex')) files.push(...codexKitFiles(config, opencode, `# ${MANAGED_TEXT(KIT_VERSION)}`));
   for (const skill of skills.values()) if (skill.scope === 'team') files.push(...skillFiles(skill.name));
   return files;
 }

@@ -4,6 +4,7 @@
  * first ❌ is always the one to fix first.
  */
 import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { Command } from 'commander';
 import {
@@ -22,6 +23,7 @@ import {
   type KitEnv,
 } from '@tossana/agents-core';
 import { wrongAccountHint } from '../account-hint.js';
+import { codexTrusted } from '../codex.js';
 import { figmaChecks } from '../figma.js';
 import { SilentExit, createClient, type CliContext } from '../context.js';
 import { versionOf } from '../exec.js';
@@ -223,6 +225,21 @@ export async function runDoctor(ctx: CliContext): Promise<Check[]> {
   // ---------- Claude Code (when it is one of the tools) ----------
   if (config?.tools.includes('claude-code')) checks.push(claudeGuardCheck(ctx.cwd), guardRunsCheck(ctx));
 
+  // ---------- Codex (when it is one of the tools) ----------
+  if (config?.tools.includes('codex')) {
+    const home = env.CODEX_HOME || join(homedir(), '.codex');
+    checks.push(
+      codexTrusted(ctx.cwd, home)
+        ? { name: 'Codex trusts this project', status: 'ok' }
+        : {
+            name: 'Codex trusts this project',
+            status: 'fail',
+            detail: 'Codex ignores .codex/ (agents, rules, config) in projects that are not trusted.',
+            fix: 'Run "codex" once in this folder and choose to trust it.',
+          },
+    );
+  }
+
   // ---------- Figma (optional) ----------
   if (config) checks.push(...(await figmaChecks(ctx.cwd, config, ctx.fetch ?? fetch)));
 
@@ -331,6 +348,16 @@ function runnerCheck(ctx: CliContext, config: AgentConfig, env: KitEnv): Check {
           name: 'Claude Code installed',
           status: 'fail',
           fix: 'Install Claude Code (https://code.claude.com/docs/en/setup), then run "claude" once to log in.',
+        };
+  }
+  if (runner === 'codex') {
+    const v = versionOf(ctx.exec, 'codex', ctx.cwd);
+    return v
+      ? { name: `Codex ${v}`, status: 'ok' }
+      : {
+          name: 'Codex installed',
+          status: 'fail',
+          fix: 'Install Codex (npm install -g @openai/codex), then run "codex" once to log in.',
         };
   }
   if (runner === 'custom') {

@@ -1,0 +1,59 @@
+# Managed by @tossana/agents v0.1.0 — do not edit; run "tossana-agents update"
+# Codex applies the most restrictive matching rule: forbidden > prompt > allow.
+# "allow" runs a command outside the sandbox: git writes to .git (read-only in the sandbox), ClickUp needs network.
+
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "forbidden",
+    justification = "Agents never push. Only a human pushes.",
+    match = ["git push origin task/T1"],
+)
+
+prefix_rule(
+    pattern = ["git", ["reset", "rebase", "merge", "clean", "switch", "checkout"]],
+    decision = "forbidden",
+    justification = "Agents never rewrite history or switch branches; tossana-agents run prepares the branch.",
+    match = ["git reset --hard"],
+)
+
+prefix_rule(
+    pattern = ["git", "commit", "--amend"],
+    decision = "forbidden",
+    justification = "Agents never amend commits.",
+    match = ["git commit --amend"],
+)
+
+prefix_rule(
+    pattern = ["git", "branch", ["-d", "-D", "--delete"]],
+    decision = "forbidden",
+    justification = "Agents never delete branches.",
+    match = ["git branch -D x"],
+)
+
+prefix_rule(
+    pattern = ["git", ["add", "commit"]],
+    decision = "allow",
+    justification = "Commits write to .git, which the sandbox keeps read-only.",
+    match = ["git add src/a.ts"],
+)
+
+prefix_rule(
+    pattern = ["tossana-agents", "clickup"],
+    decision = "allow",
+    justification = "ClickUp calls need network; the kit itself refuses Done/Complete/Closed.",
+    match = ["tossana-agents clickup get T1"],
+)
+
+prefix_rule(
+    pattern = ["npx", "tossana-agents", "clickup"],
+    decision = "allow",
+    justification = "Same as tossana-agents clickup.",
+    match = ["npx tossana-agents clickup get T1"],
+)
+
+prefix_rule(
+    pattern = ["pnpm", "install"],
+    decision = "allow",
+    justification = "Installing packages needs network.",
+    match = ["pnpm install"],
+)

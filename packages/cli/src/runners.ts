@@ -4,6 +4,7 @@
  * exactly, on Windows too.
  */
 import { CLAUDE_RUN_SETTINGS } from './claude.js';
+import { CODEX_ORCHESTRATOR } from './codex.js';
 import { KitError, type AgentConfig, type KitEnv } from '@tossana/agents-core';
 import { versionOf, type Exec } from './exec.js';
 
@@ -85,6 +86,32 @@ export function claudeCodeAdapter(exec: Exec, cwd: string): RunnerAdapter {
   };
 }
 
+/**
+ * Codex, headless: `codex exec` (https://learn.chatgpt.com/docs/non-interactive-mode). Codex has no --agent flag,
+ * so the prompt points the main session at the orchestrator instructions. workspace-write + approval "never":
+ * nothing waits for a person; git writes and ClickUp calls run outside the sandbox via .codex/rules/tossana.rules.
+ */
+export function codexAdapter(exec: Exec, cwd: string): RunnerAdapter {
+  return {
+    name: 'codex',
+    headless: true,
+    isInstalled: async () => versionOf(exec, 'codex', cwd) !== null,
+    buildCommand: ({ prompt }) => ({
+      cmd: 'codex',
+      args: [
+        'exec',
+        '--sandbox',
+        'workspace-write',
+        '-c',
+        'approval_policy=never',
+        `${prompt} You are the orchestrator: read ${CODEX_ORCHESTRATOR} and follow it exactly.`,
+      ],
+    }),
+    installHint:
+      'Install Codex (npm install -g @openai/codex), then run "codex" once to log in and trust this project.',
+  };
+}
+
 export function antigravityAdapter(): RunnerAdapter {
   return {
     name: 'antigravity',
@@ -107,6 +134,8 @@ export function adapterFor(config: AgentConfig, env: KitEnv, exec: Exec, cwd: st
       return antigravityAdapter();
     case 'claude-code':
       return claudeCodeAdapter(exec, cwd);
+    case 'codex':
+      return codexAdapter(exec, cwd);
     default:
       throw new KitError(`runner "${config.pipeline.runner}" is not supported yet. Use opencode or custom.`);
   }

@@ -12,9 +12,10 @@ import { applyKitFiles, migrateDraftsDir, printKitFileResults } from '../kit-fil
 import { readManifest } from '../kit-manifest.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
 import { applyClaudeSettings } from '../claude.js';
+import { applyCodexConfig } from '../codex.js';
 import { applyFigmaMcp, printFigmaResults, printMergeResults } from '../figma.js';
 import { templateVars } from '../template-vars.js';
-import { kitFiles, resolveRoleSkills, readTemplate, render } from '../templates.js';
+import { MANAGED_TEXT, kitFiles, resolveRoleSkills, readTemplate, render } from '../templates.js';
 import { KIT_VERSION } from '../version.js';
 
 export function registerUpdateCommand(program: Command, ctx: CliContext, prompts: Prompts = clackPrompts): void {
@@ -42,5 +43,6 @@ export function registerUpdateCommand(program: Command, ctx: CliContext, prompts
       if (moved) ctx.logger.info(`  moved    ${moved} comment draft(s) from .agents/tmp/ to .tossana/tmp/`);
       printFigmaResults(ctx, applyFigmaMcp(ctx.cwd, config));
       printMergeResults(ctx, applyClaudeSettings(ctx.cwd, config, vars['kit.cmd']!), 'Claude Code');
+      printMergeResults(ctx, [applyCodexConfig(ctx.cwd, config, `# ${MANAGED_TEXT(KIT_VERSION)}`)], 'Codex');
     });
 }

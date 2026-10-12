@@ -19,9 +19,9 @@ export type ProjectType = (typeof PROJECT_TYPES)[number];
 export const ROLES = ['todo', 'coding', 'review', 'testing', 'human'] as const;
 export type Role = (typeof ROLES)[number];
 
-export const RUNNERS = ['opencode', 'claude-code', 'custom', 'antigravity'] as const;
+export const RUNNERS = ['opencode', 'claude-code', 'codex', 'custom', 'antigravity'] as const;
 /** Agent tools the kit generates files for (plan Phase 7). */
-export const AGENT_TOOLS = ['opencode', 'antigravity', 'claude-code'] as const;
+export const AGENT_TOOLS = ['opencode', 'antigravity', 'claude-code', 'codex'] as const;
 export type AgentTool = (typeof AGENT_TOOLS)[number];
 export type RunnerName = (typeof RUNNERS)[number];
 

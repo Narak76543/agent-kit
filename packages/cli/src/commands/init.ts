@@ -30,6 +30,9 @@ import {
 } from '@tossana/agents-core';
 import { wrongAccountHint } from '../account-hint.js';
 import { applyClaudeSettings } from '../claude.js';
+import { applyCodexConfig } from '../codex.js';
+import { MANAGED_TEXT } from '../templates.js';
+import { KIT_VERSION } from '../version.js';
 import { applyFigmaMcp, printFigmaResults, printMergeResults } from '../figma.js';
 import { createClient, type CliContext } from '../context.js';
 import { applyKitFiles, findMarker, migrateDraftsDir, printKitFileResults } from '../kit-files.js';
@@ -54,6 +57,7 @@ const TOOL_LABELS: Record<AgentTool, string> = {
   opencode: 'OpenCode',
   antigravity: 'Antigravity',
   'claude-code': 'Claude Code',
+  codex: 'Codex',
 };
 
 function parseTools(list: string): AgentTool[] {
@@ -294,6 +298,7 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
   if (moved) log(`  moved    ${moved} comment draft(s) from .agents/tmp/ to .tossana/tmp/`);
   printFigmaResults(ctx, applyFigmaMcp(ctx.cwd, config));
   printMergeResults(ctx, applyClaudeSettings(ctx.cwd, config, vars['kit.cmd']!), 'Claude Code');
+  printMergeResults(ctx, [applyCodexConfig(ctx.cwd, config, `# ${MANAGED_TEXT(KIT_VERSION)}`)], 'Codex');
   if (unmarkedAgentsMd) {
     log(
       '  Note: your old AGENTS.md is kept unchanged below <!-- PROJECT -->. Remove rules that are now in the kit part above it.',

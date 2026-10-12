@@ -30,6 +30,7 @@ tossana-agents clickup <command>        # ClickUp commands used by the agents (g
 - [How the agents work](./docs/agents.md): roles, comment format, handoff files, the Done rule
 - [Antigravity](./docs/antigravity.md): `/start-task` and checking the subagent tool names
 - [Claude Code](./docs/claude-code.md): agent files, the guard hook, headless runs
+- [Codex](./docs/codex.md): agent files, sandbox and rules, trusting the project
 - [Windows](./docs/windows.md): PowerShell 7 or Windows Terminal recommended
 - [Maintaining the kit](./docs/maintaining.md): how to release a new version
 
