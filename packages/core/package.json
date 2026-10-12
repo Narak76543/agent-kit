@@ -1,6 +1,7 @@
 {
   "name": "@tossana/agents-core",
   "version": "0.1.0",
+  "private": true,
   "description": "Shared library for the Tossana agent kit: ClickUp client, Done guard, config, comment protocol.",
   "type": "module",
   "license": "UNLICENSED",

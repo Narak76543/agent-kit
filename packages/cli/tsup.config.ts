@@ -7,4 +7,7 @@ export default defineConfig({
   platform: 'node',
   sourcemap: true,
   clean: true,
+  // core is not published: bundle it, so the CLI is the only package people install.
+  // Its own dependencies (zod) are listed in the CLI's package.json.
+  noExternal: ['@tossana/agents-core'],
 });

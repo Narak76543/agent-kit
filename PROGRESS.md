@@ -205,3 +205,8 @@ pnpm format       # fix formatting
   `init` print the same hint with their missing-status warning.
 - **Item 2 — Phase 6 docs (done):** `docs/getting-started.md`, `clickup-setup.md`, `agents.md`, `maintaining.md`,
   `antigravity.md`, linked from the README. The publish registry is still open (`maintaining.md` says so).
+- **Item 3 — packaging (done):** `@tossana/agents-core` is bundled into the CLI (tsup `noExternal`), moved to the
+  CLI's devDependencies, and marked `private`; `zod` is now a CLI dependency. Packed tarball installed with npm in
+  a temp project outside the monorepo, path with spaces and an apostrophe: `--version`, `init --help`, `doctor`
+  without token (exit 1, FIX lines, no stack trace), `init --yes --list 123` without token (all 11 files) all work.
+  Script: session scratchpad `pack-test.ps1` (not in the repo).
