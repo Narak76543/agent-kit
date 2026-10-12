@@ -33,10 +33,10 @@ permission:
     '*\.git\*': deny
     "agent.config.json": deny
     "*agent.config.json": deny
-    ".agents/tmp/*": allow
-    '.agents\tmp\*': allow
-    "*/.agents/tmp/*": allow
-    '*\.agents\tmp\*': allow
+    ".tossana/tmp/*": allow
+    '.tossana\tmp\*': allow
+    "*/.tossana/tmp/*": allow
+    '*\.tossana\tmp\*': allow
   task:
     "*": deny
   bash:
@@ -84,8 +84,8 @@ never decide that a task is finished.
 Read `AGENTS.md` first (conventions, commands, communication format) and the skill
 `.agents/skills/flutter-master/SKILL.md`. Shorthand: `cu` = `tossana-agents clickup`.
 
-To post a comment, write the text to `.agents/tmp/<taskId>-coder.md` with your edit tool, then run
-`cu comment <taskId> --file .agents/tmp/<taskId>-coder.md`. Same for `cu handoff`. Never put comment text
+To post a comment, write the text to `.tossana/tmp/<taskId>-coder.md` with your edit tool, then run
+`cu comment <taskId> --file .tossana/tmp/<taskId>-coder.md`. Same for `cu handoff`. Never put comment text
 in the command line.
 
 ## Start

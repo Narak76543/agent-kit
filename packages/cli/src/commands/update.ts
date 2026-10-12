@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import type { Command } from 'commander';
 import { detectPackageManager } from '@tossana/agents-core';
 import { loadProject, requireConfig, type CliContext } from '../context.js';
-import { applyKitFiles, printKitFileResults } from '../kit-files.js';
+import { applyKitFiles, migrateDraftsDir, printKitFileResults } from '../kit-files.js';
 import { readManifest } from '../kit-manifest.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
 import { applyClaudeSettings } from '../claude.js';
@@ -38,6 +38,8 @@ export function registerUpdateCommand(program: Command, ctx: CliContext, prompts
       });
       ctx.logger.info(`Kit files ${before && before !== KIT_VERSION ? `v${before} → ` : ''}v${KIT_VERSION}:`);
       printKitFileResults(ctx, results);
+      const moved = migrateDraftsDir(ctx.cwd);
+      if (moved) ctx.logger.info(`  moved    ${moved} comment draft(s) from .agents/tmp/ to .tossana/tmp/`);
       printFigmaResults(ctx, applyFigmaMcp(ctx.cwd, config));
       printMergeResults(ctx, applyClaudeSettings(ctx.cwd, config, vars['kit.cmd']!), 'Claude Code');
     });

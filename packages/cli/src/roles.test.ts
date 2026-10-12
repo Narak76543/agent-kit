@@ -77,3 +77,15 @@ describe('init with custom roles and skill scopes', () => {
     expect(r.err).toContain('unknown skill "no-such-skill". Add .agents/skills/no-such-skill/SKILL.md (project)');
   });
 });
+
+describe('comment drafts folder', () => {
+  it('init moves leftover drafts from .agents/tmp/ to .tossana/tmp/ and git-ignores the new folder', async () => {
+    project = rnProject();
+    project.write('.agents/tmp/T1-coder.md', 'draft');
+    const r = await init();
+    expect(r.out).toContain('moved    1 comment draft(s) from .agents/tmp/ to .tossana/tmp/');
+    expect(read('.tossana/tmp/T1-coder.md')).toBe('draft');
+    expect(existsSync(join(project.dir, '.agents', 'tmp'))).toBe(false);
+    expect(read('.gitignore')).toContain('.tossana/tmp/');
+  });
+});

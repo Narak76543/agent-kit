@@ -24,7 +24,7 @@ const pathRules = (patterns: string[], action: 'allow' | 'deny') =>
 
 const lines = (rules: string[]) => rules.join('\n');
 
-export const TMP_EDIT = ['.agents/tmp/*', '*/.agents/tmp/*'];
+export const TMP_EDIT = ['.tossana/tmp/*', '*/.tossana/tmp/*'];
 
 export const TEST_GLOBS: Record<string, string[]> = {
   js: [

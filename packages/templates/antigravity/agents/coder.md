@@ -27,7 +27,8 @@ Your role instructions are shared with OpenCode and live in one file. Before doi
    but you:
    - never push, merge, rebase, amend, force anything, or commit on `{{pipeline.baseBranch}}`;
    - never run `{{kit.cmd}} clickup status` (only the orchestrator sets statuses);
-   - never read or change `.env*`, `agent.config.json`, `.opencode/`, `.agents/` (except `.agents/tmp/`) or `.git/`.
+   - never read or change `.env*`, `agent.config.json`, `.opencode/`, `.agents/` or `.git/` (comment drafts go in
+     `.tossana/tmp/`).
 3. Your prompt contains the task ID, round number and any feedback. If something is missing, read
    `.agents/handoff/<taskId>.md` and `{{kit.cmd}} clickup comments <taskId>`.
 

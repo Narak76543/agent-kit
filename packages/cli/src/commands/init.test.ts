@@ -101,7 +101,7 @@ describe('init --yes', () => {
     expect(read(project, '.env')).toBe(`CLICKUP_API_TOKEN=${TOKEN}\nCLICKUP_OWNER_USER_ID=777\n`);
     expect(read(project, '.env.example')).toContain('CLICKUP_API_TOKEN=\n');
     expect(read(project, '.gitignore')).toContain(
-      '.env\n.env.*\n!.env.example\n.agents/handoff/\n.agents/logs/\n.agents/tmp/',
+      '.env\n.env.*\n!.env.example\n.agents/handoff/\n.agents/logs/\n.tossana/tmp/',
     );
 
     for (const f of ['orchestrator', 'coder', 'reviewer', 'tester']) {
@@ -303,7 +303,7 @@ describe('generated OpenCode agents', () => {
     expect(orch.bash!['*tossana-agents clickup status *done*']).toBe('deny');
     expect(orch.task).toEqual({ '*': 'deny', coder: 'allow', reviewer: 'allow', tester: 'allow' });
     expect(orch.edit!['*']).toBe('deny');
-    expect(orch.edit!['.agents/tmp/*']).toBe('allow');
+    expect(orch.edit!['.tossana/tmp/*']).toBe('allow');
 
     const coder = perm('coder');
     expect(coder.bash!['pnpm lint*']).toBe('allow');
@@ -313,7 +313,7 @@ describe('generated OpenCode agents', () => {
     expect(coder.edit!['.opencode/*']).toBe('deny');
     expect(coder.edit!['agent.config.json']).toBe('deny');
     const coderEdit = Object.keys(coder.edit!);
-    expect(coderEdit.lastIndexOf('.agents/tmp/*')).toBeGreaterThan(coderEdit.indexOf('.agents/*'));
+    expect(coderEdit.lastIndexOf('.tossana/tmp/*')).toBeGreaterThan(coderEdit.indexOf('.agents/*'));
 
     const reviewer = perm('reviewer');
     expect(reviewer.bash!['pnpm lint*']).toBeUndefined();
@@ -437,13 +437,13 @@ describe('helpers', () => {
     const added = read(project, '.gitignore').split('# Tossana agent kit')[1]!;
     expect(added).not.toContain('.env');
     expect(added).not.toContain('.agents/handoff/');
-    expect(added).toContain('.agents/tmp/');
+    expect(added).toContain('.tossana/tmp/');
     // git itself agrees: .env ignored, .env.example not.
     const check = (f: string) => exec('git', ['check-ignore', '--no-index', '-q', f], { cwd: project.dir }).code;
     exec('git', ['init', '-q'], { cwd: project.dir });
     expect(check('.env')).toBe(0);
     expect(check('.env.example')).toBe(1);
-    expect(check('.agents/tmp/x.md')).toBe(0);
+    expect(check('.tossana/tmp/x.md')).toBe(0);
   });
 
   it('ensureGitignore re-adds !.env.example after a new .env.* rule', () => {

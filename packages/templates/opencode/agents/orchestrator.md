@@ -39,8 +39,8 @@ Read `AGENTS.md` first. Its rules always apply. The most important one: **never 
 Complete or Closed.** The last status you may set is the `human` role ("{{statuses.human}}").
 
 Shorthand below: `cu` = `{{kit.cmd}} clickup`. To post a comment, write the text to
-`.agents/tmp/<taskId>-orchestrator.md` with your edit tool, then run
-`cu comment <taskId> --file .agents/tmp/<taskId>-orchestrator.md` (same for `notify`). Never put comment
+`.tossana/tmp/<taskId>-orchestrator.md` with your edit tool, then run
+`cu comment <taskId> --file .tossana/tmp/<taskId>-orchestrator.md` (same for `notify`). Never put comment
 text in the command line: quotes break on Windows.
 
 ## 0. Prepare
@@ -82,7 +82,7 @@ same round).
 **Success** ({{pipeline.successRule}}):
 
 1. `cu status <taskId> human`
-2. `cu notify <taskId> --file .agents/tmp/<taskId>-orchestrator.md` with:
+2. `cu notify <taskId> --file .tossana/tmp/<taskId>-orchestrator.md` with:
    ```
    [AGENT: orchestrator] [RESULT: PASS] [ROUND: <n>]
    Summary: <what was built, 1-3 lines>. Branch {{pipeline.branchPrefix}}<taskId> (local, not pushed).

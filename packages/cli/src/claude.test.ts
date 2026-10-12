@@ -188,7 +188,7 @@ describe('tossana-agents guard (Claude Code PreToolUse hook)', () => {
 
     // Reviewer: read-only, except its comment draft; no commits.
     expect(call('reviewer', 'Edit', { file_path: join(project.dir, 'src', 'App.tsx') })).toMatch(/read-only/);
-    expect(call('reviewer', 'Write', { file_path: join(project.dir, '.agents', 'tmp', 'T1-reviewer.md') })).toBeNull();
+    expect(call('reviewer', 'Write', { file_path: join(project.dir, '.tossana', 'tmp', 'T1-reviewer.md') })).toBeNull();
     expect(call('reviewer', 'Bash', { command: 'git commit -m x' })).toMatch(/may not run "git commit -m x"/);
     expect(call('reviewer', 'Bash', { command: 'npx tossana-agents clickup comment T1 --file x.md' })).toBeNull();
 

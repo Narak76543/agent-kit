@@ -88,7 +88,7 @@ The agents also never push, merge, delete branches, or read `.env`.
 
 Each OpenCode agent file starts with `"*": deny`: every tool and command is refused unless it is allowed
 in the file. There is no "ask", so an agent can never wait forever for a permission prompt in a `run`.
-To post a comment, an agent writes the text to `.agents/tmp/<taskId>-<agent>.md` and runs
+To post a comment, an agent writes the text to `.tossana/tmp/<taskId>-<agent>.md` and runs
 `clickup comment <taskId> --file …` (quotes in command lines break on Windows).
 
 Do not edit the agent files by hand: `tossana-agents update` would ask to replace them. Put project rules in

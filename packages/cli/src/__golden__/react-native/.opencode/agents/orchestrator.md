@@ -18,10 +18,10 @@ permission:
   lsp: allow
   edit:
     "*": deny
-    ".agents/tmp/*": allow
-    '.agents\tmp\*': allow
-    "*/.agents/tmp/*": allow
-    '*\.agents\tmp\*': allow
+    ".tossana/tmp/*": allow
+    '.tossana\tmp\*': allow
+    "*/.tossana/tmp/*": allow
+    '*\.tossana\tmp\*': allow
   task:
     "*": deny
     coder: allow
@@ -61,8 +61,8 @@ Read `AGENTS.md` first. Its rules always apply. The most important one: **never 
 Complete or Closed.** The last status you may set is the `human` role ("ready for review").
 
 Shorthand below: `cu` = `npx tossana-agents clickup`. To post a comment, write the text to
-`.agents/tmp/<taskId>-orchestrator.md` with your edit tool, then run
-`cu comment <taskId> --file .agents/tmp/<taskId>-orchestrator.md` (same for `notify`). Never put comment
+`.tossana/tmp/<taskId>-orchestrator.md` with your edit tool, then run
+`cu comment <taskId> --file .tossana/tmp/<taskId>-orchestrator.md` (same for `notify`). Never put comment
 text in the command line: quotes break on Windows.
 
 ## 0. Prepare
@@ -120,7 +120,7 @@ same round).
 **Success** (APPROVED + PASS in the same round):
 
 1. `cu status <taskId> human`
-2. `cu notify <taskId> --file .agents/tmp/<taskId>-orchestrator.md` with:
+2. `cu notify <taskId> --file .tossana/tmp/<taskId>-orchestrator.md` with:
    ```
    [AGENT: orchestrator] [RESULT: PASS] [ROUND: <n>]
    Summary: <what was built, 1-3 lines>. Branch task/<taskId> (local, not pushed).

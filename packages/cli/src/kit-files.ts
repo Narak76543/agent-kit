@@ -5,8 +5,8 @@
  * - files that existed before the kit (no manifest entry) are backed up first in non-interactive mode;
  * - in AGENTS.md only the part above `<!-- PROJECT -->` is the kit's; the rest is never touched.
  */
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { createTwoFilesPatch } from 'diff';
 import type { CliContext } from './context.js';
 import { projectPath, readManifest, sha256, writeManifest, type KitManifest } from './kit-manifest.js';
@@ -147,6 +147,27 @@ export async function applyKitFiles(
 
   writeManifest(ctx.cwd, manifest);
   return results;
+}
+
+/**
+ * Comment drafts moved from .agents/tmp/ to .tossana/tmp/ (Codex keeps .agents/ read-only in its sandbox).
+ * Moves leftover drafts once; returns how many files moved.
+ */
+export function migrateDraftsDir(cwd: string): number {
+  const oldDir = join(cwd, '.tossana', 'tmp');
+  if (!existsSync(oldDir)) return 0;
+  const newDir = join(cwd, '.tossana', 'tmp');
+  mkdirSync(newDir, { recursive: true });
+  let moved = 0;
+  for (const name of readdirSync(oldDir)) {
+    const target = join(newDir, name);
+    if (!existsSync(target)) {
+      renameSync(join(oldDir, name), target);
+      moved++;
+    }
+  }
+  if (readdirSync(oldDir).length === 0) rmSync(oldDir, { recursive: true });
+  return moved;
 }
 
 export function printKitFileResults(ctx: CliContext, results: KitFileResult[]): void {

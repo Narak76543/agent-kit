@@ -24,7 +24,7 @@ const GUARD_MARK = 'tossana-agents guard';
 const FILE_TOOLS: Record<PipelineRole['preset'], string[]> = {
   'edit-code': ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash'],
   'edit-tests-only': ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash'],
-  // Write only for the comment draft in .agents/tmp/ (the guard blocks everything else).
+  // Write only for the comment draft in .tossana/tmp/ (the guard blocks everything else).
   'read-only': ['Read', 'Grep', 'Glob', 'Write', 'Bash'],
 };
 

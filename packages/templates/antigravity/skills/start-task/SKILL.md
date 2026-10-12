@@ -37,8 +37,8 @@ When the procedure says to invoke `coder`, `reviewer` or `tester`:
    `[AGENT: <role>]` tag. Say in the handoff file that roles were played inline.
 
 The `reviewer` subagent has no file-writing tools, so it cannot write its comment file. Post its report for it:
-write the report unchanged (it starts with `[AGENT: reviewer]`) to `.agents/tmp/<taskId>-reviewer.md` and run
-`{{kit.cmd}} clickup comment <taskId> --file .agents/tmp/<taskId>-reviewer.md`.
+write the report unchanged (it starts with `[AGENT: reviewer]`) to `.tossana/tmp/<taskId>-reviewer.md` and run
+`{{kit.cmd}} clickup comment <taskId> --file .tossana/tmp/<taskId>-reviewer.md`.
 
 Run subagents one at a time, in order (coder → reviewer → tester). Never in parallel: they share one
 working tree.

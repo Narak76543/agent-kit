@@ -32,7 +32,7 @@ import { wrongAccountHint } from '../account-hint.js';
 import { applyClaudeSettings } from '../claude.js';
 import { applyFigmaMcp, printFigmaResults, printMergeResults } from '../figma.js';
 import { createClient, type CliContext } from '../context.js';
-import { applyKitFiles, findMarker, printKitFileResults } from '../kit-files.js';
+import { applyKitFiles, findMarker, migrateDraftsDir, printKitFileResults } from '../kit-files.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
 import { templateVars } from '../template-vars.js';
 import { kitFiles, resolveRoleSkills, listSkills, readTemplate, render } from '../templates.js';
@@ -79,7 +79,7 @@ export const GITIGNORE_LINES = [
   '!.env.example',
   '.agents/handoff/',
   '.agents/logs/',
-  '.agents/tmp/',
+  '.tossana/tmp/',
   '.agents/kit/backup/',
 ];
 const GITIGNORE_HEADER = '# Tossana agent kit (tokens and local agent files)';
@@ -290,6 +290,8 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
   });
   log('\nKit files:');
   printKitFileResults(ctx, results);
+  const moved = migrateDraftsDir(ctx.cwd);
+  if (moved) log(`  moved    ${moved} comment draft(s) from .agents/tmp/ to .tossana/tmp/`);
   printFigmaResults(ctx, applyFigmaMcp(ctx.cwd, config));
   printMergeResults(ctx, applyClaudeSettings(ctx.cwd, config, vars['kit.cmd']!), 'Claude Code');
   if (unmarkedAgentsMd) {

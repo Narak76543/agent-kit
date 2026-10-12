@@ -76,7 +76,7 @@ cu statuses                           # the list's statuses and which agents may
 cu sync-docs                          # refresh docs/clickup/ from ClickUp Docs
 ```
 
-**Always pass comment text with `--file`.** Write the text to `.agents/tmp/<taskId>-<agent>.md` with your
+**Always pass comment text with `--file`.** Write the text to `.tossana/tmp/<taskId>-<agent>.md` with your
 edit tool, then pass that path. Quotes in command-line text break on Windows. The file is deleted after a
 successful post. Exit code 2 = `BLOCKED` by the safety guard.
 

@@ -22,7 +22,7 @@ tossana-agents clickup comment 86abc123 --file note.md
 'He said "ship it"' | tossana-agents clickup comment 86abc123 -
 ```
 
-The agents always use `--file` (they write the text to `.agents/tmp/<taskId>-<agent>.md` first), so this
+The agents always use `--file` (they write the text to `.tossana/tmp/<taskId>-<agent>.md` first), so this
 problem never affects the pipeline. It only matters when you type a comment by hand.
 
 ## Exit codes

@@ -25,7 +25,7 @@ Your role instructions are shared with OpenCode and live in one file. Before doi
      through the terminal (`echo >`, `sed -i`, `Set-Content`, etc.);
    - the only commands you run are `git diff …`, `git log …` and
      `{{kit.cmd}} clickup get|comments|comment|handoff …`;
-   - you cannot create `.agents/tmp/<taskId>-{{role.name}}.md` yourself: give your full report as your final
+   - you cannot create `.tossana/tmp/<taskId>-{{role.name}}.md` yourself: give your full report as your final
      answer, and the orchestrator posts it for you;
    - never run `{{kit.cmd}} clickup status`.
 3. Your prompt contains the task ID, round number and spec pages. If something is missing, read

@@ -284,8 +284,8 @@ export function collectDocFiles(docs: ClickUpDocPage[][]): { file: string; name:
   return files;
 }
 
-/** Agents write comment text to .agents/tmp/ (no shell quoting); remove it once it has been used. */
-export const AGENT_TMP_DIR = join('.agents', 'tmp');
+/** Agents write comment text to .tossana/tmp/ (no shell quoting); remove it once it has been used. */
+export const AGENT_TMP_DIR = join('.tossana', 'tmp');
 
 function removeAgentTempFile(ctx: CliContext, opts: TextOptions): void {
   if (!opts.file) return;

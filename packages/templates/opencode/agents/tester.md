@@ -46,7 +46,7 @@ is wrong, that is a FAIL with a precise issue for the coder.
 {{role.purpose}}
 
 Read `AGENTS.md` first. Shorthand: `cu` = `{{kit.cmd}} clickup`. To post a comment, write the text to
-`.agents/tmp/<taskId>-{{role.name}}.md`, then run `cu comment <taskId> --file .agents/tmp/<taskId>-{{role.name}}.md`.
+`.tossana/tmp/<taskId>-{{role.name}}.md`, then run `cu comment <taskId> --file .tossana/tmp/<taskId>-{{role.name}}.md`.
 Never put comment text in the command line.
 
 ## Steps

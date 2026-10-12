@@ -119,13 +119,13 @@ describe.skipIf(!enabled)('PowerShell 5.1 end-to-end (built CLI)', () => {
   const TRICKY = `He said "ship it" & it's 100% $HOME %PATH% \`tick\` ខ្មែរ`;
 
   it('--file keeps quotes, $, %, backticks and Khmer text exactly (path with spaces and an apostrophe)', async () => {
-    mkdirSync(join(dir, '.agents', 'tmp'), { recursive: true });
-    writeFileSync(join(dir, '.agents', 'tmp', 'T1-coder.md'), `${TRICKY}\nline 2\n`, 'utf8');
-    const r = await ps(`node $cli clickup comment T1 --file '.agents/tmp/T1-coder.md'`);
+    mkdirSync(join(dir, '.tossana', 'tmp'), { recursive: true });
+    writeFileSync(join(dir, '.tossana', 'tmp', 'T1-coder.md'), `${TRICKY}\nline 2\n`, 'utf8');
+    const r = await ps(`node $cli clickup comment T1 --file '.tossana/tmp/T1-coder.md'`);
     expect(r.err).toBe('');
     expect(r.code).toBe(0);
     expect(comments()[0]!.body).toEqual({ comment_text: `${TRICKY}\nline 2`, notify_all: false });
-    expect(existsSync(join(dir, '.agents', 'tmp', 'T1-coder.md'))).toBe(false);
+    expect(existsSync(join(dir, '.tossana', 'tmp', 'T1-coder.md'))).toBe(false);
   });
 
   it('stdin (-) keeps quotes and Khmer text', async () => {

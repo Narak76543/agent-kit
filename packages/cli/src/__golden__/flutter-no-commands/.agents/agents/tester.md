@@ -25,7 +25,7 @@ Your role instructions are shared with OpenCode and live in one file. Before doi
 1. Read `AGENTS.md` (project rules, conventions, comment format).
 2. Read `.opencode/agents/tester.md` and follow its body exactly. Ignore its YAML frontmatter: it is
    OpenCode permission config. Its limits still apply to you, and here nothing enforces them but you:
-   - create or edit **test files only** (`*_test.dart`, `test/`, `integration_test/`) and your comment file in `.agents/tmp/`.
+   - create or edit **test files only** (`*_test.dart`, `test/`, `integration_test/`) and your comment file in `.tossana/tmp/`.
      If app code is wrong, that is a FAIL with an issue for the coder;
    - stage test files by name (`git add <file>`), never `git add -A` / `git add .`;
    - never skip, weaken or delete a test to get green;

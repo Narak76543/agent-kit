@@ -53,8 +53,8 @@ never decide that a task is finished.
 Read `AGENTS.md` first (conventions, commands, communication format) and the skill
 {{role.skillRef}}. Shorthand: `cu` = `{{kit.cmd}} clickup`.
 
-To post a comment, write the text to `.agents/tmp/<taskId>-{{role.name}}.md` with your edit tool, then run
-`cu comment <taskId> --file .agents/tmp/<taskId>-{{role.name}}.md`. Same for `cu handoff`. Never put comment text
+To post a comment, write the text to `.tossana/tmp/<taskId>-{{role.name}}.md` with your edit tool, then run
+`cu comment <taskId> --file .tossana/tmp/<taskId>-{{role.name}}.md`. Same for `cu handoff`. Never put comment text
 in the command line.
 
 ## Start

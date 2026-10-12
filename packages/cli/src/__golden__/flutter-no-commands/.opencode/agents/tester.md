@@ -26,10 +26,10 @@ permission:
     'integration_test\*': allow
     "*/integration_test/*": allow
     '*\integration_test\*': allow
-    ".agents/tmp/*": allow
-    '.agents\tmp\*': allow
-    "*/.agents/tmp/*": allow
-    '*\.agents\tmp\*': allow
+    ".tossana/tmp/*": allow
+    '.tossana\tmp\*': allow
+    "*/.tossana/tmp/*": allow
+    '*\.tossana\tmp\*': allow
   task:
     "*": deny
   bash:
@@ -70,7 +70,7 @@ You may create or edit **test files only** (`*_test.dart`, `test/`, `integration
 is wrong, that is a FAIL with a precise issue for the coder.
 
 Read `AGENTS.md` first. Shorthand: `cu` = `tossana-agents clickup`. To post a comment, write the text to
-`.agents/tmp/<taskId>-tester.md`, then run `cu comment <taskId> --file .agents/tmp/<taskId>-tester.md`.
+`.tossana/tmp/<taskId>-tester.md`, then run `cu comment <taskId> --file .tossana/tmp/<taskId>-tester.md`.
 Never put comment text in the command line.
 
 ## Steps

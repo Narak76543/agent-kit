@@ -9,7 +9,7 @@ import { TEST_GLOBS, testKind } from './template-vars.js';
 
 export const KIT_PREFIXES = ['tossana-agents', 'npx tossana-agents'];
 /** Folder for comment drafts (the only place read-only roles may write). */
-export const TMP_DIR = '.agents/tmp';
+export const TMP_DIR = '.tossana/tmp';
 
 export interface RolePolicy {
   role: string;
