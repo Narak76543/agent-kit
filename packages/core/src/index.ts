@@ -6,6 +6,7 @@ export * from './clickup/rate-limiter.js';
 export * from './clickup/client.js';
 export type * from './clickup/types.js';
 export * from './config.js';
+export * from './roles.js';
 export * from './handoff.js';
 export * from './detect.js';
 export * from './clickup/error-hints.js';

@@ -10,8 +10,9 @@ export default function AgentsPage() {
         title="Agents"
         intro={
           <>
-            The roles every project&apos;s pipeline uses, from team library {LIBRARY_VERSION}. The orchestrator runs the
-            roles in order. Projects can choose roles, skills and MCP servers; the locked rules always apply.
+            The standard roles in team library {LIBRARY_VERSION}. Each project fills in its own name, commands and
+            skills (see Projects). The orchestrator runs the roles in order. Projects can choose roles, skills and MCP
+            servers; the locked rules always apply.
           </>
         }
       />
@@ -22,7 +23,7 @@ export default function AgentsPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs text-muted">
-                  {a.order === 0 ? 'Coordinator' : `Step ${a.order}`} · {a.mode}
+                  {a.order === 0 ? 'Runs the pipeline' : `Step ${a.order}`} · {a.mode}
                 </p>
                 <h2 className="mt-0.5 text-lg font-medium">{a.title}</h2>
               </div>

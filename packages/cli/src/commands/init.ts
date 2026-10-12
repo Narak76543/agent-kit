@@ -14,6 +14,7 @@ import {
   ROLES,
   SKILL_FOR_TYPE,
   detectProject,
+  resolveSkill,
   isClosedType,
   loadConfig,
   loadEnv,
@@ -31,7 +32,7 @@ import { createClient, type CliContext } from '../context.js';
 import { applyKitFiles, findMarker, printKitFileResults } from '../kit-files.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
 import { templateVars } from '../template-vars.js';
-import { kitFiles, listSkills, readTemplate, render } from '../templates.js';
+import { kitFiles, resolveRoleSkills, listSkills, readTemplate, render } from '../templates.js';
 import { printChecks, runDoctor } from './doctor.js';
 
 export interface InitOptions {
@@ -117,7 +118,10 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
       skill,
     );
   }
-  if (!skills.includes(skill)) throw new KitError(`unknown skill "${skill}". Available: ${skills.join(', ')}`);
+  // A project or user skill with this name is fine too (resolveRoleSkills checks every role's skills later).
+  if (!skills.includes(skill) && !resolveSkill(skill, { cwd: ctx.cwd, teamSkills: skills })) {
+    throw new KitError(`unknown skill "${skill}". Available: ${skills.join(', ')}`);
+  }
 
   let commands = existing?.commands ?? detected.commands;
   if (prompts) {
@@ -244,7 +248,7 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
   });
   const agentsMdFile = join(ctx.cwd, 'AGENTS.md');
   const unmarkedAgentsMd = existsSync(agentsMdFile) && findMarker(readFileSync(agentsMdFile, 'utf8')) < 0;
-  const results = await applyKitFiles(ctx, kitFiles(config, vars), {
+  const results = await applyKitFiles(ctx, kitFiles(config, vars, resolveRoleSkills(ctx.cwd, config)), {
     force: opts.force,
     prompts,
     projectSection: render(readTemplate('AGENTS.project.md'), vars, 'AGENTS.project.md'),

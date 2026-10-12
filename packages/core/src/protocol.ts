@@ -12,10 +12,23 @@
  *   Issues: a.ts:1 - x; b.ts:2 - y      (or "Issues: none")
  */
 
+/** The default pipeline. Projects can add custom roles (any kebab-case name, see ROLE_NAME). */
 export const AGENTS = ['orchestrator', 'coder', 'reviewer', 'tester'] as const;
-export type AgentName = (typeof AGENTS)[number];
+/** A role name: one of AGENTS or a custom kebab-case role such as "security-reviewer". */
+export type AgentName = string;
+export const ROLE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
-export const RESULTS = ['STARTED', 'DONE_CODING', 'APPROVED', 'CHANGES_NEEDED', 'PASS', 'FAIL', 'NEEDS_HUMAN'] as const;
+/** PLANNED: a planning role (before the first coding role) finished; it never sends work back. */
+export const RESULTS = [
+  'STARTED',
+  'PLANNED',
+  'DONE_CODING',
+  'APPROVED',
+  'CHANGES_NEEDED',
+  'PASS',
+  'FAIL',
+  'NEEDS_HUMAN',
+] as const;
 export type AgentResult = (typeof RESULTS)[number];
 
 export interface AgentIssue {
@@ -59,7 +72,7 @@ export function formatAgentComment(data: AgentCommentInput): string {
 }
 
 const HEADER =
-  /\[\s*AGENT\s*:\s*([A-Za-z]+)\s*\]\s*\[\s*RESULT\s*:\s*([A-Za-z_]+)\s*\](?:\s*\[\s*ROUND\s*:\s*(\d+)\s*\])?/i;
+  /\[\s*AGENT\s*:\s*([A-Za-z][A-Za-z0-9-]*)\s*\]\s*\[\s*RESULT\s*:\s*([A-Za-z_]+)\s*\](?:\s*\[\s*ROUND\s*:\s*(\d+)\s*\])?/i;
 const FIELD = /^\s*(summary|issues|next)\s*:\s*(.*)$/i;
 const BULLET = /^[-*•]\s+/;
 const NONE = /^(none|n\/a|-|no issues\.?)$/i;
@@ -117,5 +130,5 @@ function parseIssue(item: string): AgentIssue {
 }
 
 const oneLine = (s: string) => s.replace(/\s*\r?\n\s*/g, ' ').trim();
-const isAgent = (s: string): s is AgentName => (AGENTS as readonly string[]).includes(s);
+const isAgent = (s: string): s is AgentName => ROLE_NAME.test(s);
 const isResult = (s: string): s is AgentResult => (RESULTS as readonly string[]).includes(s);

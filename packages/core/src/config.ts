@@ -5,6 +5,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { ROLE_NAME } from './protocol.js';
 import type { ClickUpClientOptions } from './clickup/client.js';
 import { statusNameRefusal } from './clickup/guard.js';
 import { ConfigError } from './errors.js';
@@ -64,6 +65,31 @@ export const FIGMA_MCP_URL: Record<FigmaServer, string> = {
   remote: 'https://mcp.figma.com/mcp',
 };
 
+// ---------- pipeline roles (Phase 7) ----------
+
+/** Permission presets for pipeline roles. Locked rules apply on top of every preset. */
+export const ROLE_PRESETS = ['read-only', 'edit-code', 'edit-tests-only'] as const;
+export type RolePreset = (typeof ROLE_PRESETS)[number];
+/** The ClickUp status (by role key) a pipeline role works in. */
+export const ROLE_STATUS_KEYS = ['coding', 'review', 'testing'] as const;
+/** MCP servers a role may list (the approved catalog; for now the kit knows only Figma). */
+export const MCP_CATALOG = ['figma'] as const;
+
+const pipelineRoleSchema = z.object({
+  name: z
+    .string()
+    .regex(ROLE_NAME, 'use lower-case letters, digits and single hyphens, e.g. "security-reviewer"')
+    .describe('Role name, e.g. "coder" or "security-reviewer"'),
+  purpose: z.string().trim().min(1).optional().describe('One or two lines: what this role does in this project'),
+  preset: z.enum(ROLE_PRESETS).describe('Permissions: read-only, edit-code or edit-tests-only'),
+  skills: z
+    .array(z.string().trim().min(1))
+    .optional()
+    .describe('Skill names (project .agents/skills, user ~/.agents/skills, or team). Default: project.skill'),
+  mcp: z.array(z.enum(MCP_CATALOG)).default([]).describe('MCP servers from the approved catalog'),
+  status: z.enum(ROLE_STATUS_KEYS).optional().describe('ClickUp status while this role works. Default from preset'),
+});
+
 const command = z.string().trim().describe('Shell command, run from the project root');
 
 export const configSchema = z
@@ -110,6 +136,11 @@ export const configSchema = z
           ),
       })
       .prefault({}),
+    roles: z
+      .array(pipelineRoleSchema)
+      .min(1)
+      .optional()
+      .describe('Pipeline roles in order. Default: coder → reviewer → tester. The orchestrator is always added.'),
     pipeline: z
       .object({
         maxRounds: z.number().int().min(1).max(20).default(5),
@@ -120,6 +151,27 @@ export const configSchema = z
         timeoutMinutes: z.number().positive().default(120),
       })
       .prefault({}),
+  })
+  .superRefine((config, ctx) => {
+    if (!config.roles) return;
+    const issue = (message: string, path: (string | number)[] = ['roles']) =>
+      ctx.addIssue({ code: 'custom', message, path });
+    const seen = new Set<string>();
+    config.roles.forEach((r, i) => {
+      if (r.name === 'orchestrator') issue('"orchestrator" is added by the kit; do not list it', ['roles', i, 'name']);
+      if (seen.has(r.name)) issue(`role "${r.name}" is listed twice`, ['roles', i, 'name']);
+      seen.add(r.name);
+      if (r.mcp.includes('figma') && !config.figma.enabled) {
+        issue('uses the "figma" MCP server, but figma.enabled is false', ['roles', i, 'mcp']);
+      }
+    });
+    const firstCoder = config.roles.findIndex((r) => r.preset === 'edit-code');
+    if (firstCoder < 0) issue('needs at least one role with preset "edit-code" (it fixes what the checks find)');
+    config.roles.slice(0, Math.max(firstCoder, 0)).forEach((r, i) => {
+      if (r.preset !== 'read-only') {
+        issue('roles before the first "edit-code" role plan the work and must be "read-only"', ['roles', i, 'preset']);
+      }
+    });
   })
   .describe('Tossana agent kit project config');
 

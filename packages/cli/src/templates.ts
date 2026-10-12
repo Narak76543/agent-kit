@@ -5,7 +5,16 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { KitError, type AgentConfig } from '@tossana/agents-core';
+import {
+  KitError,
+  pipelineRoles,
+  resolveSkill,
+  roleSkillNames,
+  type AgentConfig,
+  type ResolvedSkill,
+} from '@tossana/agents-core';
+import { readManifest } from './kit-manifest.js';
+import { pipelineVars, roleTemplate, roleVars } from './role-vars.js';
 import { KIT_VERSION } from './version.js';
 
 /** packages/cli/templates when installed (copied at build), packages/templates in the monorepo. */
@@ -65,39 +74,59 @@ export interface KitFile {
 export const AGENT_NAMES = ['orchestrator', 'coder', 'reviewer', 'tester'] as const;
 export const PROJECT_MARKER = '<!-- PROJECT -->';
 
-/** Every kit-owned file for this config, rendered. AGENTS.md is only the part above the marker. */
-export function kitFiles(config: AgentConfig, vars: Record<string, string>): KitFile[] {
+/**
+ * Every kit-owned file for this config, rendered. AGENTS.md is only the part above the marker.
+ * `skills` = how each skill name resolved (project / user / team); team skills are copied into the project.
+ * Without it every skill is treated as a team skill (used by tests and the golden files).
+ */
+export function kitFiles(
+  config: AgentConfig,
+  vars: Record<string, string>,
+  skills: Map<string, ResolvedSkill> = teamSkillMap(config),
+): KitFile[] {
+  const all = { ...vars, ...pipelineVars(config) };
+  const roles = pipelineRoles(config);
   const files: KitFile[] = [];
-  for (const agent of AGENT_NAMES) {
-    const name = `opencode/agents/${agent}.md`;
-    files.push({
-      path: `.opencode/agents/${agent}.md`,
-      content: withManagedHeader(render(readTemplate(name), vars, name)),
+  const add = (path: string, template: string, v: Record<string, string>) =>
+    files.push({ path, content: withManagedHeader(render(readTemplate(template), v, template)) });
+
+  add('.opencode/agents/orchestrator.md', 'opencode/agents/orchestrator.md', all);
+  for (const role of roles) {
+    add(`.opencode/agents/${role.name}.md`, `opencode/agents/${roleTemplate(role)}.md`, {
+      ...all,
+      ...roleVars(config, role, skills, all),
     });
   }
   files.push({
     path: 'AGENTS.md',
-    content: withManagedHeader(render(readTemplate('AGENTS.base.md'), vars, 'AGENTS.base.md')),
+    content: withManagedHeader(render(readTemplate('AGENTS.base.md'), all, 'AGENTS.base.md')),
   });
-  for (const name of ANTIGRAVITY_FILES) {
-    const template = `antigravity/${name}`;
-    files.push({
-      path: `.agents/${name}`,
-      content: withManagedHeader(render(readTemplate(template), vars, template)),
+  for (const name of ANTIGRAVITY_SKILLS) add(`.agents/${name}`, `antigravity/${name}`, all);
+  for (const role of roles) {
+    const wrapper = roleTemplate(role) === 'planner' ? 'reviewer' : roleTemplate(role);
+    add(`.agents/agents/${role.name}.md`, `antigravity/agents/${wrapper}.md`, {
+      ...all,
+      ...roleVars(config, role, skills, all),
     });
   }
-  files.push(...skillFiles(config.project.skill));
+  for (const skill of skills.values()) if (skill.scope === 'team') files.push(...skillFiles(skill.name));
   return files;
 }
 
-/** Antigravity skills (`/start-task`, `/explore`) and subagent wrappers, under `.agents/`. */
-const ANTIGRAVITY_FILES = [
-  'skills/start-task/SKILL.md',
-  'skills/explore/SKILL.md',
-  ...AGENT_NAMES.filter((a) => a !== 'orchestrator').map((a) => `agents/${a}.md`),
-];
+/** Antigravity skills (`/start-task`, `/explore`), under `.agents/`. */
+const ANTIGRAVITY_SKILLS = ['skills/start-task/SKILL.md', 'skills/explore/SKILL.md'];
 
-/** The selected skill (Antigravity and OpenCode both find `.agents/skills/`), copied as-is (Markdown files get the managed header). */
+/** Every role skill as a team skill (bundled with the kit). */
+function teamSkillMap(config: AgentConfig): Map<string, ResolvedSkill> {
+  return new Map(
+    roleSkillNames(pipelineRoles(config)).map((name) => [
+      name,
+      { name, scope: 'team' as const, path: `.agents/skills/${name}/SKILL.md` },
+    ]),
+  );
+}
+
+/** A team skill, copied as-is (Antigravity and OpenCode both find `.agents/skills/`; Markdown gets the managed header). */
 function skillFiles(skill: string): KitFile[] {
   const dir = join(templatesDir(), 'skills', skill);
   if (!existsSync(dir)) {
@@ -129,4 +158,25 @@ function walk(dir: string): string[] {
       const full = join(dir, name);
       return statSync(full).isDirectory() ? walk(full) : [full];
     });
+}
+
+/**
+ * How each role skill resolves in this project: project `.agents/skills/` (not written by the kit) wins,
+ * then the developer's `~/.agents/skills/`, then the team skills bundled with the kit.
+ */
+export function resolveRoleSkills(cwd: string, config: AgentConfig, home?: string): Map<string, ResolvedSkill> {
+  const kitOwned = new Set(Object.keys(readManifest(cwd)?.files ?? {}));
+  const teamSkills = listSkills();
+  const out = new Map<string, ResolvedSkill>();
+  for (const name of roleSkillNames(pipelineRoles(config))) {
+    const skill = resolveSkill(name, { cwd, teamSkills, kitOwned, home });
+    if (!skill) {
+      throw new KitError(
+        `unknown skill "${name}". Add .agents/skills/${name}/SKILL.md (project) or ~/.agents/skills/${name}/SKILL.md ` +
+          `(your machine), or use a team skill: ${teamSkills.join(', ')}`,
+      );
+    }
+    out.set(name, skill);
+  }
+  return out;
 }

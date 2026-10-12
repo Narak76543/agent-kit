@@ -20,7 +20,7 @@ export default async function AgentPage({ params }: PageProps<'/agents/[name]'>)
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-sm text-muted">
-              {agent.order === 0 ? 'Coordinator' : `Step ${agent.order} of the pipeline`}
+              {agent.order === 0 ? 'Runs the pipeline' : `Step ${agent.order} of the pipeline`}
             </p>
             <h1 className="mt-0.5 text-2xl font-medium">{agent.title}</h1>
           </div>

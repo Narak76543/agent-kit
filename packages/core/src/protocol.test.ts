@@ -149,10 +149,26 @@ describe('parseAgentComment', () => {
     expect(c?.summary).toBe('done');
   });
 
+  it('accepts custom role names (kebab-case) and the PLANNED result', () => {
+    expect(
+      parseAgentComment('[AGENT: Security-Reviewer] [RESULT: CHANGES_NEEDED] [ROUND: 2]\nNext: coder'),
+    ).toMatchObject({
+      agent: 'security-reviewer',
+      result: 'CHANGES_NEEDED',
+      round: 2,
+      next: 'coder',
+    });
+    expect(parseAgentComment('[AGENT: manager] [RESULT: PLANNED] [ROUND: 1]')).toMatchObject({
+      agent: 'manager',
+      result: 'PLANNED',
+    });
+  });
+
   it('returns null for malformed comments', () => {
     expect(parseAgentComment('')).toBeNull();
     expect(parseAgentComment('Looks good to me!')).toBeNull();
-    expect(parseAgentComment('[AGENT: designer] [RESULT: PASS] [ROUND: 1]')).toBeNull();
+    expect(parseAgentComment('[AGENT: bad--name] [RESULT: PASS] [ROUND: 1]')).toBeNull();
+    expect(parseAgentComment('[AGENT: -lead] [RESULT: PASS] [ROUND: 1]')).toBeNull();
     expect(parseAgentComment('[AGENT: tester] [RESULT: MAYBE] [ROUND: 1]')).toBeNull();
     expect(parseAgentComment('[RESULT: PASS] [AGENT: tester]')).toBeNull();
     expect(parseAgentComment('[AGENT: tester] PASS')).toBeNull();

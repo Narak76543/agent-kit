@@ -38,6 +38,31 @@ export const GOLDEN_CASES: Record<string, { config: object; kitCmd: string; pack
     kitCmd: 'npx tossana-agents',
     packageManager: 'pnpm',
   },
+  'custom-roles': {
+    config: {
+      ...base,
+      project: { name: 'web', type: 'nextjs', skill: 'frontend-master' },
+      commands: { install: 'npm install', lint: 'npm run lint', typecheck: 'npx tsc --noEmit' },
+      figma: { enabled: true },
+      roles: [
+        {
+          name: 'manager',
+          preset: 'read-only',
+          purpose: 'Split the task into small steps and list the files to change.',
+        },
+        { name: 'coder', preset: 'edit-code', mcp: ['figma'] },
+        {
+          name: 'security-reviewer',
+          preset: 'read-only',
+          purpose: 'Check auth, input validation and secrets only.',
+          skills: [],
+        },
+        { name: 'tester', preset: 'edit-tests-only' },
+      ],
+    },
+    kitCmd: 'npx tossana-agents',
+    packageManager: 'npm',
+  },
   'flutter-no-commands': {
     config: { ...base, project: { name: 'shop_app', type: 'flutter', skill: 'flutter-master' } },
     kitCmd: 'tossana-agents',

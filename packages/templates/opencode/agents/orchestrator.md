@@ -1,5 +1,5 @@
 ---
-description: Runs ONE ClickUp task end-to-end for {{project.name}}. Delegates to coder, reviewer and tester in a loop (max {{pipeline.maxRounds}} rounds) and moves the task to "{{statuses.human}}". Never writes code, never sets Done.
+description: Runs ONE ClickUp task end-to-end for {{project.name}}. Delegates to {{pipeline.rolesText}} in a loop (max {{pipeline.maxRounds}} rounds) and moves the task to "{{statuses.human}}". Never writes code, never sets Done.
 mode: primary
 temperature: 0.1
 steps: 150
@@ -18,9 +18,7 @@ permission:
 {{perm.tmpEdit}}
   task:
     "*": deny
-    coder: allow
-    reviewer: allow
-    tester: allow
+{{perm.taskRoles}}
   bash:
     "*": deny
 {{perm.kitAll}}
@@ -66,28 +64,11 @@ text in the command line: quotes break on Windows.
    Summary: Starting task on branch {{pipeline.branchPrefix}}<taskId>. Specs: <pages or none>.
    Issues:
    - none
-   Next: coder
+   Next: {{pipeline.firstRole}}
    ```
 {{figma.orchestrator}}
 
-## 1. Loop — round = 1 … {{pipeline.maxRounds}}
-
-**a. Code.** Invoke the `coder` subagent with: task ID, round number, task name + description, spec pages
-and FR/AC codes, and (round > 1) the exact issues from the reviewer/tester of the previous round, plus any
-human feedback. Wait for its `[AGENT: coder] [RESULT: DONE_CODING]` report. If the coder could not finish
-(it says so, or there are no new commits and no explanation), treat the round as failed and go to the next
-round with that as feedback.
-
-**b. Review.** `cu status <taskId> review`. Invoke `reviewer` with task ID, round, spec pages.
-
-- `CHANGES_NEEDED` → `cu status <taskId> coding`, next round with the reviewer's Issues as feedback.
-- `APPROVED` → continue.
-
-**c. Test.** `cu status <taskId> testing`. Invoke `tester` with task ID, round, spec pages and the
-acceptance criteria.
-
-- `FAIL` → `cu status <taskId> coding`, next round with the tester's Issues as feedback.
-- `PASS` → go to step 2 (success).
+{{pipeline.loop}}
 
 Read each subagent's RESULT from the first line of its report. If a report is missing the
 `[AGENT: …] [RESULT: …]` line, ask that subagent once to restate it; if still missing, treat it as
@@ -95,10 +76,10 @@ CHANGES_NEEDED / FAIL.
 
 ## 2. Finish
 
-Check `git status --porcelain --untracked-files=no` is empty (if not, ask `coder` to commit, as part of the
+Check `git status --porcelain --untracked-files=no` is empty (if not, ask `{{pipeline.coder}}` to commit, as part of the
 same round).
 
-**Success** (APPROVED + PASS in the same round):
+**Success** ({{pipeline.successRule}}):
 
 1. `cu status <taskId> human`
 2. `cu notify <taskId> --file .agents/tmp/<taskId>-orchestrator.md` with:
@@ -106,11 +87,11 @@ same round).
    [AGENT: orchestrator] [RESULT: PASS] [ROUND: <n>]
    Summary: <what was built, 1-3 lines>. Branch {{pipeline.branchPrefix}}<taskId> (local, not pushed).
    Issues:
-   - none (manual checks for the human: <MANUAL items from tester, or none>; open questions: <or none>)
+   - none (manual checks for the human: <MANUAL items from {{pipeline.manualFrom}}, or none>; open questions: <or none>)
    Next: human
    ```
 
-**Out of rounds** (round {{pipeline.maxRounds}} ended without APPROVED + PASS):
+**Out of rounds** (round {{pipeline.maxRounds}} ended without {{pipeline.successShort}}):
 
 1. `cu status <taskId> human`
 2. `cu notify <taskId> --file …` with:
@@ -133,5 +114,5 @@ summary.
 
 - Set Done/Complete/Closed, or try any other way to close a task.
 - Edit project files or write code yourself; push; merge; switch or delete branches.
-- Invoke any agent other than coder, reviewer, tester.
+- Invoke any agent other than {{pipeline.rolesList}}.
 - Call api.clickup.com directly, or read `.env` / `CLICKUP_API_TOKEN`.

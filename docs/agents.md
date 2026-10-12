@@ -93,3 +93,46 @@ To post a comment, an agent writes the text to `.agents/tmp/<taskId>-<agent>.md`
 
 Do not edit the agent files by hand: `tossana-agents update` would ask to replace them. Put project rules in
 `AGENTS.md` below `<!-- PROJECT -->` instead.
+
+## Custom roles (optional)
+
+By default the pipeline is coder → reviewer → tester. A project can list its own roles, in order, in
+`agent.config.json`:
+
+```json
+"roles": [
+  { "name": "manager", "preset": "read-only", "purpose": "Split the task into small steps." },
+  { "name": "coder", "preset": "edit-code", "skills": ["frontend-master", "our-api"] },
+  { "name": "security-reviewer", "preset": "read-only", "purpose": "Check auth, input validation and secrets." },
+  { "name": "tester", "preset": "edit-tests-only" }
+]
+```
+
+| Field     | Meaning                                                                                               |
+| --------- | ----------------------------------------------------------------------------------------------------- |
+| `name`    | lower-case with single hyphens; not `orchestrator` (the kit always adds it)                           |
+| `preset`  | `read-only`, `edit-code` or `edit-tests-only` — the permissions; the locked rules apply to every role |
+| `purpose` | optional; one or two lines added to the role's instructions                                           |
+| `skills`  | optional; default is `project.skill`; several are allowed                                             |
+| `mcp`     | optional; only servers from the approved list (for now `figma`, which needs `figma.enabled`)          |
+| `status`  | optional; the ClickUp status while the role works: `coding`, `review` or `testing`                    |
+
+How the orchestrator uses them:
+
+- Roles **before** the first `edit-code` role are **planners**: they run once and report `PLANNED`.
+- `edit-code` roles write the code (`DONE_CODING`).
+- Roles **after** it are **checks**: `CHANGES_NEEDED` or `FAIL` sends the work back to the first `edit-code` role
+  for the next round; when every check passes, the task goes to "ready for review".
+
+Run `npx tossana-agents update` after changing `roles`: it writes one agent file per role for each tool and
+removes the files of roles you deleted.
+
+## Skills: three places
+
+A skill name is looked up in this order (the first one found wins):
+
+1. **Project:** `.agents/skills/<name>/SKILL.md` in the repo (commit it; the whole team uses it).
+2. **User:** `~/.agents/skills/<name>/SKILL.md` on your own computer (only you; never uploaded).
+3. **Team:** the skills that come with the kit (copied into `.agents/skills/` by `init`/`update`).
+
+So a project can replace a team skill by adding its own skill with the same name.

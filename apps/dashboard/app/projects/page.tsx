@@ -58,6 +58,16 @@ export default function ProjectsPage() {
                 <List items={p.tools} label={(t) => TOOL_LABEL[t] ?? t} />
               </Field>
             </div>
+            <div className="mt-4 border-t border-line pt-3">
+              <p className="mb-1.5 text-xs text-muted">Quality gate (commands the roles may run in this project)</p>
+              <div className="flex flex-wrap gap-1">
+                {p.commands.map((c) => (
+                  <code key={c} className="rounded bg-[#f1f3f4] px-1.5 py-0.5 font-mono text-xs">
+                    {c}
+                  </code>
+                ))}
+              </div>
+            </div>
           </Card>
         ))}
       </div>

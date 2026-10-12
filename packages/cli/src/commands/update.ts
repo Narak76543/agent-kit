@@ -13,7 +13,7 @@ import { readManifest } from '../kit-manifest.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
 import { applyFigmaMcp, printFigmaResults } from '../figma.js';
 import { templateVars } from '../template-vars.js';
-import { kitFiles, readTemplate, render } from '../templates.js';
+import { kitFiles, resolveRoleSkills, readTemplate, render } from '../templates.js';
 import { KIT_VERSION } from '../version.js';
 
 export function registerUpdateCommand(program: Command, ctx: CliContext, prompts: Prompts = clackPrompts): void {
@@ -30,7 +30,7 @@ export function registerUpdateCommand(program: Command, ctx: CliContext, prompts
         cwd: ctx.cwd,
         packageManager: detectPackageManager(ctx.cwd),
       });
-      const results = await applyKitFiles(ctx, kitFiles(config, vars), {
+      const results = await applyKitFiles(ctx, kitFiles(config, vars, resolveRoleSkills(ctx.cwd, config)), {
         force: opts.force,
         prompts: ctx.io.interactive ? prompts : null,
         projectSection: render(readTemplate('AGENTS.project.md'), vars, 'AGENTS.project.md'),

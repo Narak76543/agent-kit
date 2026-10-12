@@ -52,6 +52,8 @@ export interface LibraryProject {
   skills: string[];
   mcp: string[];
   figma: boolean;
+  /** The project's quality gate: the commands its roles may run (project-specific, so not in the role text). */
+  commands: string[];
 }
 
 export const LIBRARY_VERSION = library.version;

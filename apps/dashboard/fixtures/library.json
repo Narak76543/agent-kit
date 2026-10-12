@@ -8,8 +8,8 @@
       "order": 0,
       "mode": "primary",
       "steps": 150,
-      "description": "Runs ONE ClickUp task end-to-end for ekmong-mobile. Delegates to coder, reviewer and tester in a loop (max 5 rounds) and moves the task to \"ready for review\". Never writes code, never sets Done.",
-      "purpose": "You are the orchestrator for ekmong-mobile. You run exactly ONE ClickUp task (the task ID is in the user's message) from start to \"ready for review\". You coordinate; you never write or edit code yourself.",
+      "description": "Runs ONE ClickUp task end-to-end. Delegates to coder, reviewer and tester in a loop (max 5 rounds) and moves the task to \"ready for review\". Never writes code, never sets Done.",
+      "purpose": "You are the orchestrator. You run exactly ONE ClickUp task (the task ID is in the user's message) from start to \"ready for review\". You coordinate; you never write or edit code yourself.",
       "permission": {
         "*": "deny",
         "read": {
@@ -71,8 +71,8 @@
       "order": 1,
       "mode": "subagent",
       "steps": 120,
-      "description": "Developer for ekmong-mobile (react-native). Implements one ClickUp task on branch task/<taskId>, or fixes issues sent back by the reviewer/tester, and commits. Never pushes.",
-      "purpose": "You are the coder for ekmong-mobile. You implement a ClickUp task, or fix the issues sent back to you, and commit the work. You do not review or test your own work beyond the quality gate below, and you never decide that a task is finished.",
+      "description": "Developer. Implements one ClickUp task on branch task/<taskId>, or fixes issues sent back by the reviewer/tester, and commits. Never pushes.",
+      "purpose": "You are the coder. You implement a ClickUp task, or fix the issues sent back to you, and commit the work. You do not review or test your own work beyond the quality gate below, and you never decide that a task is finished.",
       "permission": {
         "*": "deny",
         "read": {
@@ -167,8 +167,8 @@
       "order": 2,
       "mode": "subagent",
       "steps": 60,
-      "description": "Strict read-only code reviewer for ekmong-mobile. Reviews the task branch diff against the ClickUp task, specs and AGENTS.md, and returns APPROVED or CHANGES_NEEDED. Never edits project files.",
-      "purpose": "You are the reviewer for ekmong-mobile. You review code you did not write and find real problems before the tester and the human see them. You are read-only: you never edit project files, never commit, never fix things yourself. The only file you may write is your comment draft in `.agents/tmp/`.",
+      "description": "Strict read-only code reviewer. Reviews the task branch diff against the ClickUp task, specs and AGENTS.md, and returns APPROVED or CHANGES_NEEDED. Never edits project files.",
+      "purpose": "You are the reviewer. You review code you did not write and find real problems before the tester and the human see them. You are read-only: you never edit project files, never commit, never fix things yourself. The only file you may write is your comment draft in `.agents/tmp/`.",
       "permission": {
         "*": "deny",
         "read": {
@@ -228,8 +228,8 @@
       "order": 3,
       "mode": "subagent",
       "steps": 100,
-      "description": "QA for ekmong-mobile. Runs the quality gate on the task branch, writes or edits test files only to prove the task's acceptance criteria, and returns PASS or FAIL.",
-      "purpose": "You are the tester for ekmong-mobile. Your job is to prove the task works, not to assume it. You may create or edit test files only (`*.test.*`, `*.spec.*`, `__tests__/`, `__mocks__/`, `tests/`, `test/`, `e2e/`). You never change app code: if app code is wrong, that is a FAIL with a precise issue for the coder.",
+      "description": "QA. Runs the quality gate on the task branch, writes or edits test files only to prove the task's acceptance criteria, and returns PASS or FAIL.",
+      "purpose": "You are the tester. Your job is to prove the task works, not to assume it. You may create or edit test files only (`*.test.*`, `*.spec.*`, `__tests__/`, `__mocks__/`, `tests/`, `test/`, `e2e/`). You never change app code: if app code is wrong, that is a FAIL with a precise issue for the coder.",
       "permission": {
         "*": "deny",
         "read": {
@@ -395,7 +395,8 @@
       "roles": ["coder", "reviewer", "tester"],
       "skills": ["mobile-master", "ekmong-i18n"],
       "mcp": ["figma-desktop"],
-      "figma": true
+      "figma": true,
+      "commands": ["pnpm lint", "pnpm typecheck", "pnpm test"]
     },
     {
       "id": "web",
@@ -406,7 +407,8 @@
       "roles": ["coder", "reviewer", "tester"],
       "skills": ["frontend-master"],
       "mcp": ["figma-remote"],
-      "figma": true
+      "figma": true,
+      "commands": ["npm run lint", "npx tsc --noEmit"]
     },
     {
       "id": "api",
@@ -417,7 +419,8 @@
       "roles": ["coder", "reviewer", "tester"],
       "skills": ["backend-master"],
       "mcp": [],
-      "figma": false
+      "figma": false,
+      "commands": ["npm run lint", "npm test"]
     }
   ],
   "lockedRules": [
