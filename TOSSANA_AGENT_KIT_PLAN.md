@@ -414,6 +414,65 @@ Read-only view (v1) of all agent pipelines across projects, so the team and the 
 - Docs: `docs/getting-started.md` (for teammates, simple English, screenshots welcome), `docs/clickup-setup.md` (statuses + list template), `docs/agents.md` (how the pipeline works), `docs/maintaining.md` (how to release a new kit version).
 - ✅ A teammate who has never seen the kit can follow getting-started and run one task.
 
+### Phase 7 — Plug-and-play roles, tools and a team-managed library (added 2026-10-12)
+
+**Goal:** the kit works for ANY project and ANY agent tool, with the same workflow (ClickUp task → roles in order
+→ "ready for review", never Done). The team manages agents, skills and MCP servers centrally; developers keep
+their secrets local.
+
+#### 7.1 Configurable roles (one source of truth: `agent.config.json`)
+- `roles` lists the pipeline roles **in order**, e.g. `manager → coder → reviewer → tester`, or custom roles
+  (`security-reviewer`, `docs-writer`, …). Each role has:
+  - `purpose` (one or two lines; becomes the role's instructions together with a template),
+  - `skills` (several allowed, by name),
+  - `mcp` (server names from the approved catalog),
+  - `permissions`: a preset — `read-only`, `edit-code`, `edit-tests-only` — plus the project's commands it may run.
+- The orchestrator (coordinator) is implicit: it runs the roles in order, loops on failure, and moves statuses.
+- **Default = today's setup** (orchestrator + coder → reviewer → tester), so existing projects keep working.
+- **Locked rules apply to every role** and cannot be changed by config, library or dashboard: never set
+  Done/Complete/Closed, never `git push`/merge/branch delete, default-deny for every tool and command (no "ask"),
+  never read `.env`, the comment protocol (`[AGENT: …] [RESULT: …] [ROUND: …]`). `init`/`update` re-check generated
+  files and refuse a config that would break them.
+
+#### 7.2 Skills in three scopes
+- **Team** (bundled in the kit, or from the team library), **user global** (per developer, e.g. `~/.agents/skills/`),
+  **project** (`.agents/skills/` in the repo). On a name clash the **project** wins, then user, then team.
+- A role can list several skills; the generator writes where each tool expects them.
+
+#### 7.3 One config, generated for each tool
+- `init` asks which tools the team uses (several allowed): **OpenCode, Antigravity, Claude Code, Codex**.
+  `init`/`update` generate each tool's agent files from `agent.config.json` (and the library). Formats and
+  non-interactive commands are taken from each tool's current docs, never guessed.
+- `run` adapters: `opencode` (exists), `claude-code`, `codex` (new), `antigravity` (instructions only, no headless
+  mode), `custom`. Every adapter starts the orchestrator in the project folder and keeps the safety rules (no
+  permission prompts that can hang, Done guard in the CLI, output redaction, timeout).
+
+#### 7.4 Three levels of management
+| Level | Where | What | Who changes it |
+| --- | --- | --- | --- |
+| Team library | private git repo `tossana-agent-library` | role templates, skills, approved MCP catalog, locked-rules text | editors propose, approvers merge |
+| Project profile | `agent.config.json` in the project (or `profiles/<project>.json` in the library) | which roles/skills/MCP servers/tools this project uses, library version | project lead |
+| Developer machine | local only | ClickUp/model tokens, model provider, Figma login, user-global skills | the developer — **never on the web** |
+
+- `init`/`update` read the library at a **pinned version** (git tag) and fall back to the bundled templates
+  when there is no library.
+- MCP servers can only be chosen from the **approved catalog**; adding a server needs an approver.
+
+#### 7.5 Dashboard
+- Read-only pages: Agents/roles (permissions in plain English, locked rules marked), Skills (rendered Markdown,
+  scope), MCP catalog, Projects (roles, skills, MCP servers, tools, library version). Each task shows its roles
+  and which tool ran it (from the agent comments / run log).
+- Later: editing. **The web never writes directly**: an edit opens a pull request in the library repo; an
+  approver merges it. Every change has git history and can be rolled back (revert).
+- Roles: **viewer** (read), **editor** (propose changes = open PRs), **approver** (merge).
+
+#### 7.6 Build order and acceptance
+1. ✅ Read-only dashboard pages on sample data, showing roles and tools.
+2. ✅ Config schema for custom roles + skill scopes, with tests; the 4-role default produces byte-identical files.
+3. ✅ Claude Code generator + `run` adapter (formats from the current Claude Code docs).
+4. ✅ Codex generator + `run` adapter (formats from the current Codex docs).
+5. Library repo + pinned versions in `init`/`update`; dashboard editing via PRs; login with roles.
+
 ---
 
 ## 13. Open questions (ask the user before Phase 0)
