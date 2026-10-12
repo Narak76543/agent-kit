@@ -360,8 +360,15 @@ Read-only view (v1) of all agent pipelines across projects, so the team and the 
 4. **Stats** — tasks reaching Ready for Review per week, average rounds, most common reviewer issue types, pass rate on first round.
 
 ### 10.4 Design
-- Light mode only, Google Sans (see section 4), clean and calm, lots of whitespace.
-- Result badge colors: APPROVED/PASS green, CHANGES_NEEDED amber, FAIL/NEEDS_HUMAN red, others neutral.
+- **Dark mode by default** (calm, near-black page, slightly lighter card surfaces, thin subtle borders instead of
+  shadows, one green accent for the active tab, links and focus rings), inspired by Supabase's dashboard style without
+  its logo or brand assets. **Light mode is optional**: a theme toggle in the header, remembered in localStorage.
+- All colors and radii are design tokens (CSS variables in `apps/dashboard/app/globals.css`), so the look changes in
+  one place. Every text color has at least 4.5:1 contrast on its background, in both themes.
+- **Corner radius:** 6px for badges, buttons, inputs and chips; 8px for cards and columns; 10px maximum anywhere.
+- Font: Google Sans Flex (Google Fonts), falling back to a close sans such as Inter.
+- Result badge colors: APPROVED/PASS green, CHANGES_NEEDED amber, FAIL/NEEDS_HUMAN red, others neutral (dark-tinted
+  backgrounds with bright text in dark mode). NEEDS_HUMAN cards keep a clear red outline.
 - Responsive down to phone width.
 - Auto-refresh every 60 s.
 

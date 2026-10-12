@@ -62,7 +62,7 @@ export default function ProjectsPage() {
               <p className="mb-1.5 text-xs text-muted">Quality gate (commands the roles may run in this project)</p>
               <div className="flex flex-wrap gap-1">
                 {p.commands.map((c) => (
-                  <code key={c} className="rounded bg-[#f1f3f4] px-1.5 py-0.5 font-mono text-xs">
+                  <code key={c} className="rounded bg-subtle px-1.5 py-0.5 font-mono text-xs">
                     {c}
                   </code>
                 ))}

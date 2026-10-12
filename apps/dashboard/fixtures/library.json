@@ -23,10 +23,10 @@
         "lsp": "allow",
         "edit": {
           "*": "deny",
-          ".agents/tmp/*": "allow",
-          ".agents\\tmp\\*": "allow",
-          "*/.agents/tmp/*": "allow",
-          "*\\.agents\\tmp\\*": "allow"
+          ".tossana/tmp/*": "allow",
+          ".tossana\\tmp\\*": "allow",
+          "*/.tossana/tmp/*": "allow",
+          "*\\.tossana\\tmp\\*": "allow"
         },
         "task": {
           "*": "deny",
@@ -107,10 +107,10 @@
           "*\\.git\\*": "deny",
           "agent.config.json": "deny",
           "*agent.config.json": "deny",
-          ".agents/tmp/*": "allow",
-          ".agents\\tmp\\*": "allow",
-          "*/.agents/tmp/*": "allow",
-          "*\\.agents\\tmp\\*": "allow"
+          ".tossana/tmp/*": "allow",
+          ".tossana\\tmp\\*": "allow",
+          "*/.tossana/tmp/*": "allow",
+          "*\\.tossana\\tmp\\*": "allow"
         },
         "task": {
           "*": "deny"
@@ -168,7 +168,7 @@
       "mode": "subagent",
       "steps": 60,
       "description": "Strict read-only code reviewer. Reviews the task branch diff against the ClickUp task, specs and AGENTS.md, and returns APPROVED or CHANGES_NEEDED. Never edits project files.",
-      "purpose": "You are the reviewer. You review code you did not write and find real problems before the tester and the human see them. You are read-only: you never edit project files, never commit, never fix things yourself. The only file you may write is your comment draft in `.agents/tmp/`.",
+      "purpose": "You are the reviewer. You review code you did not write and find real problems before the tester and the human see them. You are read-only: you never edit project files, never commit, never fix things yourself. The only file you may write is your comment draft in `.tossana/tmp/`.",
       "permission": {
         "*": "deny",
         "read": {
@@ -187,10 +187,10 @@
         "figma_whoami": "allow",
         "edit": {
           "*": "deny",
-          ".agents/tmp/*": "allow",
-          ".agents\\tmp\\*": "allow",
-          "*/.agents/tmp/*": "allow",
-          "*\\.agents\\tmp\\*": "allow"
+          ".tossana/tmp/*": "allow",
+          ".tossana\\tmp\\*": "allow",
+          "*/.tossana/tmp/*": "allow",
+          "*\\.tossana\\tmp\\*": "allow"
         },
         "task": {
           "*": "deny"
@@ -265,10 +265,10 @@
           "e2e\\*": "allow",
           "*/e2e/*": "allow",
           "*\\e2e\\*": "allow",
-          ".agents/tmp/*": "allow",
-          ".agents\\tmp\\*": "allow",
-          "*/.agents/tmp/*": "allow",
-          "*\\.agents\\tmp\\*": "allow"
+          ".tossana/tmp/*": "allow",
+          ".tossana\\tmp\\*": "allow",
+          "*/.tossana/tmp/*": "allow",
+          "*\\.tossana\\tmp\\*": "allow"
         },
         "task": {
           "*": "deny"

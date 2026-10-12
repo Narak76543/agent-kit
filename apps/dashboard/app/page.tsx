@@ -35,10 +35,10 @@ export default async function BoardPage({ searchParams }: PageProps<'/'>) {
         {ROLES.map((role) => {
           const column = byRole(role);
           return (
-            <section key={role} className="flex min-w-0 flex-col gap-3 rounded-2xl bg-[#f1f3f4]/70 p-3">
+            <section key={role} className="flex min-w-0 flex-col gap-3 rounded-md bg-column p-3">
               <h2 className="flex items-center justify-between px-1 pt-1 text-sm font-medium">
                 {ROLE_LABEL[role]}
-                <span className="rounded-full bg-card px-2 py-0.5 text-xs text-muted">{column.length}</span>
+                <span className="rounded-sm bg-card px-2 py-0.5 text-xs text-muted">{column.length}</span>
               </h2>
               {column.map((t) => (
                 <TaskCard key={t.id} task={t} />
@@ -62,8 +62,8 @@ function TaskCard({ task }: { task: Task }) {
   return (
     <Link
       href={`/tasks/${task.id}`}
-      className={`group block rounded-xl border bg-card p-4 shadow-[0_1px_2px_rgba(60,64,67,0.08)] transition hover:shadow-[0_2px_8px_rgba(60,64,67,0.16)] ${
-        urgent ? 'border-[#f4c7c3] ring-1 ring-[#f4c7c3]' : 'border-line'
+      className={`group block rounded-md border bg-card p-4 transition hover:border-line-strong ${
+        urgent ? 'border-bad-line ring-1 ring-bad-line' : 'border-line'
       }`}
     >
       <div className="flex items-center justify-between gap-2 text-xs text-muted">
@@ -84,18 +84,18 @@ function TaskCard({ task }: { task: Task }) {
       )}
 
       {newHumanComment(task) && (
-        <p className="mt-2 rounded-md bg-[#e8f0fe] px-2 py-1 text-xs text-[#174ea6]">New comment from a human</p>
+        <p className="mt-2 rounded-md bg-info-bg px-2 py-1 text-xs text-info-fg">New comment from a human</p>
       )}
 
       <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-xs text-muted">
         <span className="flex items-center gap-1.5">
-          <span className="grid size-5 place-items-center rounded-full bg-[#e8eaed] text-[10px] font-semibold text-[#3c4043]">
+          <span className="grid size-5 place-items-center rounded-sm bg-subtle text-[10px] font-semibold text-ink-2">
             {task.assignee[0]}
           </span>
           {task.assignee}
         </span>
         <span className="flex items-center gap-2">
-          {task.tool && <span className="rounded bg-[#f1f3f4] px-1.5 py-0.5 text-[11px]">{TOOL_LABEL[task.tool]}</span>}
+          {task.tool && <span className="rounded bg-subtle px-1.5 py-0.5 text-[11px]">{TOOL_LABEL[task.tool]}</span>}
           {task.round !== null && <span className="tabular-nums">Round {task.round}</span>}
         </span>
       </div>

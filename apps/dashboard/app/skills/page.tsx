@@ -26,7 +26,7 @@ export default function SkillsPage() {
                 <h2 className="font-mono text-[15px] font-medium">{s.name}</h2>
                 <Chip tone={SCOPE_TONE[s.scope]}>{SCOPE_LABEL[s.scope]}</Chip>
               </div>
-              <p className="mt-2 text-sm leading-relaxed text-[#3c4043]">{s.description}</p>
+              <p className="mt-2 text-sm leading-relaxed text-ink-2">{s.description}</p>
               <div className="mt-4 flex flex-wrap gap-1.5">
                 {s.types.map((t) => (
                   <Chip key={t}>{t}</Chip>

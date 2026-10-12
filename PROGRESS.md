@@ -361,3 +361,15 @@ IDs of the personal test workspace are kept out of this repo on purpose (see the
   their sandbox. **Not run against a real Codex** (not installed here) — formats are from the docs, covered by unit
   tests and the `all-tools` golden case (all four tools at once, for review).
 - Docs: `docs/codex.md`. Tests: 364.
+
+### Dashboard design: dark default + design tokens (2026-10-12)
+
+- Dark mode is the default (near-black page `#121212`, cards `#1a1a1a`, thin borders, no shadows, one green accent
+  `#3ecf8e` for the active tab, links and focus rings; Supabase-like feel, no brand assets). Light mode is optional:
+  header toggle, remembered in localStorage (`tossana-theme`), applied by an inline script before first paint.
+- **All colors and radii are tokens** in `apps/dashboard/app/globals.css` (`:root`/`[data-theme='dark']` and
+  `[data-theme='light']`), mapped to Tailwind names (`bg-card`, `text-muted`, `bg-ok-bg`, `rounded-md` …). No
+  hard-coded colors or shadows remain in components. Radii: 6px (`rounded-sm`: badges, buttons, inputs, chips), 8px
+  (`rounded-md`: cards, columns), 10px max (`rounded-lg`); only tiny dots/check icons stay round.
+- Contrast checked for every text/background token pair: dark ≥ 5.79:1, light ≥ 4.75:1.
+- Plan §10.4 updated (dark default, light optional, radius 6/8/10px). The library fixture now shows `.tossana/tmp/`.

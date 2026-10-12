@@ -31,7 +31,7 @@ export default function AgentsPage() {
                 {PRESET_LABEL[a.preset]}
               </Chip>
             </div>
-            <p className="mt-2 text-sm leading-relaxed text-[#3c4043]">
+            <p className="mt-2 text-sm leading-relaxed text-ink-2">
               <InlineCode text={a.purpose} />
             </p>
             <div className="mt-4 flex flex-wrap gap-1.5">
@@ -52,7 +52,7 @@ export default function AgentsPage() {
         ))}
       </div>
 
-      <section className="mt-8 rounded-2xl border border-[#f4c7c3] bg-[#fffafa] p-5">
+      <section className="mt-8 rounded-md border border-bad-line bg-bad-soft p-5">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-medium">Locked rules for every role</h2>
           <Lock />

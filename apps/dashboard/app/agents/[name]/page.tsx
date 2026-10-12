@@ -65,12 +65,12 @@ export default async function AgentPage({ params }: PageProps<'/agents/[name]'>)
         )}
       </Card>
 
-      <details className="mt-4 rounded-2xl border border-line bg-card p-5">
+      <details className="mt-4 rounded-md border border-line bg-card p-5">
         <summary className="cursor-pointer text-sm font-medium">Raw OpenCode permission rules</summary>
         <p className="mt-2 text-xs text-muted">
           The last matching rule wins. Rules with backslashes are the same paths in Windows form.
         </p>
-        <pre className="mt-3 overflow-x-auto rounded-lg bg-[#f8f9fa] p-4 font-mono text-xs leading-relaxed">
+        <pre className="mt-3 overflow-x-auto rounded-sm bg-subtle p-4 font-mono text-xs leading-relaxed">
           {JSON.stringify(agent.permission, null, 2)}
         </pre>
       </details>
@@ -95,7 +95,7 @@ function Lines({ lines, tone }: { lines: PermissionLine[]; tone: 'green' | 'red'
           <span
             aria-hidden
             className={`mt-1 grid size-4 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white ${
-              tone === 'green' ? 'bg-[#1e8e3e]' : 'bg-[#d93025]'
+              tone === 'green' ? 'bg-ok-solid' : 'bg-bad-solid'
             }`}
           >
             {tone === 'green' ? '✓' : '×'}
@@ -105,7 +105,7 @@ function Lines({ lines, tone }: { lines: PermissionLine[]; tone: 'green' | 'red'
             {l.code && (
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {l.code.map((c) => (
-                  <code key={c} className="rounded bg-[#f1f3f4] px-1.5 py-0.5 font-mono text-xs break-all">
+                  <code key={c} className="rounded bg-subtle px-1.5 py-0.5 font-mono text-xs break-all">
                     {c}
                   </code>
                 ))}

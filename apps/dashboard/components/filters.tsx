@@ -41,10 +41,10 @@ export function Filters({ projects, assignees }: { projects: Option[]; assignees
 
 function Select(props: { label: string; value: string; options: Option[]; onChange: (value: string) => void }) {
   return (
-    <label className="flex items-center gap-2 rounded-full border border-line bg-card py-1.5 pr-2 pl-4 text-sm">
+    <label className="flex items-center gap-2 rounded-sm border border-line bg-card py-1.5 pr-2 pl-4 text-sm">
       <span className="text-muted">{props.label}</span>
       <select
-        className="cursor-pointer rounded-full bg-transparent py-0.5 pr-1 font-medium outline-none"
+        className="cursor-pointer rounded-sm bg-transparent py-0.5 pr-1 font-medium outline-none"
         value={props.value}
         onChange={(e) => props.onChange(e.target.value)}
       >

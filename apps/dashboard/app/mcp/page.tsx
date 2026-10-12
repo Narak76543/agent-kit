@@ -46,7 +46,7 @@ export default function McpPage() {
                 <p className="text-xs text-muted">Allowed tools</p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {m.tools.map((t) => (
-                    <code key={t} className="rounded bg-[#f1f3f4] px-1.5 py-0.5 font-mono text-xs">
+                    <code key={t} className="rounded bg-subtle px-1.5 py-0.5 font-mono text-xs">
                       {t}
                     </code>
                   ))}

@@ -14,11 +14,11 @@ export function PageHeader({ title, intro, children }: { title: string; intro?: 
 }
 
 const CHIP = {
-  neutral: 'bg-[#f1f3f4] text-[#3c4043]',
-  blue: 'bg-[#e8f0fe] text-[#174ea6]',
-  green: 'bg-[#e6f4ea] text-[#137333]',
-  amber: 'bg-[#fef7e0] text-[#a05a00]',
-  red: 'bg-[#fce8e6] text-[#c5221f]',
+  neutral: 'bg-subtle text-ink-2',
+  blue: 'bg-info-bg text-info-fg',
+  green: 'bg-ok-bg text-ok-fg',
+  amber: 'bg-warn-bg text-warn-fg',
+  red: 'bg-bad-bg text-bad-fg',
 };
 
 export function Chip({
@@ -32,9 +32,9 @@ export function Chip({
   href?: string;
   title?: string;
 }) {
-  const cls = `inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${CHIP[tone]}`;
+  const cls = `inline-flex items-center gap-1 rounded-sm px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${CHIP[tone]}`;
   return href ? (
-    <Link href={href} className={`${cls} hover:ring-1 hover:ring-[#dadce0]`} title={title}>
+    <Link href={href} className={`${cls} hover:ring-1 hover:ring-line-strong`} title={title}>
       {children}
     </Link>
   ) : (
@@ -45,9 +45,9 @@ export function Chip({
 }
 
 export function Card({ children, className = '', href }: { children: ReactNode; className?: string; href?: string }) {
-  const cls = `block rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(60,64,67,0.08)] ${className}`;
+  const cls = `block rounded-md border border-line bg-card p-5 ${className}`;
   return href ? (
-    <Link href={href} className={`${cls} transition hover:shadow-[0_2px_8px_rgba(60,64,67,0.16)]`}>
+    <Link href={href} className={`${cls} transition hover:border-line-strong`}>
       {children}
     </Link>
   ) : (
@@ -62,7 +62,7 @@ export function Label({ children }: { children: ReactNode }) {
 export function Lock() {
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full bg-[#fce8e6] px-2 py-0.5 text-[11px] font-semibold text-[#c5221f]"
+      className="inline-flex items-center gap-1 rounded-sm bg-bad-bg px-2 py-0.5 text-[11px] font-semibold text-bad-fg"
       title="Locked: cannot be changed from the dashboard"
     >
       🔒 Locked
@@ -88,7 +88,7 @@ export function InlineCode({ text }: { text: string }) {
     <>
       {text.split(/(`[^`]+`)/).map((part, i) =>
         part.startsWith('`') && part.endsWith('`') ? (
-          <code key={i} className="rounded bg-[#f1f3f4] px-1 font-mono text-[0.85em]">
+          <code key={i} className="rounded bg-subtle px-1 font-mono text-[0.85em]">
             {part.slice(1, -1)}
           </code>
         ) : (

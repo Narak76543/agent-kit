@@ -81,7 +81,7 @@ export function describePermissions(permission: Permission): PermissionSummary {
     can.push({ text: 'Edit any file, except:', code: paths(patterns(edit, 'deny')) });
     if (editAllowed.length) can.push({ text: 'But it may still write its comment drafts in:', code: editAllowed });
   } else if (editAllowed.length) {
-    const tmpOnly = editAllowed.every((p) => p.startsWith('.agents/tmp'));
+    const tmpOnly = editAllowed.every((p) => p.startsWith('.tossana/tmp'));
     can.push({
       text: tmpOnly ? 'Edit no project files. Only its comment drafts in:' : 'Edit only these files:',
       code: editAllowed,
