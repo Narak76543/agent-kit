@@ -166,8 +166,9 @@ Your browser opens a page for **this project only**:
 
 - **Project health**: the `doctor` checks as cards, each with its fix. Press **Re-check** after fixing something.
 - **My tasks**: your tasks from the ClickUp list. **Run** starts a "to do" task, **Resume** continues one that is in
-  progress. Choose the tool in the **Runner** list (only tools set up in this project are shown). You always see the
-  dry run first; nothing changes until you press **Start**.
+  progress. Choose the **Agent** (see below) and the **Tool** (only tools set up in this project and installed on
+  your computer are offered). You always see the dry run first; nothing changes until you press **Start**.
+- **Agents**: your named agents (see "Agent profiles" below): create, edit, delete.
 - **Live run**: the agent's output as it works, the current role and round, and a **Stop** button (stops the agent
   and everything it started).
 
@@ -177,6 +178,50 @@ Good to know:
   stops working when you stop the console with **Ctrl+C**. Stopping the console also stops a running agent.
 - Your ClickUp token never goes to the browser.
 - Only one run per project at a time, from the console or from the terminal.
+
+## Agent profiles: "who works on this task"
+
+An agent profile is a named agent, for example **Rei – Mobile** or **Joe – Backend**:
+
+- a **tool** (OpenCode, Claude Code, Codex or Antigravity),
+- **skills** (your project's skills, your own skills on this computer, or the team skills that come with the kit),
+- optional **MCP servers** (today: Figma),
+- a badge (initials and a color) so you recognise it.
+
+It always runs the project's normal pipeline (orchestrator → coder → reviewer → tester). Its skills are **added** for
+the coder and the reviewer. It never changes what a role may do: the locked rules always apply (for example, an
+agent can never set a task to Done).
+
+**Team or personal?**
+
+- **Team agent**: saved in the project as `.agents/profiles/<id>.json`. Commit it, and everyone in the project gets it.
+- **Personal agent**: saved in your home folder (`~/.agents/profiles/`), only on your computer.
+
+Profiles never contain tokens or passwords; the kit refuses to save anything that looks like one.
+
+**Create one** in the Local Console (**Agents** → **New agent**: tool → name → skills → MCP), or in the terminal:
+
+```powershell
+npx tossana-agents agents create --name "Rei – Mobile" --tool codex --skills mobile-master,payments
+npx tossana-agents agents list
+npx tossana-agents agents delete rei-mobile --yes
+```
+
+Add `--personal` to keep it on your computer only. In the form you can also **create a new project skill** from a
+template (`.agents/skills/<name>/SKILL.md`): fill it in and commit it.
+
+**Run a task as an agent:**
+
+```powershell
+npx tossana-agents run --task 86abc123 --agent rei-mobile --dry-run
+npx tossana-agents run --task 86abc123 --agent rei-mobile
+```
+
+In the Local Console, **Run** and **Resume** ask which agent to use and remember your last choice for this project.
+If the agent's tool is not installed on your computer (or not set up in this project), you can run it with another
+tool instead; the agent's skills are kept. In the terminal, add `--runner opencode` (or another tool) for the same.
+
+ClickUp comments and the dashboard then show who did the work, for example `[BY: Rei – Mobile · Codex]`.
 
 ## 5. What you see in ClickUp
 

@@ -4,7 +4,7 @@ Status of the Tossana Agent Kit build. Read this first when you continue the wor
 The full spec is [TOSSANA_AGENT_KIT_PLAN.md](./TOSSANA_AGENT_KIT_PLAN.md). This file records what is done, what is next,
 and every decision that changes or clarifies the spec.
 
-Last updated: 2026-10-13 (Local Console screens 1–3; see "Next steps")
+Last updated: 2026-10-13 (agent profiles; see "Next steps")
 
 ## Phase status
 
@@ -19,6 +19,7 @@ Last updated: 2026-10-13 (Local Console screens 1–3; see "Next steps")
 | 6 — Distribution, docs    | 🟡 Started  | Docs written; tarball tested; registry not chosen                    |
 | 7 — Roles, tools, library | 🟡 a–d done | Roles, skill scopes, Claude Code, Codex; library repo + editing next |
 | 8 — Local Console (UI)    | 🟡 1–3 done | `tossana-agents ui`: health, my tasks, live run; screens 4–6 next    |
+| 9 — Agent profiles        | ✅ Built    | Named agents (tool + skills + MCP): CLI, console, dashboard          |
 
 ## How to work on this repo
 
@@ -200,8 +201,10 @@ IDs of the personal test workspace are kept out of this repo on purpose (see the
    - **Look at it in a browser once** (not done yet: no browser in the 2026-10-13 session; the API and page were
      checked with curl and tests): `tossana-agents ui` in `D:\Ek-Mobile-test`, all three screens, both themes,
      phone width. Then one real run from the console with Stop pressed mid-run.
-   - Screen 4: setup wizard (`init` as a form). Screen 5: roles & skills editor for `agent.config.json` (same zod
-     schema, locked rules read-only). Screen 6: `update` with a diff preview. Every write behind a confirmation.
+   - Screen 4: setup wizard (`init` as a form). Screen 6: `update` with a diff preview. Every write behind a
+     confirmation. (Screen 5, the roles & skills editor, was replaced by agent profiles, Phase 9.)
+   - Agent profiles, by hand: create one in the console on Windows and on a Mac, run a task with it in
+     `D:\Ek-Mobile-test`, check the `[BY: …]` tag on every agent comment in ClickUp.
    - The theme choice is per console start (random port = new origin = new localStorage). Fine for now.
 8. **Later:** real skills content (waiting for the skills folder path), Phase 4 on a real second project, publish
    registry (GitHub Packages under `@tossana`?) and the first release (`docs/maintaining.md`), push + run CI once.
@@ -436,3 +439,42 @@ resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner comma
   coding/review/testing with a task branch; runner dropdown = tools whose files exist, plus custom when AGENT_CMD is
   set), Live run (streamed NDJSON log, status/role/round/last result/handoff every 15 s, Stop with a confirm dialog).
 - Docs: `docs/getting-started.md` → "The Local Console". Tests: 44 new (419 total).
+
+### Phase 9 — Agent profiles (built 2026-10-13)
+
+- Design: plan §12 "Phase 9". A profile = name, optional initials + color (token names only), tool, skills, MCP
+  servers. It runs the project's pipeline; its skills are **added** for the coding roles (`edit-code`) and read-only
+  checks (default: coder and reviewer). Permissions and locked rules never change. Custom `roles` stay an advanced
+  config option; the planned roles editor (Phase 8 screen 5) is replaced by this.
+- **Schema** (`packages/core/src/profiles.ts`): strict zod object (unknown keys refused, so a token cannot be stored),
+  one-line names without quotes/brackets, values that look like secrets refused (ClickUp tokens, `sk-`, `ghp_`, long
+  random strings). Slug from the name (`Rei – Mobile` → `rei-mobile`); names without Latin letters need an id.
+- **Storage** (`packages/cli/src/profiles.ts`): team `.agents/profiles/<id>.json` (committed), personal
+  `~/.agents/profiles/<id>.json`. An id used in the other scope is refused. `ctx.home` (new) is a temp folder in
+  tests, so tests never touch the real home folder.
+- **Runs without template changes:** the handoff entry the kit writes at run start now says
+  `Run started with codex as "Rei – Mobile"` (resume: `Resumed with codex as "…" after …`) and lists the skill files
+  for the coder and reviewer; the orchestrator, coder and reviewer already read the handoff file first. The prompt
+  names the profile. Skills that are not in the project (user skills, team skills not copied) are copied to
+  `.tossana/tmp/skills/<name>/` (git-ignored, inside the workspace, readable by every tool and sandbox). A missing
+  skill stops the run before anything changes. MCP servers stay per project; a profile that needs Figma in a project
+  without it gets a warning with `init --figma`.
+- **Protocol:** optional `[BY: Rei – Mobile · Codex]` after the round (backward compatible; `by` on parsed
+  comments). Agents do not write it: `cu comment`/`cu notify` add it from the latest run entry of the handoff file;
+  without a profile it names the tool (`[BY: Claude Code]`). The kit's resume comment carries it too.
+- **CLI:** `tossana-agents agents list [--json] | create --name --tool [--id --skills --mcp --initials --color
+--personal --replace] | delete <id> [--personal] --yes`; `run --task <id> --agent <id> [--runner <tool>]` (the
+  runner override keeps the skills). `--agent <id>` and `--no-agent` share one commander option.
+- **Local Console:** new **Agents** tab (cards with badge, tool installed/set up, skills with scope or "missing",
+  MCP; New/Edit form: tool → name/id/badge/scope → skills with "create project skill" → MCP → review the file →
+  Save). Every write needs `confirm: true` from the dialog (server-checked). **Run/Resume** dialog: Agent + Tool;
+  the last agent is remembered per project in `.tossana/tmp/console.json`; a tool that is not installed or not set
+  up is replaced by a usable one with a note ("skills are kept").
+- **Dashboard:** `by` per task (newest `[BY: …]`, else the tool) on the board card and the task page ("Ran by"), and
+  per timeline entry. Fixtures carry sample `[BY: …]` tags.
+- Note: a new team profile is an untracked file; `run --resume` treats untracked files as leftovers (WIP commit). The
+  console says to commit it.
+- Tests: 31 new (452 total): schema and helpers, `[BY]` format/parse (protocol still 100%), `agents` commands,
+  `run --agent` (dry run, handoff, staged skills, prompt, runner override, missing skill/unknown agent/tool not set
+  up), resume with an agent, comment stamping, console Agents API (confirmations, secrets, personal folder, skills,
+  run with a fallback tool, remembered choice).

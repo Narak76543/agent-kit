@@ -528,14 +528,75 @@ by a `node:http` server inside the CLI. **No new runtime dependencies.**
 3. **Live run:** streamed log (redacted), current role and round (task status + last agent comment + handoff),
    Stop button.
 
-Later (only if time allows, otherwise PROGRESS.md next steps): 4. Setup wizard (`init` as a form). 5. Roles & skills editor for this project's `agent.config.json` (validated by the same zod schema; locked rules
-shown read-only). 6. Update with a diff preview.
+Later (only if time allows, otherwise PROGRESS.md next steps):
+
+4. Setup wizard (`init` as a form).
+5. ~~Roles & skills editor~~ → replaced by **Agent profiles** (Phase 9). Custom `roles` in `agent.config.json` stay
+   an advanced config option.
+6. Update with a diff preview.
 
 #### 8.5 Acceptance
 
 - `tossana-agents ui` opens the console; screens 1–3 work against the fake API in tests and the real API by hand.
 - Tests cover: host/origin/token checks (including DNS-rebinding hosts and cross-site origins), no secret in any
   response, preview-before-run and WIP confirmation, one run at a time (lock), Stop kills a child and grandchild.
+
+### Phase 9 — Agent profiles (added 2026-10-13)
+
+**Goal:** people pick "who works on this task" in simple terms (a named agent with a tool and skills), without
+editing pipeline roles. Replaces screen 5 of Phase 8 (roles & skills editor) as the main UI; custom `roles` in
+`agent.config.json` stay an advanced option.
+
+#### 9.1 What a profile is
+- `name` ("Rei – Mobile"), optional `initials` (≤ 3) and `color` (one of the design-token accents, never free CSS),
+  `tool` (opencode | claude-code | codex | antigravity), `skills` (names; project, user or team scope),
+  `mcp` (from the approved catalog, today: figma).
+- The pipeline is always the project's pipeline (default orchestrator → coder → reviewer → tester). The profile's
+  skills are **added** for the coding roles (`edit-code`) and the review roles (`read-only` checks); the tester and
+  planners keep theirs. **Locked rules always apply:** a profile changes knowledge, never permissions.
+- File name = slug of the name (`rei-mobile.json`), shown and editable before the first save (names in Khmer or
+  other scripts have no Latin slug).
+- Validated by a strict zod schema in core: unknown keys are refused (so a token can never be stored "by accident"),
+  and any value that looks like a ClickUp token or a secret is refused.
+
+#### 9.2 Storage
+- **Team:** `.agents/profiles/<slug>.json` in the project (committed, reviewed like code).
+- **Personal:** `~/.agents/profiles/<slug>.json` (this machine only; next to the user skills in `~/.agents/skills`).
+- A slug is unique across both: creating one that exists in the other scope is refused.
+
+#### 9.3 How a run uses a profile (no template changes)
+- `run --task <id> --agent rei-mobile [--runner <tool>]`: the runner is the profile's tool unless `--runner`
+  overrides it (the skills are kept). The tool must be set up in the project (same check as `--runner`).
+- The handoff entry the kit already writes at the start of every run carries the profile:
+  `Run started with codex as "Rei – Mobile"` and, in its body, the skill files for the coding and review roles and
+  the MCP servers. The orchestrator, coder and reviewer already read the handoff file first. The run prompt names
+  the profile too.
+- Skills that are not in the project (user skills, team skills the project never copied) are copied for the run
+  into `.tossana/tmp/skills/<name>/SKILL.md` (git-ignored, inside the workspace, so every tool and sandbox can read
+  them). Project skills are read in place. A missing skill stops the run before anything changes.
+- MCP: servers are still set up per project (`init --figma`). A profile that needs a server the project has not set
+  up gets a warning with the fix, in the preview and in the run.
+
+#### 9.4 Comments, handoff, dashboard
+- Protocol addition (optional, backward compatible): `[AGENT: coder] [RESULT: DONE_CODING] [ROUND: 1] [BY: Rei – Mobile · Codex]`.
+  Agents do not write it: `cu comment` adds it from the latest run entry of the handoff file (so it is right even
+  if a model forgets), and the kit's own resume comment includes it.
+- The dashboard shows "Rei – Mobile · Codex" on the board card, the task page and each timeline entry.
+
+#### 9.5 Local Console and CLI
+- **Agents** tab: profiles (team and personal) with initials/color, tool, whether the tool is installed on this
+  machine and set up in this project, skills with their scope (missing ones flagged), MCP. "New agent" form: tool →
+  name → skills (plus "create a new project skill" from a template) → MCP → save as team or personal. Edit, delete.
+  Every write shows the file and asks for confirmation.
+- **My tasks:** Run/Resume asks which agent to use (last choice remembered per project in `.tossana/tmp/`). If the
+  profile's tool is not installed or not set up, the dialog offers an installed, set-up tool instead (skills kept).
+- **CLI:** `tossana-agents agents list | create | delete`, `run --agent <slug>`.
+
+#### 9.6 Acceptance
+- Schema, storage, slug and secret checks; `[BY: …]` format/parse (protocol stays at 100% coverage); `run --agent`
+  writes the handoff entry, copies skills, names the profile in the prompt; `--runner` override keeps skills;
+  `cu comment` stamps the profile; console API for profiles and profile-aware preview/run; CLI `agents` commands.
+- Paths built with `node:path` and `os.homedir()`, so Windows and macOS behave the same.
 
 ---
 
