@@ -1,5 +1,5 @@
 /**
- * Local Console page (browser code, bundled by esbuild into dist/console.html). No framework: three screens.
+ * Local Console page (browser code, bundled by esbuild into dist/console.html). No framework: four screens.
  * - The session token comes from this page's URL and is sent as `Authorization: Bearer` on every API call.
  * - All text is set with textContent (never innerHTML), so task names or log lines cannot inject markup.
  */
@@ -20,6 +20,8 @@ interface RunInfo {
   taskId: string;
   mode: 'run' | 'resume';
   runner: string;
+  /** "Rei – Mobile · Codex", or the tool alone. */
+  label: string;
   state: RunState;
   startedAt: string;
   lineCount: number;
@@ -37,6 +39,43 @@ interface ProjectInfo {
     defaultRunner: string | null;
   } | null;
   run: RunInfo | null;
+  /** The agent chosen for the last run in this project (this machine). */
+  lastAgent: string | null;
+}
+type Scope = 'team' | 'personal';
+interface Profile {
+  name: string;
+  initials?: string;
+  color?: string;
+  tool: string;
+  skills: string[];
+  mcp: string[];
+}
+interface AgentRow {
+  slug: string;
+  scope: Scope;
+  error: string | null;
+  profile: Profile | null;
+  label: string | null;
+  initials: string | null;
+  skills: { name: string; scope: string | null }[];
+}
+interface ToolInfo {
+  tool: string;
+  label: string;
+  installed: boolean | null;
+  version: string | null;
+  setUp: boolean;
+  headless: boolean;
+}
+interface AgentsInfo {
+  agents: AgentRow[];
+  tools: ToolInfo[];
+  runners: { runner: string; label: string; installed: boolean | null }[];
+  skills: { name: string; scope: string; description: string }[];
+  mcp: { name: string; setUp: boolean }[];
+  colors: string[];
+  personalDir: string;
 }
 interface Task {
   id: string;
@@ -148,11 +187,11 @@ $('theme-toggle').addEventListener('click', () => {
 
 // ---------- state + tabs ----------
 
-type Tab = 'health' | 'tasks' | 'run';
-const state: { project: ProjectInfo | null; run: RunInfo | null; runner: string | null; tab: Tab } = {
+type Tab = 'health' | 'tasks' | 'agents' | 'run';
+const TABS: Tab[] = ['health', 'tasks', 'agents', 'run'];
+const state: { project: ProjectInfo | null; run: RunInfo | null; tab: Tab } = {
   project: null,
   run: null,
-  runner: null,
   tab: 'health',
 };
 const loaded = new Set<Tab>();
@@ -163,11 +202,12 @@ function showTab(tab: Tab) {
     if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page');
     else b.removeAttribute('aria-current');
   }
-  for (const t of ['health', 'tasks', 'run'] as Tab[]) $(`screen-${t}`).hidden = t !== tab;
+  for (const t of TABS) $(`screen-${t}`).hidden = t !== tab;
   if (!loaded.has(tab)) {
     loaded.add(tab);
     if (tab === 'health') void loadHealth();
     if (tab === 'tasks') void loadTasks();
+    if (tab === 'agents') void loadAgents();
     if (tab === 'run') renderRun();
   }
   history.replaceState(null, '', `${location.pathname}${location.search}#${tab}`);
@@ -252,11 +292,6 @@ async function loadTasks() {
   const root = $('screen-tasks');
   const p = state.project?.project;
   const refresh = h('button', { type: 'button', class: 'btn', onclick: () => void loadTasks() }, 'Refresh');
-  const select = h('select', {
-    'aria-label': 'Runner',
-    onchange: (e) => (state.runner = (e.target as HTMLSelectElement).value),
-  });
-  for (const r of p?.runners ?? []) select.append(h('option', { value: r, selected: r === state.runner }, r));
   const head = h(
     'div',
     { class: 'screen-head' },
@@ -266,7 +301,7 @@ async function loadTasks() {
       h('h1', {}, 'My tasks'),
       h('p', { class: 'muted small' }, p ? `Assigned to you in list ${p.listId}.` : ''),
     ),
-    h('div', { class: 'row' }, h('label', { class: 'muted small' }, 'Runner'), select, refresh),
+    h('div', { class: 'row' }, refresh),
   );
   if (!p) {
     root.replaceChildren(
@@ -337,81 +372,572 @@ async function loadTasks() {
   }
 }
 
-/** Dry-run preview, then the user confirms (and, for leftover changes, ticks the WIP commit). */
+/** Runners a run can use here: set up in this project and not known to be missing on this machine. */
+const usableRunners = (info: AgentsInfo) => info.runners.filter((r) => r.installed !== false);
+
+/**
+ * Run/Resume: pick the agent (remembered per project) and the tool. When the agent's tool cannot run here, an
+ * installed tool is offered instead (the agent's skills are kept). Then the dry run; Start is the confirmation.
+ */
 async function openPreview(task: Task, mode: 'run' | 'resume') {
   const dialog = $('dialog') as HTMLDialogElement;
-  const runner = state.runner ?? state.project?.project?.defaultRunner ?? '';
   const body = h('div', { class: 'dialog-body' });
-  const title = h(
-    'h2',
-    { id: 'dialog-title' },
-    `${mode === 'run' ? 'Run' : 'Resume'} ${task.customId ?? task.id} with ${runner}`,
-  );
+  const verb = mode === 'run' ? 'Run' : 'Resume';
+  const title = h('h2', { id: 'dialog-title' }, `${verb} ${task.customId ?? task.id}`);
   const close = () => dialog.close();
-  body.replaceChildren(title, h('p', { class: 'muted' }, 'Preparing the dry run…'));
+  body.replaceChildren(title, h('p', { class: 'muted' }, 'Loading agents…'));
   dialog.replaceChildren(body);
   dialog.showModal();
 
-  let preview: Preview;
+  let info: AgentsInfo;
   try {
-    preview = await api<Preview>('/api/preview', { taskId: task.id, mode, runner });
+    info = await api<AgentsInfo>('/api/agents');
   } catch (e) {
-    body.replaceChildren(
-      title,
-      errorBox(e),
-      h('div', { class: 'dialog-actions' }, h('button', { type: 'button', class: 'btn', onclick: close }, 'Close')),
+    body.replaceChildren(title, errorBox(e), closeRow(close));
+    return;
+  }
+  const usable = usableRunners(info);
+  const agents = info.agents.filter((a) => a.profile);
+  const agentSelect = h('select', { id: 'pick-agent' });
+  agentSelect.append(h('option', { value: '' }, 'Project default (no agent profile)'));
+  for (const a of agents) agentSelect.append(h('option', { value: a.slug }, `${a.label} (${a.scope})`));
+  const last = state.project?.lastAgent;
+  if (last && agents.some((a) => a.slug === last)) agentSelect.value = last;
+  const toolSelect = h('select', { id: 'pick-tool' });
+  for (const r of usable) toolSelect.append(h('option', { value: r.runner }, r.label));
+  const toolNote = h('div', { class: 'notice', hidden: true });
+  const previewBox = h('div', { class: 'stack' });
+
+  /** The agent's tool when it can run here; otherwise the first usable tool, with a note. */
+  const pickTool = () => {
+    const agent = agents.find((a) => a.slug === agentSelect.value)?.profile;
+    const def = state.project?.project?.defaultRunner ?? '';
+    const want = agent?.tool ?? def;
+    const ok = usable.some((r) => r.runner === want);
+    toolSelect.value = ok ? want : (usable[0]?.runner ?? '');
+    toolNote.hidden = ok || !agent;
+    if (agent && !ok) {
+      const t = info.tools.find((x) => x.tool === agent.tool);
+      const why = !t?.setUp ? 'is not set up in this project' : 'is not installed on this machine';
+      toolNote.textContent = `${t?.label ?? agent.tool} ${why}. Run with ${
+        usable.find((r) => r.runner === toolSelect.value)?.label ?? 'another tool'
+      } instead; ${agent.name}'s skills are kept.`;
+    }
+  };
+
+  let seq = 0;
+  const refresh = async () => {
+    const mine = ++seq;
+    previewBox.replaceChildren(h('p', { class: 'muted' }, 'Preparing the dry run…'));
+    if (!toolSelect.value) {
+      previewBox.replaceChildren(
+        h('div', { class: 'notice bad' }, 'No tool can run here. Install one and set it up with init.'),
+      );
+      return;
+    }
+    try {
+      const preview = await api<Preview>('/api/preview', {
+        taskId: task.id,
+        mode,
+        runner: toolSelect.value,
+        ...(agentSelect.value ? { agent: agentSelect.value } : {}),
+      });
+      if (mine === seq) renderPreview(preview);
+    } catch (e) {
+      if (mine === seq) previewBox.replaceChildren(errorBox(e));
+    }
+  };
+
+  const renderPreview = (preview: Preview) => {
+    const wip = preview.needsWipCommit ? h('input', { type: 'checkbox', id: 'confirm-wip' }) : null;
+    const start = h('button', { type: 'button', class: 'btn primary' }, `${verb} run`);
+    const problem = h('div', { class: 'notice bad', hidden: true, role: 'alert' });
+    start.disabled = !!preview.busy || !!wip;
+    wip?.addEventListener('change', () => (start.disabled = !!preview.busy || !wip.checked));
+    start.addEventListener('click', async () => {
+      start.disabled = true;
+      try {
+        const run = await api<RunInfo>('/api/runs', {
+          previewId: preview.previewId,
+          confirmWip: wip?.checked ?? false,
+        });
+        if (state.project) state.project.lastAgent = agentSelect.value || null;
+        close();
+        setRun(run);
+        showTab('run');
+        renderRun();
+      } catch (e) {
+        problem.hidden = false;
+        problem.textContent = (e as Error).message;
+      }
+    });
+    const parts: Child[] = [
+      h('p', { class: 'small muted' }, 'Dry run: this is exactly what will happen. Nothing has changed yet.'),
+      h('pre', { class: 'preview mono' }, preview.output),
+      preview.busy ? h('div', { class: 'notice' }, preview.busy) : null,
+      ...preview.warnings.map((w) => h('div', { class: 'notice' }, w)),
+      wip
+        ? h(
+            'div',
+            { class: 'stack' },
+            h('div', { class: 'notice' }, 'The task branch has uncommitted changes from the previous tool:'),
+            h('pre', { class: 'preview mono' }, preview.dirty),
+            h(
+              'label',
+              { class: 'confirm', for: 'confirm-wip' },
+              wip,
+              'Commit these changes as "WIP: handoff from …" before resuming',
+            ),
+          )
+        : null,
+      problem,
+      h(
+        'div',
+        { class: 'dialog-actions' },
+        h('button', { type: 'button', class: 'btn', onclick: close }, 'Cancel'),
+        start,
+      ),
+    ];
+    previewBox.replaceChildren(...parts.filter((x): x is Node | string => !!x));
+  };
+
+  agentSelect.addEventListener('change', () => {
+    pickTool();
+    void refresh();
+  });
+  toolSelect.addEventListener('change', () => {
+    toolNote.hidden = true;
+    void refresh();
+  });
+  pickTool();
+  body.replaceChildren(
+    title,
+    h(
+      'div',
+      { class: 'form-grid' },
+      h('label', { for: 'pick-agent' }, 'Agent'),
+      agentSelect,
+      h('label', { for: 'pick-tool' }, 'Tool'),
+      toolSelect,
+    ),
+    toolNote,
+    agents.length
+      ? ''
+      : h('p', { class: 'small muted' }, 'Tip: create named agents (tool + skills) on the Agents tab.'),
+    previewBox,
+  );
+  void refresh();
+}
+
+const closeRow = (close: () => void) =>
+  h('div', { class: 'dialog-actions' }, h('button', { type: 'button', class: 'btn', onclick: close }, 'Close'));
+
+// ---------- Agents ----------
+
+/** Same rule as the CLI (core profileSlug): "Rei – Mobile" → "rei-mobile". */
+const slugOf = (name: string) =>
+  name
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/-+$/, '');
+
+const avatar = (initials: string, color?: string) =>
+  h('span', { class: `avatar av-${color ?? 'green'}`, 'aria-hidden': 'true' }, initials);
+
+function toolBadges(t: ToolInfo | undefined): Node[] {
+  if (!t) return [];
+  return [
+    t.installed === null
+      ? badge('IDE: start it yourself')
+      : t.installed
+        ? badge(`installed${t.version ? ` ${t.version}` : ''}`, 'ok')
+        : badge('not installed here', 'bad'),
+    t.setUp ? badge('set up in this project', 'ok') : badge('not set up in this project', 'warn'),
+  ];
+}
+
+async function loadAgents() {
+  const root = $('screen-agents');
+  const add = h('button', { type: 'button', class: 'btn primary' }, 'New agent');
+  const head = h(
+    'div',
+    { class: 'screen-head' },
+    h(
+      'div',
+      {},
+      h('h1', {}, 'Agents'),
+      h(
+        'p',
+        { class: 'muted small' },
+        'A named agent = a tool + skills + MCP servers. It runs the project pipeline; its skills go to the coder and reviewer. Role permissions and locked rules never change.',
+      ),
+    ),
+    add,
+  );
+  root.replaceChildren(head, h('p', { class: 'muted' }, 'Loading agents…'));
+  let info: AgentsInfo;
+  try {
+    info = await api<AgentsInfo>('/api/agents');
+  } catch (e) {
+    root.replaceChildren(head, errorBox(e));
+    return;
+  }
+  add.addEventListener('click', () => openAgentForm(info, null));
+  if (!info.agents.length) {
+    root.replaceChildren(
+      head,
+      h(
+        'div',
+        { class: 'card empty' },
+        'No agents yet. Create one, e.g. "Rei – Mobile" with Codex and your mobile skills.',
+      ),
     );
     return;
   }
-
-  const wip = preview.needsWipCommit ? h('input', { type: 'checkbox', id: 'confirm-wip' }) : null;
-  const start = h('button', { type: 'button', class: 'btn primary' }, mode === 'run' ? 'Start run' : 'Resume run');
-  const problem = h('div', { class: 'notice bad', hidden: true, role: 'alert' });
-  start.disabled = !!preview.busy || !!wip;
-  wip?.addEventListener('change', () => (start.disabled = !!preview.busy || !wip.checked));
-  start.addEventListener('click', async () => {
-    start.disabled = true;
-    try {
-      const run = await api<RunInfo>('/api/runs', { previewId: preview.previewId, confirmWip: wip?.checked ?? false });
-      close();
-      setRun(run);
-      showTab('run');
-      renderRun();
-    } catch (e) {
-      problem.hidden = false;
-      problem.textContent = (e as Error).message;
+  const cards = info.agents.map((a) => {
+    if (!a.profile) {
+      return h(
+        'div',
+        { class: 'card bad' },
+        h('h3', {}, `${a.slug} (${a.scope})`),
+        h('div', { class: 'small', style: undefined }, a.error ?? 'invalid'),
+      );
     }
+    const p = a.profile;
+    const tool = info.tools.find((t) => t.tool === p.tool);
+    return h(
+      'div',
+      { class: 'card agent' },
+      h(
+        'div',
+        { class: 'agent-head' },
+        avatar(a.initials ?? '?', p.color),
+        h(
+          'div',
+          { class: 'agent-title' },
+          h('h3', {}, p.name),
+          h(
+            'div',
+            { class: 'muted small' },
+            `${tool?.label ?? p.tool} · ${a.scope === 'team' ? 'Team' : 'Personal'} · ${a.slug}`,
+          ),
+        ),
+      ),
+      h('div', { class: 'row' }, ...toolBadges(tool)),
+      h(
+        'div',
+        { class: 'row small' },
+        h('span', { class: 'muted' }, 'Skills:'),
+        ...(a.skills.length
+          ? a.skills.map((s) =>
+              badge(s.scope ? `${s.name} · ${s.scope}` : `${s.name} · missing`, s.scope ? 'info' : 'bad'),
+            )
+          : [h('span', { class: 'muted' }, 'none (project skill only)')]),
+      ),
+      p.mcp.length
+        ? h('div', { class: 'row small' }, h('span', { class: 'muted' }, 'MCP:'), ...p.mcp.map((m) => badge(m)))
+        : null,
+      h(
+        'div',
+        { class: 'row' },
+        h('button', { type: 'button', class: 'btn', onclick: () => openAgentForm(info, a) }, 'Edit'),
+        h('button', { type: 'button', class: 'btn danger', onclick: () => confirmDeleteAgent(a) }, 'Delete'),
+      ),
+    );
+  });
+  root.replaceChildren(head, h('div', { class: 'grid' }, ...cards));
+}
+
+/** New / edit agent: tool → name → skills → MCP, then a confirmation that shows the file it writes. */
+function openAgentForm(info: AgentsInfo, existing: AgentRow | null) {
+  const dialog = $('dialog') as HTMLDialogElement;
+  const close = () => dialog.close();
+  const p = existing?.profile;
+  const body = h('div', { class: 'dialog-body' });
+  const title = h('h2', { id: 'dialog-title' }, existing ? `Edit ${p?.name}` : 'New agent');
+
+  // 1. tool
+  const toolChoices = info.tools.map((t) =>
+    h(
+      'label',
+      { class: 'choice' },
+      h('input', {
+        type: 'radio',
+        name: 'tool',
+        value: t.tool,
+        checked: (p?.tool ?? info.tools.find((x) => x.setUp)?.tool) === t.tool,
+      }),
+      h('span', { class: 'choice-text' }, h('b', {}, t.label), h('span', { class: 'row' }, ...toolBadges(t))),
+    ),
+  );
+  // 2. name, id, badge, scope
+  const name = h('input', {
+    type: 'text',
+    id: 'agent-name',
+    maxlength: '60',
+    placeholder: 'e.g. Rei – Mobile',
+    value: p?.name ?? '',
+  });
+  const slug = h('input', {
+    type: 'text',
+    id: 'agent-id',
+    maxlength: '40',
+    value: existing?.slug ?? '',
+    disabled: !!existing,
+  });
+  let slugEdited = !!existing;
+  slug.addEventListener('input', () => (slugEdited = true));
+  name.addEventListener('input', () => {
+    if (!slugEdited) slug.value = slugOf(name.value);
+  });
+  const initials = h('input', {
+    type: 'text',
+    id: 'agent-initials',
+    maxlength: '3',
+    placeholder: 'auto',
+    value: p?.initials ?? '',
+  });
+  const color = h('select', { id: 'agent-color' });
+  for (const c of info.colors) color.append(h('option', { value: c, selected: c === (p?.color ?? 'green') }, c));
+  const scopeTeam = h('input', {
+    type: 'radio',
+    name: 'scope',
+    value: 'team',
+    checked: (existing?.scope ?? 'team') === 'team',
+    disabled: !!existing,
+  });
+  const scopePersonal = h('input', {
+    type: 'radio',
+    name: 'scope',
+    value: 'personal',
+    checked: existing?.scope === 'personal',
+    disabled: !!existing,
+  });
+  // 3. skills
+  const chosen = new Set(p?.skills ?? []);
+  const skillList = h('div', { class: 'stack skill-list' });
+  const renderSkills = () => {
+    const groups: [string, string][] = [
+      ['project', 'Project skills (.agents/skills)'],
+      ['user', 'Your skills (this machine)'],
+      ['team', 'Team skills (bundled with the kit)'],
+    ];
+    const missing = [...chosen].filter((n) => !info.skills.some((s) => s.name === n));
+    skillList.replaceChildren(
+      ...groups.flatMap(([scope, label]) => {
+        const items = info.skills.filter((s) => s.scope === scope);
+        if (!items.length) return [];
+        return [
+          h('div', { class: 'small muted' }, label),
+          ...items.map((s) => {
+            const box = h('input', { type: 'checkbox', checked: chosen.has(s.name) });
+            box.addEventListener('change', () => (box.checked ? chosen.add(s.name) : chosen.delete(s.name)));
+            return h(
+              'label',
+              { class: 'confirm' },
+              box,
+              h('span', {}, h('b', {}, s.name), s.description ? ` — ${s.description}` : ''),
+            );
+          }),
+        ];
+      }),
+      ...(missing.length
+        ? [h('div', { class: 'notice' }, `Not available on this machine: ${missing.join(', ')}`)]
+        : []),
+    );
+  };
+  renderSkills();
+  const newSkillName = h('input', { type: 'text', placeholder: 'skill-name', maxlength: '40' });
+  const newSkillDesc = h('input', { type: 'text', placeholder: 'One line: what it is for', maxlength: '200' });
+  const newSkillArea = h('div', { class: 'stack' });
+  const newSkillBtn = h('button', { type: 'button', class: 'btn' }, 'Create project skill…');
+  newSkillBtn.addEventListener('click', () => {
+    const n = newSkillName.value.trim();
+    const file = `.agents/skills/${n}/SKILL.md`;
+    const yes = h('button', { type: 'button', class: 'btn primary' }, 'Create');
+    const no = h('button', { type: 'button', class: 'btn' }, 'Cancel');
+    no.addEventListener('click', () => newSkillArea.replaceChildren());
+    yes.addEventListener('click', async () => {
+      yes.disabled = true;
+      try {
+        await api('/api/skills', { name: n, description: newSkillDesc.value, confirm: true });
+        info.skills.push({ name: n, scope: 'project', description: newSkillDesc.value.trim() });
+        chosen.add(n);
+        renderSkills();
+        newSkillName.value = '';
+        newSkillDesc.value = '';
+        newSkillArea.replaceChildren(
+          h('div', { class: 'notice' }, `Created ${file} from the template. Fill it in and commit it.`),
+        );
+      } catch (e) {
+        newSkillArea.replaceChildren(errorBox(e));
+      }
+    });
+    newSkillArea.replaceChildren(
+      h('div', { class: 'small' }, `This writes ${file} (a template to fill in).`),
+      h('div', { class: 'row' }, no, yes),
+    );
+  });
+  // 4. MCP
+  const mcpBoxes = info.mcp.map((m) => {
+    const box = h('input', { type: 'checkbox', value: m.name, checked: (p?.mcp ?? []).includes(m.name) });
+    return h(
+      'label',
+      { class: 'confirm' },
+      box,
+      h(
+        'span',
+        {},
+        h('b', {}, m.name),
+        m.setUp ? ' — set up in this project' : ` — not set up here yet (tossana-agents init --${m.name})`,
+      ),
+    );
   });
 
-  const parts: Child[] = [
-    title,
-    h('p', { class: 'small muted' }, 'Dry run: this is exactly what will happen. Nothing has changed yet.'),
-    h('pre', { class: 'preview mono' }, preview.output),
-    preview.busy ? h('div', { class: 'notice' }, preview.busy) : null,
-    ...preview.warnings.map((w) => h('div', { class: 'notice' }, w)),
-    wip
-      ? h(
-          'div',
-          { class: 'stack' },
-          h('div', { class: 'notice' }, 'The task branch has uncommitted changes from the previous tool:'),
-          h('pre', { class: 'preview mono' }, preview.dirty),
-          h(
-            'label',
-            { class: 'confirm', for: 'confirm-wip' },
-            wip,
-            'Commit these changes as "WIP: handoff from …" before resuming',
-          ),
-        )
-      : null,
+  const problem = h('div', { class: 'notice bad', hidden: true, role: 'alert' });
+  const next = h('button', { type: 'button', class: 'btn primary' }, existing ? 'Review changes' : 'Review');
+  const form = h(
+    'div',
+    { class: 'stack' },
+    h('h3', {}, '1. Tool'),
+    h('div', { class: 'stack' }, ...toolChoices),
+    h('h3', {}, '2. Name'),
+    h(
+      'div',
+      { class: 'form-grid' },
+      h('label', { for: 'agent-name' }, 'Name'),
+      name,
+      h('label', { for: 'agent-id' }, 'Id (file name)'),
+      slug,
+      h('label', { for: 'agent-initials' }, 'Initials'),
+      initials,
+      h('label', { for: 'agent-color' }, 'Color'),
+      color,
+    ),
+    h(
+      'div',
+      { class: 'row small' },
+      h('label', { class: 'confirm' }, scopeTeam, 'Team agent: .agents/profiles/ in this project (commit it to share)'),
+      h('label', { class: 'confirm' }, scopePersonal, `Personal: ${info.personalDir} (only this machine)`),
+    ),
+    h('h3', {}, '3. Skills'),
+    h('p', { class: 'small muted' }, 'Added for the coder and reviewer, on top of the project skill.'),
+    skillList,
+    h('div', { class: 'row' }, newSkillName, newSkillDesc, newSkillBtn),
+    newSkillArea,
+    h('h3', {}, '4. MCP servers (approved catalog)'),
+    ...mcpBoxes,
     problem,
     h(
       'div',
       { class: 'dialog-actions' },
       h('button', { type: 'button', class: 'btn', onclick: close }, 'Cancel'),
-      start,
+      next,
     ),
-  ];
-  body.replaceChildren(...parts.filter((p): p is Node | string => !!p));
+  );
+
+  next.addEventListener('click', () => {
+    const tool = (body.querySelector('input[name="tool"]:checked') as HTMLInputElement | null)?.value;
+    const scope: Scope = scopePersonal.checked ? 'personal' : 'team';
+    const profile: Profile = {
+      name: name.value.trim(),
+      ...(initials.value.trim() ? { initials: initials.value.trim() } : {}),
+      color: color.value,
+      tool: tool ?? '',
+      skills: [...chosen],
+      mcp: mcpBoxes
+        .map((l) => l.querySelector('input')!)
+        .filter((b) => b.checked)
+        .map((b) => b.value),
+    };
+    const id = slug.value.trim();
+    const missing = !profile.name ? 'a name' : !tool ? 'a tool' : !id ? 'an id (the name has no Latin letters)' : '';
+    if (missing) {
+      problem.hidden = false;
+      problem.textContent = `Choose ${missing}.`;
+      return;
+    }
+    const file = scope === 'team' ? `.agents/profiles/${id}.json` : `${info.personalDir}/${id}.json`;
+    const save = h('button', { type: 'button', class: 'btn primary' }, 'Save');
+    const back = h('button', { type: 'button', class: 'btn' }, 'Back');
+    const saveProblem = h('div', { class: 'notice bad', hidden: true, role: 'alert' });
+    back.addEventListener('click', () => body.replaceChildren(title, form));
+    save.addEventListener('click', async () => {
+      save.disabled = true;
+      try {
+        await api('/api/agents', { scope, slug: id, profile, replace: !!existing, confirm: true });
+        close();
+        loaded.delete('agents');
+        await loadAgents();
+      } catch (e) {
+        save.disabled = false;
+        saveProblem.hidden = false;
+        saveProblem.textContent = (e as Error).message;
+      }
+    });
+    body.replaceChildren(
+      title,
+      h('p', {}, `This ${existing ? 'updates' : 'writes'} ${file}:`),
+      h('pre', { class: 'preview mono' }, JSON.stringify({ version: 1, ...profile }, null, 2)),
+      scope === 'team'
+        ? h(
+            'div',
+            { class: 'notice' },
+            'Team agent: commit this file so your team gets it (uncommitted files are picked up by a resume).',
+          )
+        : '',
+      saveProblem,
+      h('div', { class: 'dialog-actions' }, back, save),
+    );
+  });
+
+  body.replaceChildren(title, form);
+  dialog.replaceChildren(body);
+  dialog.showModal();
+}
+
+function confirmDeleteAgent(a: AgentRow) {
+  const dialog = $('dialog') as HTMLDialogElement;
+  const close = () => dialog.close();
+  const del = h('button', { type: 'button', class: 'btn danger' }, 'Delete');
+  const problem = h('div', { class: 'notice bad', hidden: true, role: 'alert' });
+  del.addEventListener('click', async () => {
+    del.disabled = true;
+    try {
+      await api('/api/agents/delete', { scope: a.scope, slug: a.slug, confirm: true });
+      close();
+      await loadAgents();
+    } catch (e) {
+      problem.hidden = false;
+      problem.textContent = (e as Error).message;
+    }
+  });
+  dialog.replaceChildren(
+    h(
+      'div',
+      { class: 'dialog-body' },
+      h('h2', { id: 'dialog-title' }, `Delete ${a.profile?.name ?? a.slug}?`),
+      h(
+        'p',
+        {},
+        a.scope === 'team'
+          ? `This deletes .agents/profiles/${a.slug}.json in this project (commit the deletion to remove it for your team).`
+          : `This deletes ${a.slug}.json from your personal agents on this machine.`,
+      ),
+      problem,
+      h(
+        'div',
+        { class: 'dialog-actions' },
+        h('button', { type: 'button', class: 'btn', onclick: close }, 'Cancel'),
+        del,
+      ),
+    ),
+  );
+  dialog.showModal();
 }
 
 // ---------- 3. Live run ----------
@@ -445,7 +971,7 @@ function renderRun() {
         'div',
         { class: 'row small muted' },
         badge(run.state, stateKind),
-        `with ${run.runner}, started ${new Date(run.startedAt).toLocaleTimeString()}`,
+        `${run.label}, started ${new Date(run.startedAt).toLocaleTimeString()}`,
       ),
     ),
     stop,
@@ -580,7 +1106,6 @@ async function start() {
   try {
     const info = await api<ProjectInfo>('/api/project');
     state.project = info;
-    state.runner = info.project?.defaultRunner ?? null;
     setRun(info.run);
     $('project-name').textContent = info.project?.name ?? info.cwd;
     $('project-meta').textContent = `kit v${info.kitVersion} · ${info.cwd}`;
@@ -589,6 +1114,6 @@ async function start() {
     return;
   }
   const fromHash = location.hash.slice(1) as Tab;
-  showTab(['health', 'tasks', 'run'].includes(fromHash) ? fromHash : running() ? 'run' : 'health');
+  showTab(TABS.includes(fromHash) ? fromHash : running() ? 'run' : 'health');
 }
 void start();

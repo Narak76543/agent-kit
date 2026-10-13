@@ -5,7 +5,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { request } from 'node:http';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { REDACTED } from '@tossana/agents-core';
 import { createContext } from '../context.js';
@@ -96,6 +96,7 @@ function clickUp(status = { status: 'to do', type: 'open' }): FakeApi {
 async function start(p: TempProject, api = clickUp(), run: Exec = exec) {
   const ctx = createContext({
     cwd: p.dir,
+    home: join(dirname(p.dir), 'home'),
     processEnv: {},
     fetch: api.fetch,
     exec: run,

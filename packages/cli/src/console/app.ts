@@ -4,13 +4,22 @@
  * the terminal. Nothing here builds a shell string, and nothing returns .env values.
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  AGENT_TOOLS,
   CONFIG_FILE,
   KitError,
+  MCP_CATALOG,
+  PROFILE_COLORS,
+  PROFILE_SCOPES,
+  PROFILE_SLUG,
+  ProfileError,
   ROLES,
   RUNNERS,
+  TOOL_LABELS,
+  profileInitials,
+  profileLabel,
   clickUpErrorHint,
   isValidTaskId,
   loadEnv,
@@ -25,7 +34,17 @@ import { createClient, createContext, loadProject, type CliContext } from '../co
 import { runDoctor } from '../commands/doctor.js';
 import { RUNNER_FILES, previousTool } from '../commands/resume.js';
 import { lastResult, runTasks } from '../commands/run.js';
+import { TMP_DIR } from '../presets.js';
+import {
+  availableSkills,
+  createProjectSkill,
+  deleteProfile,
+  findProfile,
+  listProfiles,
+  saveProfile,
+} from '../profiles.js';
 import { readRunLock } from '../run-lock.js';
+import { toolStatuses } from '../tool-status.js';
 import { KIT_VERSION } from '../version.js';
 import { secretValues } from './security.js';
 
@@ -43,11 +62,33 @@ export class ConsoleError extends Error {
 export type RunMode = 'run' | 'resume';
 export type RunState = 'running' | 'done' | 'failed' | 'stopped';
 
+const slug = z.string().max(40).regex(PROFILE_SLUG, 'invalid agent id');
+
 export const previewInput = z.object({
   taskId: z.string().refine(isValidTaskId, 'invalid task id'),
   mode: z.enum(['run', 'resume']),
   runner: z.enum(RUNNERS),
+  /** Agent profile id; the runner may differ from the profile's tool (fallback, skills kept). */
+  agent: slug.optional(),
 });
+/** Writes need `confirm: true`: the UI only sends it from its confirmation dialog. */
+const confirmed = z.literal(true, 'confirm in the console first');
+export const saveAgentInput = z.object({
+  scope: z.enum(PROFILE_SCOPES),
+  slug,
+  profile: z.unknown(),
+  replace: z.boolean().optional(),
+  confirm: confirmed,
+});
+export const deleteAgentInput = z.object({ scope: z.enum(PROFILE_SCOPES), slug, confirm: confirmed });
+export const createSkillInput = z.object({
+  name: z.string().max(40),
+  description: z.string().max(200),
+  confirm: confirmed,
+});
+
+/** Per-machine console settings for this project (git-ignored): the last agent chosen for a run. */
+const PREFS_FILE = `${TMP_DIR}/console.json`;
 export const startInput = z.object({ previewId: z.string().min(1).max(100), confirmWip: z.boolean().optional() });
 
 const PREVIEW_TTL_MS = 10 * 60_000;
@@ -57,6 +98,9 @@ interface Preview {
   taskId: string;
   mode: RunMode;
   runner: string;
+  agent?: string;
+  /** "Rei – Mobile · Codex", or the tool alone. */
+  label: string;
   at: number;
 }
 
@@ -65,6 +109,8 @@ export interface RunInfo {
   taskId: string;
   mode: RunMode;
   runner: string;
+  /** "Rei – Mobile · Codex", or the tool alone. */
+  label: string;
   state: RunState;
   startedAt: string;
   /** Index of the first line still kept (old lines are dropped after MAX_LOG_LINES). */
@@ -89,6 +135,7 @@ class RunSession {
     readonly taskId: string,
     readonly mode: RunMode,
     readonly runner: string,
+    readonly label: string,
     readonly startedAt: string,
     private readonly clean: (s: string) => string,
   ) {}
@@ -136,6 +183,7 @@ class RunSession {
       taskId: this.taskId,
       mode: this.mode,
       runner: this.runner,
+      label: this.label,
       state: this.state,
       startedAt: this.startedAt,
       firstLine: this.firstLine,
@@ -165,6 +213,7 @@ export class ConsoleApp {
   private context(sink: (text: string) => void = () => {}): CliContext {
     return createContext({
       cwd: this.base.cwd,
+      home: this.base.home,
       processEnv: this.base.processEnv,
       fetch: this.base.fetch,
       exec: this.base.exec,
@@ -213,6 +262,7 @@ export class ConsoleApp {
             defaultRunner: runners.includes(config.pipeline.runner) ? config.pipeline.runner : (runners[0] ?? null),
           }
         : null,
+      lastAgent: this.prefs().lastAgent ?? null,
       run: this.session?.info() ?? null,
     };
   }
@@ -264,18 +314,20 @@ export class ConsoleApp {
     if (!this.availableRunners(config).includes(input.runner))
       throw new ConsoleError(400, `${input.runner} is not set up in this project`);
     let output = '';
-    await runTasks(
-      this.context((t) => (output += t)),
-      {
-        task: input.taskId,
-        dryRun: true,
-        resume: input.mode === 'resume',
-        runner: input.runner,
-      },
-    );
+    const ctx = this.context((t) => (output += t));
+    const label = input.agent
+      ? profileLabel(findProfile(ctx, input.agent).profile.name, input.runner)
+      : profileLabel(null, input.runner);
+    await runTasks(ctx, {
+      task: input.taskId,
+      dryRun: true,
+      resume: input.mode === 'resume',
+      runner: input.runner,
+      profile: input.agent,
+    });
     this.dropOldPreviews();
     const previewId = randomUUID();
-    this.previews.set(previewId, { ...input, at: Date.now() });
+    this.previews.set(previewId, { ...input, label, at: Date.now() });
     return {
       previewId,
       output: output.trimEnd(),
@@ -301,12 +353,14 @@ export class ConsoleApp {
       });
     }
     this.previews.delete(previewId);
+    this.savePrefs({ lastAgent: preview.agent ?? null });
 
     const session = new RunSession(
       ++this.runCounter,
       preview.taskId,
       preview.mode,
       preview.runner,
+      preview.label,
       this.base.now().toISOString(),
       (s) => this.redact(s),
     );
@@ -316,6 +370,7 @@ export class ConsoleApp {
       task: preview.taskId,
       resume: preview.mode === 'resume',
       runner: preview.runner,
+      profile: preview.agent,
       yes: confirmWip === true,
       signal: session.controller.signal,
     }).then(
@@ -384,6 +439,93 @@ export class ConsoleApp {
       handoff: headings.at(-1) ?? null,
       tool: previousTool(handoff),
     };
+  }
+
+  // ---------- agent profiles ----------
+
+  /** Profiles, tools (installed here? set up in this project?), skills and MCP servers for the Agents tab. */
+  agents() {
+    const ctx = this.context();
+    let config: AgentConfig | null = null;
+    try {
+      config = loadProject(ctx).config;
+    } catch {
+      // shown on the health tab
+    }
+    const skills = availableSkills(ctx);
+    const scopeOf = new Map(skills.map((s) => [s.name, s.scope]));
+    const tools = toolStatuses(ctx, config, AGENT_TOOLS);
+    const runners = config ? this.availableRunners(config) : [];
+    return {
+      agents: listProfiles(ctx).map((p) => ({
+        slug: p.slug,
+        scope: p.scope,
+        error: p.error ?? null,
+        profile: p.profile ?? null,
+        label: p.profile ? profileLabel(p.profile.name, p.profile.tool) : null,
+        initials: p.profile ? profileInitials(p.profile) : null,
+        skills: (p.profile?.skills ?? []).map((name) => ({ name, scope: scopeOf.get(name) ?? null })),
+      })),
+      tools: AGENT_TOOLS.map((t) => ({ ...tools.get(t)!, label: TOOL_LABELS[t] })),
+      /** What a run can use here: set up in this project, and installed (custom: AGENT_CMD is set). */
+      runners: runners.map((r) => ({
+        runner: r,
+        label: TOOL_LABELS[r as keyof typeof TOOL_LABELS] ?? r,
+        installed: r === 'custom' ? true : (tools.get(r)?.installed ?? null),
+      })),
+      skills,
+      mcp: MCP_CATALOG.map((m) => ({ name: m, setUp: m === 'figma' ? !!config?.figma.enabled : false })),
+      colors: PROFILE_COLORS,
+      personalDir: '~/.agents/profiles',
+    };
+  }
+
+  saveAgent(raw: unknown) {
+    const input = parse(saveAgentInput, raw);
+    try {
+      const saved = saveProfile(this.context(), {
+        scope: input.scope,
+        slug: input.slug,
+        profile: input.profile as never,
+        replace: input.replace,
+      });
+      return {
+        slug: saved.slug,
+        scope: saved.scope,
+        file: saved.scope === 'team' ? `.agents/profiles/${saved.slug}.json` : `~/.agents/profiles/${saved.slug}.json`,
+      };
+    } catch (e) {
+      if (e instanceof ProfileError) throw new ConsoleError(400, e.message);
+      throw e;
+    }
+  }
+
+  deleteAgent(raw: unknown) {
+    const input = parse(deleteAgentInput, raw);
+    deleteProfile(this.context(), input.scope, input.slug);
+    return { deleted: input.slug };
+  }
+
+  createSkill(raw: unknown) {
+    const input = parse(createSkillInput, raw);
+    return { file: createProjectSkill(this.context(), input.name, input.description) };
+  }
+
+  private prefs(): { lastAgent?: string | null } {
+    try {
+      return JSON.parse(readFileSync(join(this.cwd, ...PREFS_FILE.split('/')), 'utf8')) as { lastAgent?: string };
+    } catch {
+      return {};
+    }
+  }
+
+  private savePrefs(prefs: { lastAgent: string | null }) {
+    try {
+      mkdirSync(join(this.cwd, ...TMP_DIR.split('/')), { recursive: true });
+      writeFileSync(join(this.cwd, ...PREFS_FILE.split('/')), `${JSON.stringify({ ...this.prefs(), ...prefs })}\n`);
+    } catch {
+      // only a convenience
+    }
   }
 
   // ---------- helpers ----------

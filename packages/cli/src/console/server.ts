@@ -80,6 +80,14 @@ export async function startConsoleServer(options: {
       case 'POST /api/runs/stop':
         await readJson(req);
         return send(res, 200, app.stop());
+      case 'GET /api/agents':
+        return send(res, 200, app.agents());
+      case 'POST /api/agents':
+        return send(res, 200, app.saveAgent(await readJson(req)));
+      case 'POST /api/agents/delete':
+        return send(res, 200, app.deleteAgent(await readJson(req)));
+      case 'POST /api/skills':
+        return send(res, 200, app.createSkill(await readJson(req)));
       case 'GET /api/runs/current':
         return send(res, 200, { run: app.currentRun() });
       case 'GET /api/runs/current/status':

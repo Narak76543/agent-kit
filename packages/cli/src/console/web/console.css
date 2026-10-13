@@ -420,3 +420,96 @@ label.confirm {
 label.confirm input {
   margin-top: 4px;
 }
+
+/* ---------- agents ---------- */
+.agent {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.agent-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.agent-title {
+  min-width: 0;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  font-weight: 600;
+  font-size: 13px;
+}
+.av-green {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+.av-blue {
+  background: var(--info-bg);
+  color: var(--info-fg);
+}
+.av-amber {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.av-red {
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+}
+.av-gray {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+}
+input[type='text'] {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
+  min-width: 0;
+  width: 100%;
+}
+input[type='text']:disabled {
+  color: var(--muted);
+}
+.choice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.choice:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.choice input {
+  margin-top: 4px;
+}
+.choice-text {
+  display: grid;
+  gap: 4px;
+}
+.skill-list {
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+}
+.dialog-body h3 {
+  font-size: 14px;
+  margin-top: 4px;
+}
