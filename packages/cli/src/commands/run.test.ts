@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { exec } from '../exec.js';
 import { RUN_LOCK } from '../run-lock.js';
 import { customAdapter, formatCommand, splitCommand, taskPrompt } from '../runners.js';
-import { CONFIG, TOKEN, cli, fakeApi, tempProject, type TempProject } from '../test-utils.test-helper.js';
+import { CONFIG, LIST, TOKEN, cli, fakeApi, tempProject, type TempProject } from '../test-utils.test-helper.js';
 
 let project: TempProject;
 afterEach(() => project?.cleanup());
@@ -54,7 +54,8 @@ const taskApi = (status: object = { status: 'to do', type: 'open' }) =>
     .on('GET /v2/task/T1', { id: 'T1', name: 'Login', status, list: { id: 'L1' } })
     .on('GET /v2/task/T1/comment', { comments: [...comments].reverse() });
 
-const run = (p: TempProject, args: string[], api = taskApi()) => cli(['run', ...args], { cwd: p.dir, api, exec });
+const run = (p: TempProject, args: string[], api = taskApi()) =>
+  cli(['run', '--ai-orchestrator', ...args], { cwd: p.dir, api, exec });
 
 describe('run --dry-run', () => {
   it('prints the exact command and changes nothing (no ClickUp call, no git change)', async () => {
@@ -182,7 +183,7 @@ describe('run --task', () => {
 
   it('explains when OpenCode is not installed', async () => {
     project = gitProject({ runner: 'opencode' });
-    const r = await cli(['run', '--task', 'T1'], {
+    const r = await cli(['run', '--ai-orchestrator', '--task', 'T1'], {
       cwd: project.dir,
       api: taskApi(),
       exec: (cmd, args, o) =>
@@ -330,5 +331,169 @@ describe('run: one run per project', () => {
     const r = await run(project, ['--task', 'T1']);
     expect(r.code, r.err).toBe(0);
     expect(existsSync(join(project.dir, RUN_LOCK))).toBe(false);
+  });
+});
+
+// ---------- the kit's pipeline (default) ----------
+
+/**
+ * One fake agent for every role (custom runner): the coder commits and leaves its comment draft, the reviewer only
+ * answers with its report (like agy's reviewer, which cannot write files), the tester leaves a draft. REVIEW=no makes
+ * the reviewer ask for changes in round 1.
+ */
+const ROLE_AGENT = `
+const fs = require('fs');
+const { execFileSync } = require('child_process');
+const prompt = process.argv[2];
+const [, role, task, round] = /You are the ([a-z-]+) for ClickUp task (\\S+), round (\\d+)\\./.exec(prompt);
+console.log('agent got: ' + prompt);
+console.log('secret pk_12345678_SECRETSECRETSECRETSECRET');
+const brief = fs.readFileSync(/Read your brief first: (\\S+)\\./.exec(prompt)[1], 'utf8');
+const report = (result, issues = '- none') =>
+  '[AGENT: ' + role + '] [RESULT: ' + result + '] [ROUND: ' + round + ']\\nSummary: ' + role + ' ok\\nIssues:\\n' + issues + '\\nNext: x';
+const draft = (text) => { fs.mkdirSync('.tossana/tmp', { recursive: true }); fs.writeFileSync('.tossana/tmp/' + task + '-' + role + '.md', text); };
+if (role === 'coder') {
+  fs.writeFileSync('work.txt', 'round ' + round + (brief.includes('Fix these issues') ? ' fixed' : ''));
+  execFileSync('git', ['-c', 'user.name=A', '-c', 'user.email=a@e', 'commit', '-qam', task + ': round ' + round]);
+  draft(report('DONE_CODING'));
+} else if (role === 'reviewer') {
+  const no = process.env.REVIEW === 'no' && round === '1';
+  console.log('Looked at the diff.\\n' + report(no ? 'CHANGES_NEEDED' : 'APPROVED', no ? '- work.txt:1 - wrong text' : '- none'));
+} else {
+  draft(report('PASS'));
+}
+`;
+
+/** ClickUp that remembers comments and the status (the pipeline reads what the agents and the kit posted). */
+function boardApi(initial: string[] = [], status = 'to do') {
+  const state = {
+    status,
+    statuses: [] as string[],
+    comments: initial.map((t, i) => ({ id: String(i + 1), date: String(i + 1), comment_text: t })),
+  };
+  const api = fakeApi()
+    .on('GET /v2/task/T1', () => ({ id: 'T1', name: 'Login', status: { status: state.status }, list: { id: 'L1' } }))
+    .on('GET /v2/list/L1', LIST)
+    .on('PUT /v2/task/T1', (call) => {
+      state.status = (call.body as { status: string }).status;
+      state.statuses.push(state.status);
+      return {};
+    })
+    .on('GET /v2/task/T1/comment', () => ({ comments: [...state.comments].reverse() }))
+    .on('POST /v2/task/T1/comment', (call) => {
+      const id = String(state.comments.length + 1);
+      state.comments.push({ id, date: id, comment_text: (call.body as { comment_text: string }).comment_text });
+      return { id };
+    });
+  const results = () =>
+    state.comments.map((c) =>
+      /^\[AGENT: ([a-z-]+)\] \[RESULT: (\w+)\] \[ROUND: (\d+)\]/.exec(c.comment_text)?.slice(1).join(' '),
+    );
+  return { api, state, results };
+}
+
+function loopProject() {
+  const p = gitProject();
+  p.write('fake agent/agent.js', ROLE_AGENT);
+  p.write('.gitignore', '.env\n.agents/logs/\n.agents/handoff/\n.tossana/\n');
+  p.write('work.txt', 'start');
+  git(p, 'add', '-A');
+  git(p, 'commit', '-q', '-m', 'agent');
+  return p;
+}
+
+const read = (p: TempProject, file: string) => readFileSync(join(p.dir, ...file.split('/')), 'utf8');
+
+describe('run --task: the kit runs the pipeline, one agent per role', () => {
+  it('dry run: the role order, the first role command and the log folder', async () => {
+    project = gitProject({ runner: 'antigravity' });
+    const r = await cli(['run', '--task', 'T1', '--dry-run'], { cwd: project.dir, exec });
+    expect(r.out).toContain('pipeline (the kit runs it): coder → reviewer → tester, at most 5 rounds');
+    expect(r.out).toContain(
+      '$ agy -p "You are the coder for ClickUp task T1, round 1. Read your brief first: .tossana/tmp/T1-r1-coder-brief.md.',
+    );
+    expect(r.out).toMatch(/--agent coder --add-dir .* --print-timeout 120m --output-format stream-json/);
+    expect(r.out).toContain(`logs: ${join('.agents', 'logs', 'T1', '<round>-<role>.log')}`);
+    expect(r.out).toContain('tossana-agents follow T1');
+  });
+
+  it('runs coder → reviewer → tester as separate agents, with a log per role and round', async () => {
+    project = loopProject();
+    const board = boardApi();
+    const r = await cli(['run', '--task', 'T1'], { cwd: project.dir, api: board.api, exec, processEnv: {} });
+    expect(r.code, r.err).toBe(0);
+    expect(board.results()).toEqual([
+      'orchestrator STARTED 1',
+      'coder DONE_CODING 1',
+      'reviewer APPROVED 1',
+      'tester PASS 1',
+      'orchestrator PASS 1',
+    ]);
+    expect(board.state.statuses).toEqual(['coding', 'in review', 'testing', 'Ready for Review']);
+    expect(r.out).toContain('T1: PASS in round 1');
+    expect(r.out).toContain('status "Ready for Review", branch task/T1');
+
+    const logs = readdirSync(join(project.dir, '.agents', 'logs', 'T1')).sort();
+    expect(logs).toEqual(['1-coder.log', '1-reviewer.log', '1-tester.log', 'pipeline.log']);
+    expect(read(project, '.agents/logs/T1/1-reviewer.log')).toContain('agent got: You are the reviewer');
+    expect(read(project, '.agents/logs/T1/1-coder.log')).toContain('secret [REDACTED]');
+    expect(read(project, '.agents/logs/T1/1-coder.log')).not.toContain('SECRETSECRET');
+    expect(read(project, '.agents/logs/T1/pipeline.log')).toMatch(/=== FINISHED PASS \(round 1\)/);
+    expect(git(project, 'log', '-1', '--format=%s', 'task/T1')).toBe('T1: round 1');
+    expect(git(project, 'branch', '--show-current')).toBe('main');
+  });
+
+  it('CHANGES_NEEDED goes back to the coder with the issues; the next round passes', async () => {
+    project = loopProject();
+    const again = boardApi();
+    // The agent inherits the real environment (processEnv is only the kit's).
+    process.env.REVIEW = 'no';
+    try {
+      const r2 = await cli(['run', '--task', 'T1'], { cwd: project.dir, api: again.api, exec });
+      expect(r2.code, r2.err).toBe(0);
+    } finally {
+      delete process.env.REVIEW;
+    }
+    expect(again.results()).toEqual([
+      'orchestrator STARTED 1',
+      'coder DONE_CODING 1',
+      'reviewer CHANGES_NEEDED 1',
+      'coder DONE_CODING 2',
+      'reviewer APPROVED 2',
+      'tester PASS 2',
+      'orchestrator PASS 2',
+    ]);
+    expect(git(project, 'show', 'task/T1:work.txt')).toBe('round 2 fixed');
+    expect(read(project, '.tossana/tmp/T1-r2-coder-brief.md')).toContain('- work.txt:1 - wrong text');
+  });
+
+  it('--resume continues after the last role that reported (here: the reviewer of round 1)', async () => {
+    project = loopProject();
+    git(project, 'switch', '-q', '-c', 'task/T1');
+    project.write('work.txt', 'round 1');
+    git(project, 'commit', '-q', '-am', 'T1: round 1');
+    git(project, 'switch', '-q', 'main');
+    const board = boardApi(
+      [
+        '[AGENT: orchestrator] [RESULT: STARTED] [ROUND: 1]\nSummary: go\nNext: coder',
+        '[AGENT: coder] [RESULT: DONE_CODING] [ROUND: 1]\nSummary: built\nIssues:\n- none\nNext: reviewer',
+      ],
+      'in review',
+    );
+    const r = await cli(['run', '--task', 'T1', '--resume', '--runner', 'custom'], {
+      cwd: project.dir,
+      api: board.api,
+      exec,
+    });
+    expect(r.code, r.err).toBe(0);
+    expect(board.results().slice(2)).toEqual([
+      'orchestrator STARTED 1',
+      'reviewer APPROVED 1',
+      'tester PASS 1',
+      'orchestrator PASS 1',
+    ]);
+    expect(board.state.comments[2]!.comment_text).toContain('Next: reviewer');
+    expect(existsSync(join(project.dir, '.agents', 'logs', 'T1', '1-coder.log'))).toBe(false);
+    expect(r.out).toContain('T1: resumed with custom, PASS in round 1');
   });
 });

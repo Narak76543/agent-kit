@@ -63,7 +63,7 @@ function taskApi(status: object = { status: 'in review', type: 'custom' }) {
 }
 
 const resume = (args: string[], api = taskApi(), opts: { prompts?: Prompts; interactive?: boolean } = {}) =>
-  cli(['run', '--task', 'T1', '--resume', '--runner', 'custom', ...args], {
+  cli(['run', '--ai-orchestrator', '--task', 'T1', '--resume', '--runner', 'custom', ...args], {
     cwd: project.dir,
     api,
     exec,
@@ -157,7 +157,7 @@ describe('run --resume', () => {
 
   it('refuses a tool whose files are missing and says how to add it', async () => {
     project = startedProject();
-    const r = await cli(['run', '--task', 'T1', '--resume', '--runner', 'codex'], {
+    const r = await cli(['run', '--ai-orchestrator', '--task', 'T1', '--resume', '--runner', 'codex'], {
       cwd: project.dir,
       api: taskApi(),
       exec,
@@ -188,7 +188,7 @@ describe('run --resume', () => {
   it('a normal run records the tool in the handoff file, so a later resume can name it', async () => {
     project = startedProject();
     git(project, 'branch', '-D', 'task/T1');
-    const r = await cli(['run', '--task', 'T1', '--runner', 'custom'], {
+    const r = await cli(['run', '--ai-orchestrator', '--task', 'T1', '--runner', 'custom'], {
       cwd: project.dir,
       api: taskApi({ status: 'to do', type: 'open' }),
       exec,

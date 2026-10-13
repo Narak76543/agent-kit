@@ -140,7 +140,8 @@ describe('agents create / list / delete', () => {
 });
 
 describe('run --agent', () => {
-  const run = (args: string[]) => cli(['run', ...args], { cwd: project.dir, api: taskApi(), exec });
+  const run = (args: string[]) =>
+    cli(['run', '--ai-orchestrator', ...args], { cwd: project.dir, api: taskApi(), exec });
 
   it('dry run: shows the agent, its skills and where they come from', async () => {
     project = gitProject();
@@ -221,11 +222,14 @@ describe('run --agent', () => {
       })
       .on('GET /v2/task/T1/comment', { comments: [] })
       .on('POST /v2/task/T1/comment', { id: 9 });
-    const r = await cli(['run', '--task', 'T1', '--resume', '--agent', 'rei-mobile', '--runner', 'custom'], {
-      cwd: project.dir,
-      api,
-      exec,
-    });
+    const r = await cli(
+      ['run', '--ai-orchestrator', '--task', 'T1', '--resume', '--agent', 'rei-mobile', '--runner', 'custom'],
+      {
+        cwd: project.dir,
+        api,
+        exec,
+      },
+    );
     expect(r.code, r.err).toBe(0);
     const posted = (api.calls.find((c) => c.method === 'POST')!.body as { comment_text: string }).comment_text;
     expect(parseAgentComment(posted)).toMatchObject({ result: 'STARTED', by: 'Rei – Mobile · Custom command' });

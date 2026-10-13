@@ -1,11 +1,10 @@
 /**
- * `tossana-agents run`: runs ClickUp tasks through the orchestrator agent, one at a time.
- * Ported from EKMONG_MOBILE scripts/run-pipeline.ts. Prepares the task branch, streams the agent's
- * output to the console and to .agents/logs/ (tokens redacted), and never pushes.
+ * `tossana-agents run`: runs ClickUp tasks one at a time. By default the kit runs the pipeline loop itself and
+ * starts each role as its own agent (pipeline.ts); `--ai-orchestrator` starts the orchestrator agent instead,
+ * which calls the roles as subagents. Prepares the task branch, streams the agents' output to the console and to
+ * .agents/logs/ (tokens redacted), and never pushes.
  */
-import { createWriteStream, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import spawn from 'cross-spawn';
 import type { Command } from 'commander';
 import {
   KitError,
@@ -13,17 +12,39 @@ import {
   isClosedType,
   isValidTaskId,
   parseAgentComment,
+  profileLabel,
   statusForRole,
   type AgentComment,
   type AgentConfig,
   type ClickUpClient,
 } from '@tossana/agents-core';
 import { createClient, loadProject, requireConfig, type CliContext, type Project } from '../context.js';
+import { LOGS_DIR, mainFolder, pipelineLog } from '../agent-logs.js';
+import { spawnAgent } from '../agent-process.js';
+import {
+  briefPath,
+  freshStart,
+  roleOrder,
+  runPipeline,
+  type PipelineClient,
+  type PipelineDeps,
+  type PipelineResult,
+} from '../pipeline.js';
 import { acquireRunLock } from '../run-lock.js';
 import { CONTEXT_DIR, refreshContext } from '../task-context.js';
 import { assertToolFiles, logProfile, recordRunStart, resumeTask } from './resume.js';
 import { assertProfileRunnable, planProfileRun, stageProfileSkills, type ProfileRun } from '../profiles.js';
-import { ORCHESTRATOR, adapterFor, formatCommand, taskPrompt, type RunnerCommand } from '../runners.js';
+import {
+  ORCHESTRATOR,
+  adapterFor,
+  formatCommand,
+  rolePrompt,
+  taskPrompt,
+  type RunnerAdapter,
+  type RunnerCommand,
+} from '../runners.js';
+
+export { killTree } from '../agent-process.js';
 
 export interface RunOptions {
   task?: string;
@@ -46,9 +67,11 @@ export interface RunOptions {
   context?: boolean;
   /** With --resume: the owner's feedback, the coder's top-priority instruction in a new round. */
   feedback?: string;
+  /** Start the orchestrator agent (roles as its subagents) instead of the kit's pipeline loop. */
+  aiOrchestrator?: boolean;
 }
 
-export const LOG_DIR = join('.agents', 'logs');
+export const LOG_DIR = LOGS_DIR;
 
 export function registerRunCommand(program: Command, ctx: CliContext): void {
   program
@@ -64,6 +87,7 @@ export function registerRunCommand(program: Command, ctx: CliContext): void {
     .option('--resume', 'continue a task another tool started: keeps its branch and round (with --task)')
     .option('--runner <runner>', `use this runner for this run (${RUNNERS.join(', ')})`)
     .option('-y, --yes', 'with --resume: commit leftover changes as "WIP: handoff from …" without asking')
+    .option('--ai-orchestrator', 'let the orchestrator agent run the roles (as subagents) instead of the kit')
     // --agent <id> and --no-agent share one commander option: a string is a profile id, false is --no-agent.
     .action((opts: Omit<RunOptions, 'agent'> & { agent?: string | boolean }) =>
       runTasks(ctx, {
@@ -120,6 +144,8 @@ async function runLocked(
         refreshContext:
           opts.context === false ? undefined : (id) => refreshContext(ctx.cwd, config, project.env, client!, id, log),
         runAgent: (command) => runAgent(ctx, command, opts.task!, config.pipeline.timeoutMinutes, opts.signal),
+        runPipeline: (adapter, client, pipelineOpts) =>
+          runPipeline(ctx, config, pipelineOpts, pipelineDeps(ctx, config, adapter, client, opts.task!, opts.signal)),
         lastResult,
       },
     );
@@ -142,13 +168,17 @@ async function runLocked(
     if (!isValidTaskId(task.id)) throw new KitError(`invalid task id "${task.id}"`);
     const branch = `${config.pipeline.branchPrefix}${task.id}`;
     const adapter = adapterFor(config, project.env, ctx.exec, ctx.cwd, task.id, ctx.home, ctx.now);
+    // The kit's loop starts the roles; with --ai-orchestrator one orchestrator agent does.
+    const loop = !opts.aiOrchestrator;
     const command =
       adapter.headless && opts.agent !== false
-        ? adapter.buildCommand({
-            agent: ORCHESTRATOR,
-            prompt: taskPrompt(task.id, profile?.profile.name),
-            cwd: ctx.cwd,
-          })
+        ? loop
+          ? roleCommand(adapter, config, task.id, 1, roleOrder(config).round[0]!.name, ctx.cwd, profile?.profile.name)
+          : adapter.buildCommand({
+              agent: ORCHESTRATOR,
+              prompt: taskPrompt(task.id, profile?.profile.name),
+              cwd: ctx.cwd,
+            })
         : null;
 
     log(`\n[run] ===== ${task.id}${task.name ? `: ${task.name}` : ''} =====`);
@@ -156,6 +186,13 @@ async function runLocked(
       log(`[run] dry run: nothing is changed`);
       log(`  git: ${describeBranchStep(ctx, config, branch)}`);
       if (profile) logProfile(log, profile);
+      if (command && loop) {
+        const { planners, round } = roleOrder(config);
+        log(
+          `  pipeline (the kit runs it): ${[...planners, ...round].map((r) => r.name).join(' → ')}, ` +
+            `at most ${config.pipeline.maxRounds} rounds; each role is its own agent, e.g. the first ${round[0]!.name}:`,
+        );
+      }
       if (command) {
         log(`  $ ${formatCommand(command)}`);
         const problem = adapter.preflight?.();
@@ -170,7 +207,12 @@ async function runLocked(
           `  context: refresh ClickUp docs and ${join(CONTEXT_DIR, task.id)}/ (task, parent, subtasks, links, comments)`,
         );
       }
-      log(`  log: ${join(LOG_DIR, `${task.id}-<timestamp>.log`)}`);
+      log(
+        loop && command
+          ? `  logs: ${join(LOG_DIR, task.id, '<round>-<role>.log')} and ${join(LOG_DIR, task.id, 'pipeline.log')} ` +
+              `(watch with: tossana-agents follow ${task.id})`
+          : `  log: ${join(LOG_DIR, `${task.id}-<timestamp>.log`)}`,
+      );
       continue;
     }
 
@@ -208,14 +250,36 @@ async function runLocked(
     if (!(await adapter.isInstalled())) throw new KitError(`${adapter.name} is not available. ${adapter.installHint}`);
     if (opts.context !== false) await refreshContext(ctx.cwd, config, project.env, client!, task.id, log);
 
-    const code = await runAgent(ctx, command, task.id, config.pipeline.timeoutMinutes, opts.signal);
-    const result = await lastResult(client!, task.id);
-    const after = await client!.getTask(task.id, { subtasks: false });
-    summary.push(
-      `${task.id}: agent exit ${code ?? 'killed'}, status "${after.status?.status ?? '?'}", ` +
-        `${result ? `last result ${result.agent} ${result.result} (round ${result.round ?? '?'})` : 'no agent comment found'}, ` +
-        `rounds used ${result?.rounds ?? 0}, branch ${branch}`,
-    );
+    if (loop) {
+      const outcome = await runPipeline(
+        ctx,
+        config,
+        {
+          taskId: task.id,
+          taskName: current.name ?? task.name,
+          start: freshStart(config),
+          postStart: true,
+          by: profile?.label ?? profileLabel(null, config.pipeline.runner),
+          profileName: profile?.profile.name,
+          ownerUserId: project.env.CLICKUP_OWNER_USER_ID ?? '',
+        },
+        pipelineDeps(ctx, config, adapter, client!, task.id, opts.signal),
+      );
+      const after = await client!.getTask(task.id, { subtasks: false });
+      summary.push(
+        `${task.id}: ${pipelineSummary(outcome)}, status "${after.status?.status ?? '?'}", branch ${branch}`,
+      );
+      if (outcome.result === 'INTERRUPTED') break;
+    } else {
+      const code = await runAgent(ctx, command, task.id, config.pipeline.timeoutMinutes, opts.signal);
+      const result = await lastResult(client!, task.id);
+      const after = await client!.getTask(task.id, { subtasks: false });
+      summary.push(
+        `${task.id}: agent exit ${code ?? 'killed'}, status "${after.status?.status ?? '?'}", ` +
+          `${result ? `last result ${result.agent} ${result.result} (round ${result.round ?? '?'})` : 'no agent comment found'}, ` +
+          `rounds used ${result?.rounds ?? 0}, branch ${branch}`,
+      );
+    }
 
     const leftover = dirtyFiles(ctx);
     if (leftover) {
@@ -303,110 +367,90 @@ function prepareBranch(ctx: CliContext, config: AgentConfig, branch: string): vo
 
 // ---------- agent process ----------
 
-/** Splits a stream into lines so a token can never be cut in half between two chunks. */
-function lineRedactor(redact: (s: string) => string, write: (s: string) => void) {
-  let buffer = '';
+/** The command for one role of the kit's pipeline (live output where the tool has it). */
+export function roleCommand(
+  adapter: RunnerAdapter,
+  config: AgentConfig,
+  taskId: string,
+  round: number,
+  role: string,
+  cwd: string,
+  profileName?: string,
+): RunnerCommand {
+  const r = roleOrder(config);
+  const preset = [...r.planners, ...r.round].find((x) => x.name === role)?.preset;
+  return adapter.buildCommand({
+    agent: role,
+    prompt: rolePrompt(taskId, role, round, briefPath(taskId, round, role), profileName),
+    cwd,
+    stream: true,
+    readOnly: preset === 'read-only',
+  });
+}
+
+/** What the pipeline needs to start roles, talk to ClickUp and write its logs (shared by run and --resume). */
+export function pipelineDeps(
+  ctx: CliContext,
+  config: AgentConfig,
+  adapter: RunnerAdapter,
+  client: PipelineClient,
+  taskId: string,
+  signal?: AbortSignal,
+): PipelineDeps {
+  const log = pipelineLog(mainFolder(ctx.exec, ctx.cwd), taskId, ctx.now, (s) => ctx.logger.redact(s));
+  const format = adapter.streamFormat ?? 'text';
+  ctx.logger.info(`[run] logs: ${log.dir} (watch with: tossana-agents follow ${taskId})`);
   return {
-    push(chunk: Buffer | string) {
-      buffer += chunk.toString();
-      const end = buffer.lastIndexOf('\n');
-      if (end < 0) return;
-      write(redact(buffer.slice(0, end + 1)));
-      buffer = buffer.slice(end + 1);
-    },
-    flush() {
-      if (buffer) write(redact(buffer));
-      buffer = '';
+    client,
+    git: (args) => git(ctx, args),
+    format,
+    log,
+    runRole: (role, prompt, logs) => {
+      const command = adapter.buildCommand({
+        agent: role.name,
+        prompt,
+        cwd: ctx.cwd,
+        stream: true,
+        readOnly: role.preset === 'read-only',
+      });
+      ctx.logger.info(`$ ${formatCommand(command)}`);
+      return spawnAgent(ctx, command, {
+        cwd: ctx.cwd,
+        label: `${taskId} ${role.name}`,
+        logPath: logs.log,
+        rawPath: logs.raw,
+        format,
+        timeoutMinutes: config.pipeline.timeoutMinutes,
+        signal,
+      });
     },
   };
 }
 
-function runAgent(
+export function pipelineSummary(o: PipelineResult): string {
+  if (o.result === 'INTERRUPTED') return `stopped in round ${o.round} (resume with --resume)`;
+  return `${o.result === 'PASS' ? 'PASS' : 'NEEDS_HUMAN'} in round ${o.round} (${o.note})`;
+}
+
+/** The orchestrator agent (--ai-orchestrator): one process, one log per run. */
+async function runAgent(
   ctx: CliContext,
   command: RunnerCommand,
   taskId: string,
   timeoutMinutes: number,
   signal?: AbortSignal,
 ): Promise<number | null> {
-  mkdirSync(join(ctx.cwd, LOG_DIR), { recursive: true });
   const logPath = join(LOG_DIR, `${taskId}-${ctx.now().toISOString().replace(/[:.]/g, '-')}.log`);
-  const logFile = createWriteStream(join(ctx.cwd, logPath));
-  const redact = (s: string) => ctx.logger.redact(s);
   ctx.logger.info(`$ ${formatCommand(command)}\n  (log: ${logPath})`);
-  logFile.write(`$ ${redact(formatCommand(command))}\n`);
-
-  return new Promise((resolve, reject) => {
-    const child = spawn(command.cmd, command.args, {
-      cwd: ctx.cwd,
-      // A stale PWD (Git Bash, `--cwd`) would point Node/Bun-based agents at the wrong folder.
-      // TOSSANA_AGENT: commands meant for people only (review) refuse to run inside an agent.
-      env: { ...process.env, PWD: ctx.cwd, TOSSANA_AGENT: '1' },
-      stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: true,
-      // macOS/Linux: its own process group, so Stop and timeouts can kill everything the agent started.
-      // (Windows: taskkill /T walks the tree; detached would open a console window there.)
-      detached: process.platform !== 'win32',
-    });
-    const out = lineRedactor(redact, (s) => {
-      ctx.io.out(s);
-      logFile.write(s);
-    });
-    const err = lineRedactor(redact, (s) => {
-      ctx.io.err(s);
-      logFile.write(s);
-    });
-    child.stdout?.on('data', (c: Buffer) => out.push(c));
-    child.stderr?.on('data', (c: Buffer) => err.push(c));
-
-    const stop = (why: string) => {
-      ctx.logger.warn(`\n[run] ${taskId}: ${why}, stopping the agent`);
-      killTree(ctx, child.pid);
-    };
-    const timer = setTimeout(() => stop(`timed out after ${timeoutMinutes} min`), timeoutMinutes * 60_000);
-    const onSigint = () => stop('interrupted (Ctrl+C)');
-    process.once('SIGINT', onSigint);
-    const onAbort = () => stop('stopped by the user');
-    if (signal?.aborted) onAbort();
-    else signal?.addEventListener('abort', onAbort, { once: true });
-
-    const done = () => {
-      clearTimeout(timer);
-      process.off('SIGINT', onSigint);
-      signal?.removeEventListener('abort', onAbort);
-      out.flush();
-      err.flush();
-    };
-    child.on('error', (e) => {
-      done();
-      logFile.end(() => reject(new KitError(`could not start "${command.cmd}": ${e.message}`)));
-    });
-    child.on('close', (code) => {
-      done();
-      logFile.end(() => resolve(code));
-    });
+  const run = await spawnAgent(ctx, command, {
+    cwd: ctx.cwd,
+    label: taskId,
+    logPath: join(ctx.cwd, logPath),
+    format: 'text',
+    timeoutMinutes,
+    signal,
   });
-}
-
-/**
- * Kills the agent and everything it started. On Windows the agent may run under cmd.exe (npm .cmd shims), so
- * taskkill /T walks the tree; elsewhere the agent leads its own process group (see `detached` above).
- * Uses the real platform: this is a real process, even when tests fake ctx.platform.
- */
-export function killTree(ctx: CliContext, pid: number | undefined): void {
-  if (!pid) return;
-  if (process.platform === 'win32') {
-    ctx.exec('taskkill', ['/pid', String(pid), '/T', '/F']);
-    return;
-  }
-  try {
-    process.kill(-pid, 'SIGTERM');
-  } catch {
-    try {
-      process.kill(pid, 'SIGTERM');
-    } catch {
-      // already gone
-    }
-  }
+  return run.code;
 }
 
 // ---------- result ----------

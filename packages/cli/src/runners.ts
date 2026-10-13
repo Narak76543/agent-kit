@@ -9,6 +9,7 @@ import { KitError, type AgentConfig, type KitEnv } from '@tossana/agents-core';
 import { homedir } from 'node:os';
 import { agyCheckProblem, currentAgyCheck, runAgyCheck } from './agy-check.js';
 import { antigravityProblem, antigravityRules, antigravityState, kitCommand, packageScripts } from './antigravity.js';
+import type { OutputFormat } from './agent-stream.js';
 import { versionOf, type Exec } from './exec.js';
 
 export interface RunnerCommand {
@@ -16,12 +17,24 @@ export interface RunnerCommand {
   args: string[];
 }
 
+export interface BuildOptions {
+  agent: string;
+  prompt: string;
+  cwd: string;
+  /** Live, machine-readable output (the kit's pipeline renders it for the logs): see `streamFormat`. */
+  stream?: boolean;
+  /** The role may not edit files (Codex: read-only sandbox). */
+  readOnly?: boolean;
+}
+
 export interface RunnerAdapter {
   name: string;
   /** false = no headless mode: `run` prints instructions instead. */
   headless: boolean;
   isInstalled(): Promise<boolean>;
-  buildCommand(opts: { agent: string; prompt: string; cwd: string }): RunnerCommand;
+  buildCommand(opts: BuildOptions): RunnerCommand;
+  /** What the command prints with `stream: true` (default: readable text, passed through). */
+  streamFormat?: OutputFormat;
   installHint: string;
   /**
    * Why the agent cannot do its work on this machine yet (with the fix), or null. Checked before anything changes.
@@ -41,6 +54,11 @@ const profileNote = (taskId: string, profileName?: string) =>
 
 export const taskPrompt = (taskId: string, profileName?: string) =>
   `Work on ClickUp task ${taskId}. Follow AGENTS.md and your agent instructions.${profileNote(taskId, profileName)}`;
+
+/** Prompt for one role of the kit's pipeline: everything else is in the brief file. */
+export const rolePrompt = (taskId: string, role: string, round: number, brief: string, profileName?: string) =>
+  `You are the ${role} for ClickUp task ${taskId}, round ${round}. Read your brief first: ${brief}. Then follow ` +
+  `AGENTS.md and your agent instructions.${profileNote(taskId, profileName)}`;
 
 /** Prompt for `run --resume`: continue where the previous tool stopped, never restart the task. */
 /** The owner's feedback as the first, top-priority instruction of a new round (feedback loop). */
@@ -116,33 +134,49 @@ export function claudeCodeAdapter(exec: Exec, cwd: string): RunnerAdapter {
     name: 'claude-code',
     headless: true,
     isInstalled: async () => versionOf(exec, 'claude', cwd) !== null,
-    buildCommand: ({ agent, prompt }) => ({
+    // stream-json needs --verbose in print mode; the plain text mode prints only the final answer.
+    buildCommand: ({ agent, prompt, stream }) => ({
       cmd: 'claude',
-      args: ['-p', prompt, '--agent', agent, '--permission-mode', 'dontAsk', '--settings', CLAUDE_RUN_SETTINGS],
+      args: [
+        '-p',
+        prompt,
+        '--agent',
+        agent,
+        '--permission-mode',
+        'dontAsk',
+        '--settings',
+        CLAUDE_RUN_SETTINGS,
+        ...(stream ? ['--output-format', 'stream-json', '--verbose'] : []),
+      ],
     }),
+    streamFormat: 'claude-stream',
     installHint: 'Install Claude Code (https://code.claude.com/docs/en/setup), then run "claude" once to log in.',
   };
 }
 
 /**
  * Codex, headless: `codex exec` (https://learn.chatgpt.com/docs/non-interactive-mode). Codex has no --agent flag,
- * so the prompt points the main session at the orchestrator instructions. workspace-write + approval "never":
- * nothing waits for a person; git writes and ClickUp calls run outside the sandbox via .codex/rules/tossana.rules.
+ * so the prompt points the main session at the orchestrator's or the role's instructions, and the sandbox follows
+ * the role (read-only for the reviewer). Approval "never": nothing waits for a person; git writes and ClickUp calls
+ * run outside the sandbox via .codex/rules/tossana.rules.
  */
 export function codexAdapter(exec: Exec, cwd: string): RunnerAdapter {
   return {
     name: 'codex',
     headless: true,
     isInstalled: async () => versionOf(exec, 'codex', cwd) !== null,
-    buildCommand: ({ prompt }) => ({
+    buildCommand: ({ agent, prompt, readOnly }) => ({
       cmd: 'codex',
       args: [
         'exec',
         '--sandbox',
-        'workspace-write',
+        readOnly ? 'read-only' : 'workspace-write',
         '-c',
         'approval_policy=never',
-        `${prompt} You are the orchestrator: read ${CODEX_ORCHESTRATOR} and follow it exactly.`,
+        agent === ORCHESTRATOR
+          ? `${prompt} You are the orchestrator: read ${CODEX_ORCHESTRATOR} and follow it exactly.`
+          : `${prompt} Your role instructions are the developer_instructions in .codex/agents/${agent}.toml: read ` +
+            'them and follow them exactly.',
       ],
     }),
     installHint:
@@ -168,7 +202,7 @@ export function antigravityAdapter(
     isInstalled: async () => versionOf(exec, 'agy', cwd) !== null,
     // --add-dir: agy then loads this folder's agents and runs allowed commands without the folder being trusted
     // (checked with agy 1.3.3), so task worktrees work without touching the user's trust list.
-    buildCommand: ({ agent, prompt }) => ({
+    buildCommand: ({ agent, prompt, stream }) => ({
       cmd: 'agy',
       args: [
         '-p',
@@ -179,8 +213,10 @@ export function antigravityAdapter(
         cwd,
         '--print-timeout',
         `${options.config.pipeline.timeoutMinutes}m`,
+        ...(stream ? ['--output-format', 'stream-json'] : []),
       ],
     }),
+    streamFormat: 'agy-stream',
     installHint: 'Install the Antigravity CLI (agy) from https://antigravity.google, then run "agy" once to log in.',
     preflight: ({ live = false, log } = {}) => {
       const setup = antigravityProblem(

@@ -201,16 +201,20 @@ describe('run refreshes the context before the agent starts', () => {
 
   it('writes .agents/context/T1/ first; --no-context skips it; the dry run says so', async () => {
     gitProject();
-    const dry = await cli(['run', '--task', 'T1', '--dry-run'], { cwd: project.dir, exec });
+    const dry = await cli(['run', '--ai-orchestrator', '--task', 'T1', '--dry-run'], { cwd: project.dir, exec });
     expect(dry.out).toMatch(/context: refresh ClickUp docs and \.agents[\\/]context[\\/]T1/);
 
-    const r = await cli(['run', '--task', 'T1'], { cwd: project.dir, exec, api: taskApi() });
+    const r = await cli(['run', '--ai-orchestrator', '--task', 'T1'], { cwd: project.dir, exec, api: taskApi() });
     expect(r.code, r.err).toBe(0);
     expect(r.out).toContain('[context] task: INDEX.md, task.md, comments.md');
     expect(r.out).toContain('context there: true');
 
     gitProject();
-    const skip = await cli(['run', '--task', 'T1', '--no-context'], { cwd: project.dir, exec, api: taskApi() });
+    const skip = await cli(['run', '--ai-orchestrator', '--task', 'T1', '--no-context'], {
+      cwd: project.dir,
+      exec,
+      api: taskApi(),
+    });
     expect(skip.code, skip.err).toBe(0);
     expect(skip.out).toContain('context there: false');
     expect(existsSync(join(project.dir, '.agents', 'context'))).toBe(false);

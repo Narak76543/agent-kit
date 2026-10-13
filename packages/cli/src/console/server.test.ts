@@ -13,6 +13,7 @@ import { exec, type Exec } from '../exec.js';
 import { RUN_LOCK } from '../run-lock.js';
 import {
   CONFIG,
+  LIST,
   TOKEN,
   fakeApi,
   fakeExec,
@@ -78,19 +79,24 @@ function gitProject(options: { tools?: string[] } = {}) {
 const comments = [{ id: '1', date: '1', comment_text: '[AGENT: coder] [RESULT: PASS] [ROUND: 2]\nSummary: built it' }];
 
 function clickUp(status = { status: 'to do', type: 'open' }): FakeApi {
-  return fakeApi()
-    .on('GET /v2/user', { user: { id: 42, username: 'me' } })
-    .on('GET /v2/list/L1/task', {
-      tasks: [
-        // The token in a task name must never reach the browser.
-        { id: 'T2', name: `Leaky ${TOKEN}`, status: { status: 'coding', type: 'custom' } },
-        { id: 'T1', name: 'Login screen', status: { status: 'to do', type: 'open' } },
-      ],
-      last_page: true,
-    })
-    .on('GET /v2/task/T1', { id: 'T1', name: 'Login screen', status, list: { id: 'L1' } })
-    .on('GET /v2/task/T1/comment', { comments })
-    .on('POST /v2/task/T1/comment', { id: 9 });
+  return (
+    fakeApi()
+      .on('GET /v2/user', { user: { id: 42, username: 'me' } })
+      .on('GET /v2/list/L1/task', {
+        tasks: [
+          // The token in a task name must never reach the browser.
+          { id: 'T2', name: `Leaky ${TOKEN}`, status: { status: 'coding', type: 'custom' } },
+          { id: 'T1', name: 'Login screen', status: { status: 'to do', type: 'open' } },
+        ],
+        last_page: true,
+      })
+      .on('GET /v2/task/T1', { id: 'T1', name: 'Login screen', status, list: { id: 'L1' } })
+      .on('GET /v2/task/T1/comment', { comments })
+      .on('POST /v2/task/T1/comment', { id: 9 })
+      // The kit's pipeline sets the statuses.
+      .on('GET /v2/list/L1', LIST)
+      .on('PUT /v2/task/T1', {})
+  );
 }
 
 async function start(p: TempProject, api = clickUp(), run: Exec = exec) {
@@ -377,7 +383,8 @@ describe('Local Console: live run, one at a time, Stop', () => {
     // Status: role and round from ClickUp + the handoff file.
     const status = await call('/api/runs/current/status');
     expect(status.json).toMatchObject({ role: 'todo', round: 2, lastAgent: 'coder', lastResult: 'PASS' });
-    expect(status.json.handoff).toBe('Run started with custom');
+    // The newest handoff entry: the kit's STARTED comment.
+    expect(status.json.handoff).toBe('ClickUp comment');
 
     expect((await call('/api/runs/stop', { body: {} })).status).toBe(200);
     await until('the run to stop', async () => (await runState()) === 'stopped');
@@ -390,7 +397,7 @@ describe('Local Console: live run, one at a time, Stop', () => {
       .split('\n')
       .map((l) => JSON.parse(l) as { type: string; text?: string; state?: string });
     const log = events.map((e) => e.text ?? '').join('\n');
-    expect(log).toContain('agent got: Work on ClickUp task T1');
+    expect(log).toContain('agent got: You are the coder for ClickUp task T1, round 1.');
     expect(log).toContain(`token ${REDACTED} and ${REDACTED}`);
     expect(stream.text).not.toContain(TOKEN);
     expect(stream.text).not.toContain(OTHER_SECRET);

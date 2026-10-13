@@ -134,7 +134,7 @@ describe('worktrees', () => {
   it('watch runs a new task in <repo>-tasks/<id> on task/<id>: .env copied, install run, main folder untouched', async () => {
     await setUp();
     const exec = execWith();
-    const r = await cli(['watch', '--once'], { cwd: project.dir, exec, api: watchApi() });
+    const r = await cli(['watch', '--once', '--ai-orchestrator'], { cwd: project.dir, exec, api: watchApi() });
     expect(r.code, r.err).toBe(0);
 
     const wt = worktreePath(project.dir, 'T1');
@@ -158,7 +158,11 @@ describe('worktrees', () => {
     project.write('NEW.md', 'newer main');
     git(project.dir, 'add', '-A');
     git(project.dir, 'commit', '-q', '-m', 'main moved on');
-    const r = await cli(['watch', '--once'], { cwd: project.dir, exec: execWith(), api: watchApi() });
+    const r = await cli(['watch', '--once', '--ai-orchestrator'], {
+      cwd: project.dir,
+      exec: execWith(),
+      api: watchApi(),
+    });
     expect(r.out).toContain('task/T1 had no commits of its own: moved it to main');
     expect(existsSync(join(worktreePath(project.dir, 'T1'), 'NEW.md'))).toBe(true);
   });
@@ -167,7 +171,11 @@ describe('worktrees', () => {
     await setUp();
     git(project.dir, 'switch', '-q', '-c', 'task/T1');
     git(project.dir, 'commit', '-q', '--allow-empty', '-m', 'own work');
-    const r = await cli(['watch', '--once'], { cwd: project.dir, exec: execWith(), api: watchApi() });
+    const r = await cli(['watch', '--once', '--ai-orchestrator'], {
+      cwd: project.dir,
+      exec: execWith(),
+      api: watchApi(),
+    });
     expect(r.err).toContain('task/T1 is checked out in');
     expect(r.err).toContain('git switch main');
     expect(readWatchState(project.dir).tasks.T1?.state).toBe('failed');
@@ -175,7 +183,7 @@ describe('worktrees', () => {
 
   it('worktrees list and clean (finished = merged or closed, nothing uncommitted; branches kept)', async () => {
     await setUp();
-    await cli(['watch', '--once'], { cwd: project.dir, exec: execWith(), api: watchApi() });
+    await cli(['watch', '--once', '--ai-orchestrator'], { cwd: project.dir, exec: execWith(), api: watchApi() });
     const api = watchApi();
     const list = await cli(['worktrees'], { cwd: project.dir, exec: execWith(), api });
     expect(list.out).toMatch(/T1 +task\/T1 +.*0 commit\(s\)/);
@@ -190,10 +198,14 @@ describe('worktrees', () => {
 describe('watch', () => {
   it('a restart does not repeat finished work; --retry runs it again', async () => {
     await setUp();
-    await cli(['watch', '--once'], { cwd: project.dir, exec: execWith(), api: watchApi() });
-    const again = await cli(['watch', '--once'], { cwd: project.dir, exec: execWith(), api: watchApi() });
+    await cli(['watch', '--once', '--ai-orchestrator'], { cwd: project.dir, exec: execWith(), api: watchApi() });
+    const again = await cli(['watch', '--once', '--ai-orchestrator'], {
+      cwd: project.dir,
+      exec: execWith(),
+      api: watchApi(),
+    });
     expect(again.out).toContain('skipping T1 (ready before; run it again with: tossana-agents watch --retry T1)');
-    const retry = await cli(['watch', '--once', '--retry', 'T1'], {
+    const retry = await cli(['watch', '--once', '--ai-orchestrator', '--retry', 'T1'], {
       cwd: project.dir,
       exec: execWith(),
       api: watchApi(),
@@ -206,7 +218,7 @@ describe('watch', () => {
     git(project.dir, 'branch', 'task/T2');
     git(project.dir, 'commit', '-q', '--allow-empty', '-m', 'main moves');
     const api = watchApi({ feedback: true });
-    const r = await cli(['watch', '--once'], { cwd: project.dir, exec: execWith(), api });
+    const r = await cli(['watch', '--once', '--ai-orchestrator'], { cwd: project.dir, exec: execWith(), api });
     expect(r.code, r.err).toBe(0);
     expect(r.out).toContain('T2 (feedback)');
     const prompt = readFileSync(join(worktreePath(project.dir, 'T2'), 'ran-here.txt'), 'utf8');
@@ -221,7 +233,7 @@ describe('watch', () => {
       'Owner feedback (top priority)',
     );
     expect(readWatchState(project.dir).tasks.T2?.feedbackId).toBe('5');
-    const again = await cli(['watch', '--once'], {
+    const again = await cli(['watch', '--once', '--ai-orchestrator'], {
       cwd: project.dir,
       exec: execWith(),
       api: watchApi({ feedback: true }),
@@ -235,7 +247,7 @@ describe('watch', () => {
       'GET /v2/user',
       () => new Response('{"err":"Token invalid","ECODE":"OAUTH_025"}', { status: 401 }),
     );
-    const r = await cli(['watch', '--once'], { cwd: project.dir, exec: execWith(), api });
+    const r = await cli(['watch', '--once', '--ai-orchestrator'], { cwd: project.dir, exec: execWith(), api });
     expect(r.code).toBe(1);
     expect(r.err).toContain('[watch] not started: fix the failed checks above first.');
     expect(existsSync(worktreePath(project.dir, 'T1'))).toBe(false);

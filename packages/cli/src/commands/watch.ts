@@ -79,6 +79,8 @@ export interface WatchOptions {
   interval?: string;
   once?: boolean;
   retry?: string;
+  /** Let the orchestrator agent run the roles instead of the kit's loop. */
+  aiOrchestrator?: boolean;
 }
 
 export function registerWatchCommand(program: Command, ctx: CliContext): void {
@@ -89,6 +91,7 @@ export function registerWatchCommand(program: Command, ctx: CliContext): void {
     .option('--interval <time>', 'time between ClickUp checks, e.g. 5m or 90s (at least 1m)', '5m')
     .option('--once', 'check once, run what is there, then stop')
     .option('--retry <taskId>', 'run a task again that failed or needed a human before')
+    .option('--ai-orchestrator', 'let the orchestrator agent run the roles (as subagents) instead of the kit')
     .action((opts: WatchOptions) => watch(ctx, opts));
 }
 
@@ -127,7 +130,7 @@ export async function watch(ctx: CliContext, opts: WatchOptions): Promise<void> 
   }
   try {
     for (;;) {
-      await pollOnce(ctx, config, runner, state, controller.signal, () => stopping, log, opts.retry);
+      await pollOnce(ctx, config, runner, state, controller.signal, () => stopping, log, opts);
       opts.retry = undefined;
       if (opts.once || stopping) break;
       log(`[watch] next check in ${Math.round(interval / 60_000)} min (Ctrl+C stops)`);
@@ -156,8 +159,9 @@ async function pollOnce(
   signal: AbortSignal,
   stopping: () => boolean,
   log: (s: string) => void,
-  retry?: string,
+  opts: WatchOptions,
 ): Promise<void> {
+  const retry = opts.retry;
   const project = loadProject(ctx);
   const client = createClient(ctx, project);
   const me = await client.getUser();
@@ -214,7 +218,7 @@ async function pollOnce(
   );
   for (const item of queue) {
     if (stopping()) break;
-    await runOne(ctx, config, client, runner, state, item, signal, stopping, log);
+    await runOne(ctx, config, client, runner, state, item, signal, stopping, log, !!opts.aiOrchestrator);
   }
 }
 
@@ -228,6 +232,7 @@ async function runOne(
   signal: AbortSignal,
   stopping: () => boolean,
   log: (s: string) => void,
+  aiOrchestrator: boolean,
 ): Promise<void> {
   log(`\n[watch] ===== ${item.id}: ${item.name} (${item.kind}) =====`);
   const prev = state.tasks[item.id];
@@ -247,7 +252,15 @@ async function runOne(
     const wt = prepareWorktree(ctx, config, item.id, log);
     await runTasks(
       { ...ctx, cwd: wt.path },
-      { task: item.id, runner, resume: item.kind !== 'new', feedback: item.feedback, yes: true, signal },
+      {
+        task: item.id,
+        runner,
+        resume: item.kind !== 'new',
+        feedback: item.feedback,
+        yes: true,
+        signal,
+        aiOrchestrator,
+      },
     );
     const result = await outcomeOf(client, config, item.id);
     outcome = result.outcome;

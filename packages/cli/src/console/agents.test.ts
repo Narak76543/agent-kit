@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createContext } from '../context.js';
 import { exec, type Exec } from '../exec.js';
-import { CONFIG, TOKEN, fakeApi, fakeExec, tempProject, type TempProject } from '../test-utils.test-helper.js';
+import { CONFIG, LIST, TOKEN, fakeApi, fakeExec, tempProject, type TempProject } from '../test-utils.test-helper.js';
 import { ConsoleApp } from './app.js';
 import { startConsoleServer, type ConsoleServer } from './server.js';
 
@@ -49,7 +49,11 @@ function setup(options: { codexInstalled?: boolean } = {}): Exec {
 async function start(run: Exec) {
   const api = fakeApi()
     .on('GET /v2/task/T1', { id: 'T1', name: 'Login', status: { status: 'to do', type: 'open' }, list: { id: 'L1' } })
-    .on('GET /v2/task/T1/comment', { comments: [] });
+    .on('GET /v2/task/T1/comment', { comments: [] })
+    // The kit's pipeline sets statuses and posts its comments.
+    .on('GET /v2/list/L1', LIST)
+    .on('PUT /v2/task/T1', {})
+    .on('POST /v2/task/T1/comment', { id: 9 });
   const ctx = createContext({
     cwd: project.dir,
     home: home(),
