@@ -1,26 +1,3 @@
-3. - 4. **Watch mode, worktrees, review helper, feedback** (spec 2026-10-13; branch feat/watch):
-   * **Worktrees:** `<parent>/<repo>-tasks/<taskId>` on `task/<id>` from the local base branch (not origin: a clone
-     origin may not have the kit). Existing branch with own commits → reused; branch with no own commits → reset to
-     base (the stale-branch case). Branch checked out in the main folder → skipped with the fix. `.env` and the agy
-     check result are copied in; the install command runs there. `worktrees list | clean [taskId] [--force]`
-     (clean = no uncommitted changes and task closed or branch merged; branches are never deleted).
-   * **watch:** `watch [--runner] [--interval 5m]` — doctor must pass first (new: Windows PowerShell execution
-     policy when Antigravity is used); one poll = my "to do" tasks (oldest first) + feedback candidates; one task at
-     a time in its worktree; state in `.tossana/tmp/watch-state.json` (main folder) so a restart neither repeats a
-     finished/failed task nor loses an interrupted one (resumed once); main-folder run lock against a second watcher;
-     Ctrl+C aborts the agent (whole process tree) and saves state; desktop notification (Windows toast via PowerShell
-     with the text in environment variables, macOS osascript argv, Linux notify-send) on ready for review / NEEDS_HUMAN.
-   * **Antigravity in worktrees:** checked with a sandboxed agy: trusting a parent folder does not cover subfolders,
-     but `--add-dir <folder>` loads the agents and runs allowed commands without trust, so the adapter always passes
-     `--add-dir` and trust is no longer required.
-   * **review <taskId>** (human only: refuses without an interactive terminal or inside an agent run,
-     `TOSSANA_AGENT=1` is set for agent processes): summary, rounds, quality gate run in the worktree, diff --stat,
-     diff opened in VS Code; then [1] push the branch (+ PR with gh if installed), [2] feedback, [3] skip. Never Done.
-   * **feedback <taskId> "text"** (step 5): posts the comment, moves the task to coding, records it in the handoff as
-     the top-priority instruction. watch resumes tasks in coding whose newest comment is a human one after a
-     finished pipeline (orchestrator PASS / NEEDS_HUMAN), with that comment first in the coder's instructions.
-   * **Real test:** "Implement pnpm i18n:check" task, antigravity runner, via watch, until ready for review.
-
 # Progress
 
 Status of the Tossana Agent Kit build. Read this first when you continue the work (in OpenCode or any other tool).
@@ -582,22 +559,59 @@ resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner comma
 - Not in this change: per-agent skill editing in the Local Console (lives on `feature/console-design`).
 - Tests: 14 new (481+ total); goldens: reviewer/tester now name their skills, new skill folders per case.
 
-## Phase 10 — Automation (plan, 2026-10-13; feat/default-agents merged into main first)
+## Phase 10 — Automation (2026-10-13)
 
-User goal (to pass the kit to the team once it works for them). Order: 1 → 3/4 → 5 → 2 → 6.
+User goal: to pass the kit to the team once it works for them. Order: 1 → 3/4 → 5 → 2 → 6. Each step on its own
+branch, merged after the user approves.
 
-1. **Context before every run** — `tossana-agents context <taskId>` (run/resume call it; `--no-context` skips):
-   incremental `sync-docs` with a short `docs/clickup/INDEX.md` (one line per page), and a git-ignored task bundle
-   `.agents/context/<taskId>/` (task, parent, subtasks, linked tasks + dependencies, all comments, attachment links,
-   INDEX.md). Agents read the two INDEX files and open only what they need. **Built** (feat/context-refresh): `tossana-agents context <taskId> [--no-docs]`; run/resume refresh before the agent starts (`--no-context` skips); the docs sync is incremental (unchanged pages are not rewritten, removed pages are deleted, INDEX has no timestamp); only GET requests; a failed Docs sync keeps the old files and the run goes on. Checked read-only against the real ClickUp API (28 spec pages, task z8qu5d3jkp). Templates point every role to the INDEX files, with `cu get`/`cu comments` as fallback (IDE runs without `run`). 8 new tests (498).
-2. **Planner step** — fixed read-only planner before the coder: subtasks with acceptance criteria when the task is
-   bigger than one small change, plan posted as a comment, pipeline per subtask. `pipeline.planApproval`:
-   `auto` (default) or `human` (waits for the comment "approved", resumed by watch mode or `feedback`).
-3. - 4. **Watch mode, worktrees, review helper** — waiting for the user's spec (their earlier message did not
-        reach the session).
-4. **Feedback loop** — `tossana-agents feedback <taskId> "text"` (comment + back to coding + handoff entry as top
-   priority) and automatic resume in watch mode when a "ready for review" task gets a human comment and is moved
-   back to coding; next round starts at the coder, then review and test.
-5. **Figma for real** — coder: get_design_context / get_variable_defs / get_screenshot mapped to tokens and
-   components; reviewer: differences against the screenshot and design context; doctor: desktop MCP server
-   reachable; agy MCP permissions tested; then a real task with the user's Figma link.
+### Step 1 — Context before every run (built, merged)
+
+`tossana-agents context <taskId> [--no-docs]`; `run` and `--resume` refresh before the agent starts (`--no-context`
+skips). ClickUp Docs sync is incremental (unchanged pages are not rewritten, removed pages are deleted) with a short
+`docs/clickup/INDEX.md` (one line per page, no timestamp). The task bundle `.agents/context/<taskId>/` (git-ignored)
+holds the task, parent, subtasks, linked tasks and dependencies (both directions), all comments, attachment links and
+an INDEX.md. Only GET requests; a failed Docs sync keeps the old files. Checked read-only against the real ClickUp API
+(28 spec pages, task z8qu5d3jkp). All role templates point to the INDEX files (`cu get`/`cu comments` as fallback).
+
+### Steps 3 and 4 — watch, worktrees, review (built on feat/watch)
+
+- **Worktrees:** `<parent>/<repo>-tasks/<taskId>` on `task/<id>` from the local base branch (not origin: a clone's
+  origin may not have the kit). A branch with own commits is reused; one with no own commits is moved to the base
+  (the stale-branch case, lossless). A branch checked out in the main folder → refused with the fix. `.env`, the
+  task's handoff file and the agy check result are copied in; the install command runs there.
+  `worktrees list | clean [taskId] [--force]` (clean = nothing uncommitted and closed in ClickUp or merged; branches
+  are never deleted).
+- **watch** `[--runner] [--interval 5m] [--once] [--retry <id>]`: doctor must pass for that runner first (new check:
+  Windows PowerShell execution policy when Antigravity is used). Each poll: interrupted tasks (resumed, at most twice),
+  tasks sent back with feedback, then my "to do" tasks, oldest first; one at a time, headless, in the task's worktree.
+  State in `.tossana/tmp/watch-state.json` (main folder): finished, failed or NEEDS_HUMAN tasks are not repeated
+  (`--retry` runs one again). Main-folder run lock against a second watcher. Ctrl+C aborts the agent (whole process
+  tree) and keeps the task as "running" so the next start resumes it. Desktop notification on ready for review /
+  NEEDS_HUMAN: Windows toast via a fixed PowerShell script with the text in environment variables, macOS osascript
+  with the text as arguments, Linux notify-send.
+- **Antigravity in worktrees:** checked with a sandboxed agy (temporary HOME): trusting a parent folder does not
+  cover subfolders, but `--add-dir <folder>` loads the agents and runs allowed commands without trust. The adapter
+  always passes `--add-dir`; trust is no longer required (doctor and preflight no longer check it).
+- **review <taskId>** (people only: refuses without an interactive terminal, and inside agent runs, which get
+  `TOSSANA_AGENT=1`): summary, rounds, the quality gate run in the worktree, `git diff --stat`, the diff opened in
+  VS Code; then push the branch (+ a PR with gh if installed), send feedback, or skip. Done stays manual.
+- Tests: 14 new (512 total; real git, fake ClickUp, a fake agent). Docs: getting-started "Fully automatic mode".
+
+### Step 5 — Feedback loop (built with steps 3 and 4)
+
+`tossana-agents feedback <taskId> "text"` posts the comment as the owner, moves the task to coding and records it in
+the handoff file. watch resumes tasks in coding whose newest comments are from people after a finished pipeline
+(orchestrator PASS or NEEDS_HUMAN), once per comment. A resume with feedback starts a new round at the coder with the
+comment as the top-priority instruction, then the normal review and test.
+
+### Step 2 — Planner step (next)
+
+Fixed read-only planner before the coder: subtasks with acceptance criteria when the task is bigger than one small
+change, plan posted as a comment, pipeline per subtask. `pipeline.planApproval`: `auto` (default) or `human`
+(waits for the comment "approved", resumed by watch or `feedback`).
+
+### Step 6 — Figma for real (later)
+
+Coder: get_design_context / get_variable_defs / get_screenshot mapped to tokens and components. Reviewer: differences
+against the screenshot and design context. Doctor: desktop MCP server reachable. agy MCP permissions tested. Then a
+real task with the user's Figma link.

@@ -130,6 +130,57 @@ Other ways to run:
 - `run --all`: all your "to do" tasks, one after another.
 - `run --task <taskId> --no-agent`: only create the branch. Then work with the agents yourself.
 
+## Fully automatic mode
+
+Let the agents pick up your ClickUp tasks by themselves while you keep working:
+
+```powershell
+npx tossana-agents watch --runner antigravity        # or opencode, claude-code, codex
+```
+
+- Every 5 minutes (`--interval 10m` to change it) it looks for **your** tasks in "to do" (oldest first) and runs them
+  **one at a time**. Assign tasks to yourself in ClickUp to queue them.
+- Each task runs in its **own folder** next to your project, `<project>-tasks/<taskId>`, on the branch
+  `task/<taskId>`, made from your latest local `main`. Your own project folder is never touched, so you can keep
+  working in it. The first run of a task installs the dependencies there.
+- Before every run the kit refreshes the task's ClickUp context (task, comments, linked tasks, docs).
+- You get a **desktop notification** when a task is ready for review or needs you.
+- **Ctrl+C** stops it cleanly: the agent and everything it started are stopped; that task continues next time.
+- It refuses to start while `doctor` shows a problem. On Windows with Antigravity, PowerShell must allow scripts:
+  `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, and run `npx tossana-agents antigravity permissions` once.
+- A task that failed or needed you is not tried again by itself; `watch --retry <taskId>` runs it again.
+
+When a task is ready, review it yourself:
+
+```powershell
+npx tossana-agents review <taskId>
+```
+
+It shows the agents' summary and rounds, runs your lint/typecheck/test in the task folder, lists the changed files,
+opens the diff in VS Code, and then asks: **push** the branch (and open a pull request if the GitHub CLI `gh` is
+installed), **send it back** with your comment, or **skip**. Agents cannot run `review`. Setting a task to Done stays
+yours, in ClickUp.
+
+**Sending a task back** (also from `review`):
+
+```powershell
+npx tossana-agents feedback <taskId> "Use the brand blue for the button and add the empty state"
+```
+
+This posts your comment and moves the task back to "coding". `watch` then resumes it: your comment is the coder's
+first instruction in a new round, followed by the normal review and test. Writing the comment in ClickUp and moving
+the task back to "coding" yourself works the same way.
+
+**Task folders:**
+
+```powershell
+npx tossana-agents worktrees            # list: branch, commits, uncommitted changes, ClickUp status
+npx tossana-agents worktrees clean      # remove finished ones (closed in ClickUp or merged); branches are kept
+```
+
+On macOS use the same commands in Terminal; notifications appear in Notification Center (allow them for your
+terminal app the first time).
+
 ## Switching tools mid-task
 
 If one tool stops in the middle of a task (for example you hit your usage limit in Antigravity), another tool can
