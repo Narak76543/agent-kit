@@ -629,3 +629,37 @@ change, plan posted as a comment, pipeline per subtask. `pipeline.planApproval`:
 Coder: get_design_context / get_variable_defs / get_screenshot mapped to tokens and components. Reviewer: differences
 against the screenshot and design context. Doctor: desktop MCP server reachable. agy MCP permissions tested. Then a
 real task with the user's Figma link.
+
+## Phase 11 — Visible agents (2026-10-13, branch `feat/visible-agents`, not merged)
+
+User request after the Mac test: every agent visible and watchable in its own terminal; the pipeline loop in the kit's
+code. Decisions: no result = failed round, the same role without a result twice in a row = NEEDS_HUMAN; no new commit
+from the coder = failed round; separate windows in macOS Terminal (tmux later); `follow` without `--role` = combined
+view. Merge only after the user has tested on Mac and Windows.
+
+- **Selectable roles:** agy `mainAgent: true` (still `subagent: true`), OpenCode `mode: all`; Claude Code needed
+  nothing; Codex has no `--agent`, so the prompt points at `.codex/agents/<role>.toml` and the reviewer gets
+  `--sandbox read-only`. Checked with agy 1.3.4: `--agent coder` works; with `mainAgent: false` agy answers
+  `unknown agent`.
+- **pipeline.ts:** STARTED → planners (once) → per round the coding roles then the checks → PASS / NEEDS_HUMAN. Statuses
+  and orchestrator comments by the kit. Each role gets a brief file (`.tossana/tmp/<id>-r<n>-<role>-brief.md`) and a
+  one-line prompt. Result: the role's comment, else its draft (posted by the kit), else the report in its final
+  answer (posted by the kit). Resume: after the last role that reported (`resumePoint`); feedback = new round at the
+  coder with a fresh round budget. `--ai-orchestrator` (run, watch) keeps the orchestrator agent.
+- **Logs:** `<main folder>/.agents/logs/<id>/<round>-<role>.log` (+ `.jsonl` raw for agy and Claude Code, which run
+  with `--output-format stream-json`; rendered by agent-stream.ts) and `pipeline.log` (one `=== RUN` and one
+  `=== FINISHED` line per run).
+- **follow** `<id> [--role r] [--split]`: polls the files, waits for the run, stops at FINISHED. `--split`: iTerm2
+  panes (AppleScript), macOS Terminal windows, Windows Terminal `wt -w 0 new-tab … ; split-pane …` with `cmd /k`;
+  otherwise prints the commands.
+- Also fixed: worktrees under a symlinked folder (macOS `/var` = `/private/var`) were not found again.
+- **Real test on this Mac** (Claude Code runner, throwaway project, local fake ClickUp `scripts/fake-clickup.mjs`):
+  coder → reviewer → tester ran as separate agents with live logs; `follow --role reviewer` streamed the reviewer;
+  a tester FAIL sent round 2 back to the coder with the issues; Ctrl+C stopped the coder (no process left) with
+  `FINISHED STOPPED`; `--resume` continued at the reviewer of round 2; a coder round without a commit was a failed
+  round; the 3-round limit ended in NEEDS_HUMAN. Found and fixed: FINISHED was written twice (early STOPPED line).
+  After `update` (the run permissions had no test command because the config was edited by hand), a clean run:
+  PASS in round 1 (coder 61 s, reviewer 29 s, tester 40 s); `follow` (combined) streamed it and stopped at FINISHED.
+- **Not tested for real yet:** the agy and OpenCode runners end to end (agy needs `antigravity permissions` in the
+  user's agy settings, not changed from here), Codex (not installed), `--split` windows (opens windows on the
+  desktop), Windows. Next: the user runs `scripts/visible-agents-check.ps1` on Windows and a real task on the Mac.

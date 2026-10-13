@@ -105,6 +105,7 @@ const expected = (role: PipelineRole) =>
 const issue = (text: string): AgentIssue => ({ location: null, text });
 const issueLine = (i: AgentIssue) => `- ${i.location ? `${i.location} - ` : ''}${i.text}`;
 const firstLine = (s: string) => s.split('\n')[0]!.trim();
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 function parsedComments(comments: ClickUpComment[]): AgentComment[] {
   return comments.map((c) => parseAgentComment(c.comment_text ?? '')).filter((c): c is AgentComment => c !== null);
@@ -390,7 +391,7 @@ export async function runPipeline(
       if (!failed) {
         const summary =
           `${sequence.length > 1 ? 'Every check passed' : 'Done'} in round ${round}` +
-          `${lastCheck ? ` (${lastCheck.agent}: ${firstLine(lastCheck.summary)})` : ''}. ` +
+          `${lastCheck ? ` (${lastCheck.agent}: ${clip(firstLine(lastCheck.summary), 120)})` : ''}. ` +
           `Branch ${config.pipeline.branchPrefix}${id} (local, not pushed).`;
         return await finish('PASS', round, summary, lastCheck?.issues ?? [], true);
       }
