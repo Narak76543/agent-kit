@@ -154,6 +154,30 @@ npx tossana-agents run --task <taskId> --resume --runner codex
 The new tool's files must exist in the project. If they don't, the kit tells you the command to add them
 (`npx tossana-agents init --yes --tools <tools you use>,<new tool>`). Try `--dry-run` first to see the plan.
 
+## The Local Console (a UI for the same commands)
+
+Prefer clicking to typing? In the project folder run:
+
+```powershell
+npx tossana-agents ui
+```
+
+Your browser opens a page for **this project only**:
+
+- **Project health**: the `doctor` checks as cards, each with its fix. Press **Re-check** after fixing something.
+- **My tasks**: your tasks from the ClickUp list. **Run** starts a "to do" task, **Resume** continues one that is in
+  progress. Choose the tool in the **Runner** list (only tools set up in this project are shown). You always see the
+  dry run first; nothing changes until you press **Start**.
+- **Live run**: the agent's output as it works, the current role and round, and a **Stop** button (stops the agent
+  and everything it started).
+
+Good to know:
+
+- Only your computer can open the page, and only with the link the command printed (it has a secret part). The link
+  stops working when you stop the console with **Ctrl+C**. Stopping the console also stops a running agent.
+- Your ClickUp token never goes to the browser.
+- Only one run per project at a time, from the console or from the terminal.
+
 ## 5. What you see in ClickUp
 
 While the agents work, the task moves through the statuses and gets comments:

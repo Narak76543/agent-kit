@@ -377,7 +377,8 @@ Read-only view (v1) of all agent pipelines across projects, so the team and the 
 - Deploy target: ask the user (Vercel with env vars, or an internal server with Docker). Provide a `Dockerfile` either way.
 
 ### 10.6 Later (not v1)
-"Start pipeline" button (needs a runner service), Slack/Telegram notifications, per-agent cost tracking.
+Slack/Telegram notifications, per-agent cost tracking. (No "Start pipeline" button: starting runs is local only, in
+the Local Console — see Phase 8.)
 
 ---
 
@@ -479,6 +480,62 @@ their secrets local.
 3. ✅ Claude Code generator + `run` adapter (formats from the current Claude Code docs).
 4. ✅ Codex generator + `run` adapter (formats from the current Codex docs).
 5. Library repo + pinned versions in `init`/`update`; dashboard editing via PRs; login with roles.
+
+### Phase 8 — Everything from a UI: the Local Console (added 2026-10-13)
+
+**Goal:** everything the CLI can do is also possible from a UI, without weakening any rule above.
+
+#### 8.1 Two UIs, two trust levels
+
+- **Team Dashboard** (`apps/dashboard`, hosted) stays **view-only for running agents**. A hosted site must never start
+  processes on a developer's machine. (§10.6 "Start pipeline" button is dropped for that reason.)
+- **Local Console**: `tossana-agents ui` starts a local server for the current project and opens the browser. Same
+  design tokens (`packages/design-tokens/tokens.css`) and dark/light theme as the dashboard.
+
+#### 8.2 Why not reuse the Next.js app
+
+The kit is a devDependency in every project. Next.js + React + a `.next` build would add ~100 MB per machine for
+three screens, and would mix the hosted (remote, read-only) and local (can start processes) code in one app. The
+console is one HTML file (vanilla TypeScript bundled by esbuild at build time, `tokens.css` inlined, ~30 KB), served
+by a `node:http` server inside the CLI. **No new runtime dependencies.**
+
+#### 8.3 Security (required)
+
+- Binds to `127.0.0.1` only, on a random port (OS-assigned), with a random 256-bit session token per start.
+- The page is opened as `http://127.0.0.1:<port>/?token=<token>`; every API call sends `Authorization: Bearer <token>`
+  (a custom header, so other sites cannot send it without a CORS preflight, which the server never answers).
+  Token compare is constant-time. No cookies (cookies are shared between all ports of a host).
+- **DNS rebinding:** the `Host` header must be `127.0.0.1:<port>` or `localhost:<port>`. `Origin`, when sent, must be
+  the same; requests that change something (POST) must send a matching `Origin`. JSON bodies only, size-limited.
+- Headers: strict CSP with a per-response nonce (no other origins), `Referrer-Policy: no-referrer` (the token never
+  leaks in a Referer), `X-Frame-Options: DENY`, `nosniff`, `Cache-Control: no-store`.
+- **No secrets in the browser:** responses never include `.env` values, and every response body and log line goes
+  through the same redaction as the CLI logger.
+- Actions call the same TypeScript functions as the CLI commands (`runDoctor`, `runTasks`, …) with an in-process
+  context. Runner commands stay argv arrays; **no shell strings are built**.
+- Writes need a confirmation in the UI. Server-side: a run needs the id of a dry-run preview made in the last 10
+  minutes with the same task/runner/mode, and a WIP commit needs an explicit `confirmWip`.
+- **One run per project at a time:** a lock file `.agents/logs/run.lock` (pid; stale locks are taken over) used by
+  `run` itself, so CLI and console runs exclude each other. **Stop kills the whole process tree** (`taskkill /T /F`
+  on Windows; a process group on macOS/Linux).
+
+#### 8.4 Screens (MVP first, in this order)
+
+1. **Project health:** doctor checks as cards (ok/fail/warn/skip), fix hints, a re-check button.
+2. **My tasks:** my tasks from the configured list (agent statuses). **Run** for "todo", **Resume** for in-progress
+   tasks with a task branch. Runner dropdown limited to the tools set up in this project. A dry-run preview (the exact
+   `run --dry-run` output) is shown before starting; Start is the confirmation.
+3. **Live run:** streamed log (redacted), current role and round (task status + last agent comment + handoff),
+   Stop button.
+
+Later (only if time allows, otherwise PROGRESS.md next steps): 4. Setup wizard (`init` as a form). 5. Roles & skills editor for this project's `agent.config.json` (validated by the same zod schema; locked rules
+shown read-only). 6. Update with a diff preview.
+
+#### 8.5 Acceptance
+
+- `tossana-agents ui` opens the console; screens 1–3 work against the fake API in tests and the real API by hand.
+- Tests cover: host/origin/token checks (including DNS-rebinding hosts and cross-site origins), no secret in any
+  response, preview-before-run and WIP confirmation, one run at a time (lock), Stop kills a child and grandchild.
 
 ---
 

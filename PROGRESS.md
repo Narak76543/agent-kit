@@ -4,7 +4,7 @@ Status of the Tossana Agent Kit build. Read this first when you continue the wor
 The full spec is [TOSSANA_AGENT_KIT_PLAN.md](./TOSSANA_AGENT_KIT_PLAN.md). This file records what is done, what is next,
 and every decision that changes or clarifies the spec.
 
-Last updated: 2026-10-12 (see "Next steps" — waiting on ClickUp statuses in the right account)
+Last updated: 2026-10-13 (Local Console screens 1–3; see "Next steps")
 
 ## Phase status
 
@@ -18,6 +18,7 @@ Last updated: 2026-10-12 (see "Next steps" — waiting on ClickUp statuses in th
 | 5 — Dashboard             | 🟡 Started  | Board + timeline on sample data; no ClickUp, no login yet            |
 | 6 — Distribution, docs    | 🟡 Started  | Docs written; tarball tested; registry not chosen                    |
 | 7 — Roles, tools, library | 🟡 a–d done | Roles, skill scopes, Claude Code, Codex; library repo + editing next |
+| 8 — Local Console (UI)    | 🟡 1–3 done | `tossana-agents ui`: health, my tasks, live run; screens 4–6 next    |
 
 ## How to work on this repo
 
@@ -53,6 +54,8 @@ pnpm format       # fix formatting
 | `apps/dashboard/`                       | Dashboard preview (Next.js, `fixtures/tasks.json`); `pnpm --filter @tossana/dashboard dev` |
 | `docs/`                                 | User guides: getting started, ClickUp setup, agents, Antigravity, Windows, maintaining     |
 | `packages/templates/`                   | Agent templates (Phase 2/3)                                                                |
+| `packages/cli/src/console/`             | Local Console: `security.ts`, `server.ts`, `app.ts` (actions), `web/` (the page)           |
+| `packages/design-tokens/`               | `tokens.css`: colors and radii for the dashboard and the Local Console                     |
 | `*.test.ts` next to each module         | vitest; HTTP is faked by injecting `fetch` (`fake-api.test-helper.ts`)                     |
 
 ## Decisions (beyond or different from the spec)
@@ -191,7 +194,14 @@ IDs of the personal test workspace are kept out of this repo on purpose (see the
    - **Team library:** the `tossana-agent-library` repo with pinned versions in `init`/`update`, dashboard editing
      via pull requests, login with viewer/editor/approver roles. Open questions: GitHub org and repo, who approves,
      GitHub App or token for PRs.
-7. **Later:** real skills content (waiting for the skills folder path), Phase 4 on a real second project, publish
+7. **Local Console, rest of Phase 8** (plan §12 "Phase 8"):
+   - **Look at it in a browser once** (not done yet: no browser in the 2026-10-13 session; the API and page were
+     checked with curl and tests): `tossana-agents ui` in `D:\Ek-Mobile-test`, all three screens, both themes,
+     phone width. Then one real run from the console with Stop pressed mid-run.
+   - Screen 4: setup wizard (`init` as a form). Screen 5: roles & skills editor for `agent.config.json` (same zod
+     schema, locked rules read-only). Screen 6: `update` with a diff preview. Every write behind a confirmation.
+   - The theme choice is per console start (random port = new origin = new localStorage). Fine for now.
+8. **Later:** real skills content (waiting for the skills folder path), Phase 4 on a real second project, publish
    registry (GitHub Packages under `@tossana`?) and the first release (`docs/maintaining.md`), push + run CI once.
 
 ## Test data in the personal ClickUp test workspace (2026-10-10)
@@ -393,3 +403,34 @@ IDs of the personal test workspace are kept out of this repo on purpose (see the
   runs outside the sandbox (`.agents/` is read-only inside it); the rule now carries a handoff `match` example, so
   Codex validates it when it loads the rules. Not run against a real Codex (not installed here).
 - Docs: `docs/getting-started.md` → "Switching tools mid-task". Tests: 11 new (375 total).
+
+### Phase 8 (1–3) — Local Console (done 2026-10-13)
+
+- `tossana-agents ui [--no-open]` (`packages/cli/src/console/`). Design: plan §12 "Phase 8". The Team Dashboard stays
+  view-only for running agents; only the local console starts processes.
+- **Not the Next.js app:** one self-contained `dist/console.html` (~21 KB: vanilla TS bundled by esbuild in
+  `scripts/postbuild.mjs`, `@tossana/design-tokens/tokens.css` and `console.css` inlined) served by `node:http`.
+  No new runtime dependencies (esbuild and design-tokens are devDependencies). Browser code is type-checked with DOM
+  types by `src/console/web/tsconfig.json`.
+- **Security** (`console/security.ts`, tests in `security.test.ts` + `server.test.ts`): 127.0.0.1 only, OS-chosen port,
+  256-bit token per start; page needs `?token=`, API needs `Authorization: Bearer` (constant-time compare, token in the
+  URL is not accepted for the API); Host must be `127.0.0.1:<port>`/`localhost:<port>` (DNS rebinding → 421); Origin
+  must be ours and is required on POST; `Sec-Fetch-Site` cross-site refused; JSON-only POST bodies ≤ 64 KB; only
+  GET/POST (no CORS answers); CSP with a per-response nonce, `no-referrer`, `DENY` framing, `no-store`.
+- **No secrets in the browser:** every string in every response, and every log line, is redacted with the ClickUp token
+  pattern plus all secret-looking values (`*TOKEN*`, `*KEY*`, `*SECRET*`, `*PASSWORD*`, `*_PAT`…) from `.env` and the
+  process environment. The browser only sends a session token, never gets `.env`.
+- **Same functions as the CLI:** doctor → `runDoctor`; preview → `runTasks({ dryRun })`; start → `runTasks({ task,
+resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner commands stay argv arrays.
+- **Confirmations, enforced by the server:** a run needs a preview id (single use, 10 min). A resume with leftover
+  changes on the task branch needs `confirmWip` (UI checkbox) before the "WIP: handoff from …" commit.
+- **One run per project:** new `run-lock.ts` — `.agents/logs/run.lock` with the pid, taken by `run` itself (not by
+  `--dry-run`), so CLI and console runs exclude each other; a lock whose process is gone is taken over.
+- **Stop kills the whole tree:** Windows `taskkill /T /F` (as before); macOS/Linux now start the agent in its own
+  process group (`detached`) and kill the group (before, only the agent pid got SIGTERM). The test starts a fake agent
+  with a grandchild and checks both are gone after Stop, and after closing the console. Run on Windows here; the
+  POSIX path runs in CI (never run yet).
+- Screens: Project health (doctor cards, fix + hint, re-check), My tasks (assigned to me; Run for todo, Resume for
+  coding/review/testing with a task branch; runner dropdown = tools whose files exist, plus custom when AGENT_CMD is
+  set), Live run (streamed NDJSON log, status/role/round/last result/handoff every 15 s, Stop with a confirm dialog).
+- Docs: `docs/getting-started.md` → "The Local Console". Tests: 44 new (419 total).
