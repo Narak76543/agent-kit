@@ -1,7 +1,7 @@
 ---
 # Managed by @tossana/agents v0.1.0 — do not edit; run "tossana-agents update"
 name: manager
-description: Read-only planner for web. Reads the task, specs and code before coding starts and writes a short plan. Has no file-editing tools. Invoked by the /start-task orchestrator.
+description: Read-only planner for web. Reads the task, specs and code before coding starts and writes a short plan. Has no file-editing tools. Started by tossana-agents run, or by the /start-task orchestrator in the IDE.
 tools:
   - view_file
   - list_dir

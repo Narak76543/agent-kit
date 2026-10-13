@@ -39,7 +39,7 @@ const CODEX_NOTE = (role: PipelineRole) =>
   role.preset === 'read-only'
     ? [
         '> Codex: you run in a read-only sandbox, so you cannot write your comment draft. Give your full report as your',
-        '> final answer; the orchestrator posts it for you. `tossana-agents clickup …` commands run outside the',
+        '> final answer; `tossana-agents run` (or the orchestrator) posts it for you. `tossana-agents clickup …` commands run outside the',
         '> sandbox (project rules), so reading the task and its comments works.',
         '',
       ]

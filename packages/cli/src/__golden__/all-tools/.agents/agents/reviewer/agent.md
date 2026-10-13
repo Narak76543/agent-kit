@@ -1,7 +1,7 @@
 ---
 # Managed by @tossana/agents v0.1.0 — do not edit; run "tossana-agents update"
 name: reviewer
-description: Strict read-only code reviewer for api. Reviews the task branch diff against the ClickUp task, specs and AGENTS.md, and returns APPROVED or CHANGES_NEEDED. Has no file-editing tools. Invoked by the /start-task orchestrator.
+description: Strict read-only code reviewer for api. Reviews the task branch diff against the ClickUp task, specs and AGENTS.md, and returns APPROVED or CHANGES_NEEDED. Has no file-editing tools. Started by tossana-agents run, or by the /start-task orchestrator in the IDE.
 tools:
   - view_file
   - list_dir

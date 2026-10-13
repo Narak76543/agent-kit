@@ -130,8 +130,8 @@ export function roleVars(
     // Antigravity wrapper description (planners reuse the read-only wrapper).
     'role.agDescription':
       role.kind === 'plan'
-        ? `Read-only planner for ${config.project.name}. Reads the task, specs and code before coding starts and writes a short plan. Has no file-editing tools. Invoked by the /start-task orchestrator.`
-        : `Strict read-only code reviewer for ${config.project.name}. Reviews the task branch diff against the ClickUp task, specs and AGENTS.md, and returns APPROVED or CHANGES_NEEDED. Has no file-editing tools. Invoked by the /start-task orchestrator.`,
+        ? `Read-only planner for ${config.project.name}. Reads the task, specs and code before coding starts and writes a short plan. Has no file-editing tools. Started by tossana-agents run, or by the /start-task orchestrator in the IDE.`
+        : `Strict read-only code reviewer for ${config.project.name}. Reviews the task branch diff against the ClickUp task, specs and AGENTS.md, and returns APPROVED or CHANGES_NEEDED. Has no file-editing tools. Started by tossana-agents run, or by the /start-task orchestrator in the IDE.`,
     'perm.figma': usesFigma ? globalVars['perm.figma']! : '',
     'figma.coder': usesFigma ? globalVars['figma.coder']! : '',
     'figma.reviewer': usesFigma ? globalVars['figma.reviewer']! : '',

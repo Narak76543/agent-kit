@@ -1,6 +1,6 @@
 ---
 name: {{role.name}}
-description: QA for {{project.name}}. Runs the quality gate on the task branch, writes or edits test files only to prove the task's acceptance criteria, and returns PASS or FAIL. Invoked by the /start-task orchestrator.
+description: QA for {{project.name}}. Runs the quality gate on the task branch, writes or edits test files only to prove the task's acceptance criteria, and returns PASS or FAIL. Started by tossana-agents run, or by the /start-task orchestrator in the IDE.
 tools:
   - view_file
   - list_dir
@@ -11,7 +11,7 @@ tools:
   - multi_replace_file_content
   - run_command
 subagent: true
-mainAgent: false
+mainAgent: true
 model: inherit
 commandExecutionPolicy: auto
 ---
@@ -28,8 +28,9 @@ Your role instructions are shared with OpenCode and live in one file. Before doi
    - stage test files by name (`git add <file>`), never `git add -A` / `git add .`;
    - never skip, weaken or delete a test to get green;
    - never run `{{kit.cmd}} clickup status`.
-3. Your prompt contains the task ID, round number, spec pages and acceptance criteria. If something is
-   missing, read `.agents/handoff/<taskId>.md`.
+3. Your prompt names your brief (`.tossana/tmp/<taskId>-r<n>-{{role.name}}-brief.md`) or, from the orchestrator,
+   contains the task ID, round number, spec pages and acceptance criteria. If something is missing, read
+   `.agents/handoff/<taskId>.md`.
 
 {{agy.commands}}
 

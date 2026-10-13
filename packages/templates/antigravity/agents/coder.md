@@ -1,6 +1,6 @@
 ---
 name: {{role.name}}
-description: Developer for {{project.name}}. Implements one ClickUp task on git branch {{pipeline.branchPrefix}}<taskId>, or fixes issues sent back by the reviewer/tester, and commits. Never pushes. Invoked by the /start-task orchestrator.
+description: Developer for {{project.name}}. Implements one ClickUp task on git branch {{pipeline.branchPrefix}}<taskId>, or fixes issues sent back by the reviewer/tester, and commits. Never pushes. Started by tossana-agents run, or by the /start-task orchestrator in the IDE.
 tools:
   - view_file
   - list_dir
@@ -11,7 +11,7 @@ tools:
   - multi_replace_file_content
   - run_command
 subagent: true
-mainAgent: false
+mainAgent: true
 model: inherit
 commandExecutionPolicy: auto
 ---
@@ -25,11 +25,12 @@ Your role instructions are shared with OpenCode and live in one file. Before doi
    OpenCode permission config. The limits it describes still apply to you, and here nothing enforces them
    but you:
    - never push, merge, rebase, amend, force anything, or commit on `{{pipeline.baseBranch}}`;
-   - never run `{{kit.cmd}} clickup status` (only the orchestrator sets statuses);
+   - never run `{{kit.cmd}} clickup status` (only `tossana-agents run` or the orchestrator sets statuses);
    - never read or change `.env*`, `agent.config.json`, `.opencode/`, `.agents/` or `.git/` (comment drafts go in
      `.tossana/tmp/`).
-3. Your prompt contains the task ID, round number and any feedback. If something is missing, read
-   `.agents/handoff/<taskId>.md` and `{{kit.cmd}} clickup comments <taskId>`.
+3. Your prompt names your brief (`.tossana/tmp/<taskId>-r<n>-{{role.name}}-brief.md`: task, round, the issues to
+   fix, the owner's feedback) or, from the orchestrator, contains the task ID, round number and any feedback. If
+   something is missing, read `.agents/handoff/<taskId>.md` and `{{kit.cmd}} clickup comments <taskId>`.
 
 {{agy.commands}}
 
