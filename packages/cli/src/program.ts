@@ -5,6 +5,7 @@ import { registerAgentsCommand } from './commands/agents.js';
 import { registerAntigravityCommand } from './commands/antigravity.js';
 import { registerClickupCommands } from './commands/clickup.js';
 import { registerContextCommand } from './commands/task-context-cmd.js';
+import { registerFollowCommand } from './commands/follow.js';
 import { registerReviewCommands } from './commands/review.js';
 import { registerWatchCommand } from './commands/watch.js';
 import { registerDoctorCommand } from './commands/doctor.js';
@@ -37,6 +38,7 @@ export function createProgram(ctx: CliContext): Command {
   registerContextCommand(program, ctx);
   registerReviewCommands(program, ctx, ctx.prompts);
   registerWatchCommand(program, ctx);
+  registerFollowCommand(program, ctx);
   registerDoctorCommand(program, ctx);
   registerGuardCommand(program, ctx);
   registerInitCommand(program, ctx, ctx.prompts);
