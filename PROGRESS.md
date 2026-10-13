@@ -518,3 +518,20 @@ resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner comma
   pointing at the old main (old agent files with `command_status`). `run` reuses an existing task branch as it is, so
   a kit update on main does not reach it; it was fast-forwarded to main by hand (lossless: no own commits).
   **Follow-up:** let `run` fast-forward a task branch that has no own commits and is behind the base branch.
+
+### agy permission rules: regex, tested (2026-10-13, same branch)
+
+- First real (interactive) agy run: NEEDS_HUMAN after round 1; the coder could not commit. agy recorded the exact
+  texts it refused: `git commit -m "z8qu5d3jkp: …"`, `pnpm.cmd typecheck`, `git log -n 5 --oneline`; agents also ran
+  `npx.cmd tossana-agents …`, `npx tossana-agents run --task <id> --no-agent`, `git branch -a`.
+- Tested in a sandbox (temporary HOME with its own agy settings.json, scratch repo, fake kit bin, a throwaway agent
+  running ONE command per session, because headless agy ends the session at the first refusal; verdict from the
+  command line agy recorded). Result: in agy 1.3.3 a plain rule such as `command(git log)` matches only that exact
+  text. With the kit-generated anchored `regex:` rules, all 10 forms above are allowed and 8 stay refused: `git push`,
+  `git push origin main`, `git commit --amend`, `git reset --hard`, `git rebase`, `git branch -D`, and two chained
+  commands (`…; git push`, `… && git push`). A unit test keeps the same table (plus more refusals) against the rules.
+- `antigravity permissions` now shows a +/- diff, replaces only the rules an older kit version added, and writes only
+  after a yes (backup kept).
+- **Follow-up:** `run --no-agent` (called by /start-task) records "Run started with <pipeline.runner>", so an
+  Antigravity session was labeled OpenCode ([BY: OpenCode], "Resumed … after opencode"). /start-task should pass
+  `--runner antigravity`, and `--no-agent` without `--runner` should not name a tool.

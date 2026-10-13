@@ -33,14 +33,23 @@ Once per computer and project:
 1. Install the Antigravity CLI and run `agy` once **in the project folder**: log in, and choose to **trust** the
    folder. agy does not load the project's agents in a folder it does not trust.
 2. Allow the commands the agents need:
+
    ```
    npx tossana-agents antigravity permissions
    ```
+
    In headless mode agy quietly refuses every command that is not allowed (the run goes on and does nothing
-   useful). This adds narrow rules to `~/.gemini/antigravity-cli/settings.json`: the kit's `clickup` commands,
-   read-only git, `git add`, `git commit -m` and your lint/typecheck/test commands. It shows them first, asks, and
-   keeps a backup. It never allows `git push`. agy only reads these rules from that file (there is no project
-   file), so they apply to every agy session on your computer.
+   useful). This adds rules to `~/.gemini/antigravity-cli/settings.json` for: the kit's `clickup` commands and
+   `run --task <id> --no-agent`, read-only git (`status`, `diff`, `log`, `show`, `rev-parse`, `branch -a`), `git add`,
+   `git commit -m "…"` and your lint/typecheck/test commands. It shows a `+`/`-` diff first, asks, and keeps a backup;
+   it only replaces rules an older kit version added.
+
+   The rules are anchored `regex:` rules, because agy 1.3.3 matches a plain rule like `command(git log)` only as that
+   exact text (not `git log -n 5 --oneline`), and agents on Windows run `npx.cmd` / `pnpm.cmd`. Arguments may not
+   contain `;`, `&`, `|`, `<`, `>`, `` ` `` or `$`, so nothing can be chained after an allowed command. They never
+   allow `git push`, `--amend`, `reset`, `rebase`, `checkout` or deleting branches. agy only reads these rules from
+   that file (there is no project file), so they apply to every agy session on your computer.
+
 3. `npx tossana-agents doctor` checks both (Antigravity rows).
 
 Then, like any other tool:
