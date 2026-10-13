@@ -8,6 +8,9 @@
  *   - <file:line> - <problem>
  *   Next: <agent name | human>
  *
+ * Optional, after the round: `[BY: Rei – Mobile · Codex]` (agent profile and tool, or just the tool). Agents do
+ * not write it: `tossana-agents clickup comment` adds it from the run entry in the handoff file.
+ *
  * The parser also accepts the older one-line form used in EKMONG_MOBILE:
  *   Issues: a.ts:1 - x; b.ts:2 - y      (or "Issues: none")
  */
@@ -46,6 +49,8 @@ export interface AgentComment {
   issues: AgentIssue[];
   /** Lower-cased agent name or "human"; `null` when missing. */
   next: string | null;
+  /** Who ran it: "Rei – Mobile · Codex" or "Codex"; `null` when the comment has no `[BY: …]` tag. */
+  by: string | null;
 }
 
 export interface AgentCommentInput {
@@ -55,6 +60,8 @@ export interface AgentCommentInput {
   summary: string;
   issues?: (AgentIssue | string)[];
   next: string;
+  /** Agent profile and tool, e.g. "Rei – Mobile · Codex". */
+  by?: string;
 }
 
 export function formatAgentComment(data: AgentCommentInput): string {
@@ -63,7 +70,7 @@ export function formatAgentComment(data: AgentCommentInput): string {
     ? issues.map((i) => `- ${i.location ? `${i.location} - ` : ''}${oneLine(i.text)}`)
     : ['- none'];
   return [
-    `[AGENT: ${data.agent}] [RESULT: ${data.result}] [ROUND: ${data.round}]`,
+    `[AGENT: ${data.agent}] [RESULT: ${data.result}] [ROUND: ${data.round}]${data.by ? ` [BY: ${byText(data.by)}]` : ''}`,
     `Summary: ${data.summary.trim()}`,
     'Issues:',
     ...issueLines,
@@ -72,7 +79,19 @@ export function formatAgentComment(data: AgentCommentInput): string {
 }
 
 const HEADER =
-  /\[\s*AGENT\s*:\s*([A-Za-z][A-Za-z0-9-]*)\s*\]\s*\[\s*RESULT\s*:\s*([A-Za-z_]+)\s*\](?:\s*\[\s*ROUND\s*:\s*(\d+)\s*\])?/i;
+  /\[\s*AGENT\s*:\s*([A-Za-z][A-Za-z0-9-]*)\s*\]\s*\[\s*RESULT\s*:\s*([A-Za-z_]+)\s*\](?:\s*\[\s*ROUND\s*:\s*(\d+)\s*\])?(?:[ \t]*\[\s*BY\s*:\s*([^\]\r\n]+?)\s*\])?/i;
+
+/** One line, no brackets: the value of a `[BY: …]` tag. */
+const byText = (by: string) => oneLine(by).replace(/[[\]]/g, '');
+
+/** Adds `[BY: …]` to the header of an agent comment that has none; any other text is returned unchanged. */
+export function withBy(text: string, by: string): string {
+  const header = HEADER.exec(text);
+  if (!header || header[4] !== undefined) return text;
+  const end = header.index + header[0].length;
+  return `${text.slice(0, end)} [BY: ${byText(by)}]${text.slice(end)}`;
+}
+
 const FIELD = /^\s*(summary|issues|next)\s*:\s*(.*)$/i;
 const BULLET = /^[-*•]\s+/;
 const NONE = /^(none|n\/a|-|no issues\.?)$/i;
@@ -108,6 +127,7 @@ export function parseAgentComment(text: string): AgentComment | null {
     summary: fields.summary.join('\n'),
     issues: parseIssues(fields.issues),
     next: next || null,
+    by: header[4] ?? null,
   };
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAgentComment, parseAgentComment } from './protocol.js';
+import { formatAgentComment, parseAgentComment, withBy } from './protocol.js';
 
 describe('formatAgentComment', () => {
   it('writes the protocol format with bullet issues', () => {
@@ -53,7 +53,7 @@ describe('formatAgentComment', () => {
       issues: [{ location: 'src/login.tsx:10', text: 'TODO left for copy text' }],
       next: 'reviewer',
     };
-    expect(parseAgentComment(formatAgentComment(input))).toEqual(input);
+    expect(parseAgentComment(formatAgentComment(input))).toEqual({ ...input, by: null });
   });
 });
 
@@ -79,6 +79,7 @@ describe('parseAgentComment', () => {
         { location: 'src/cart.test.ts:30', text: 'snapshot mismatch' },
       ],
       next: 'coder',
+      by: null,
     });
   });
 
@@ -116,6 +117,7 @@ describe('parseAgentComment', () => {
       summary: 'Did the thing.',
       issues: [{ location: 'a.ts:1', text: 'x' }],
       next: 'reviewer',
+      by: null,
     });
   });
 
@@ -138,6 +140,7 @@ describe('parseAgentComment', () => {
       summary: '',
       issues: [],
       next: null,
+      by: null,
     });
     expect(parseAgentComment('[AGENT: tester] [RESULT: FAIL] [ROUND: 1]\nIssues:\n- lint fails')?.issues).toEqual([
       { location: null, text: 'lint fails' },
@@ -173,5 +176,43 @@ describe('parseAgentComment', () => {
     expect(parseAgentComment('[RESULT: PASS] [AGENT: tester]')).toBeNull();
     expect(parseAgentComment('[AGENT: tester] PASS')).toBeNull();
     expect(parseAgentComment(undefined as unknown as string)).toBeNull();
+  });
+});
+
+describe('[BY: …] (agent profile and tool)', () => {
+  const base = { agent: 'coder', result: 'DONE_CODING', round: 1, summary: 'Built it.', next: 'reviewer' } as const;
+
+  it('is written after the round and parsed back', () => {
+    const text = formatAgentComment({ ...base, by: 'Rei – Mobile · Codex' });
+    expect(text.split('\n')[0]).toBe('[AGENT: coder] [RESULT: DONE_CODING] [ROUND: 1] [BY: Rei – Mobile · Codex]');
+    expect(parseAgentComment(text)).toMatchObject({ agent: 'coder', round: 1, by: 'Rei – Mobile · Codex' });
+  });
+
+  it('keeps the value on one line without brackets', () => {
+    const text = formatAgentComment({ ...base, by: 'Rei [mobile]\nteam · Codex' });
+    expect(text.split('\n')[0]).toBe('[AGENT: coder] [RESULT: DONE_CODING] [ROUND: 1] [BY: Rei mobile team · Codex]');
+  });
+
+  it('is optional: old comments parse with by = null', () => {
+    expect(parseAgentComment(formatAgentComment(base))?.by).toBeNull();
+    expect(parseAgentComment('[AGENT: orchestrator] [RESULT: STARTED] [BY: Codex]')?.by).toBe('Codex');
+  });
+
+  it('only counts on the header line', () => {
+    expect(parseAgentComment('[AGENT: coder] [RESULT: DONE_CODING] [ROUND: 1]\n[BY: x]\nSummary: s')?.by).toBeNull();
+  });
+
+  it('withBy adds the tag to an agent comment that has none, and leaves everything else alone', () => {
+    const text = formatAgentComment(base);
+    const stamped = withBy(text, 'Joe – Backend · Claude Code');
+    expect(stamped.split('\n')[0]).toBe(
+      '[AGENT: coder] [RESULT: DONE_CODING] [ROUND: 1] [BY: Joe – Backend · Claude Code]',
+    );
+    expect(stamped.split('\n').slice(1)).toEqual(text.split('\n').slice(1));
+    expect(withBy(stamped, 'Someone else')).toBe(stamped);
+    expect(withBy('Human: looks good', 'Codex')).toBe('Human: looks good');
+    expect(withBy('note\n[AGENT: tester] [RESULT: PASS]\nNext: orchestrator', 'Codex')).toBe(
+      'note\n[AGENT: tester] [RESULT: PASS] [BY: Codex]\nNext: orchestrator',
+    );
   });
 });

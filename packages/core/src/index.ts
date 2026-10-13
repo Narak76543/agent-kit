@@ -10,3 +10,4 @@ export * from './roles.js';
 export * from './handoff.js';
 export * from './detect.js';
 export * from './clickup/error-hints.js';
+export * from './profiles.js';
