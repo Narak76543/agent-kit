@@ -326,7 +326,7 @@ export async function runPipeline(
       const n = (missing.get(role.name) ?? 0) + 1;
       missing.set(role.name, n);
       if (n < MAX_MISSING) return null;
-      return finish(
+      return await finish(
         'NEEDS_HUMAN',
         round,
         `The ${role.name} gave no result ${n} times in a row; stopped without using the remaining rounds.`,
@@ -347,7 +347,7 @@ export async function runPipeline(
             continue;
           }
           missing.set(p.name, 0);
-          if (r.result === 'NEEDS_HUMAN') return finish('NEEDS_HUMAN', start.round, r.summary, r.issues, false);
+          if (r.result === 'NEEDS_HUMAN') return await finish('NEEDS_HUMAN', start.round, r.summary, r.issues, false);
           plans.push([`From the ${p.name}: ${r.summary}`, ...r.issues.map(issueLine)].join('\n'));
           break;
         }
@@ -373,7 +373,7 @@ export async function runPipeline(
           break;
         }
         missing.set(role.name, 0);
-        if (r.result === 'NEEDS_HUMAN') return finish('NEEDS_HUMAN', round, r.summary, r.issues, false);
+        if (r.result === 'NEEDS_HUMAN') return await finish('NEEDS_HUMAN', round, r.summary, r.issues, false);
         if (!ok(role, r.result)) {
           failed = { issues: r.issues.length ? r.issues : [issue(firstLine(r.summary))], from: role.name };
           break;
@@ -392,13 +392,13 @@ export async function runPipeline(
           `${sequence.length > 1 ? 'Every check passed' : 'Done'} in round ${round}` +
           `${lastCheck ? ` (${lastCheck.agent}: ${firstLine(lastCheck.summary)})` : ''}. ` +
           `Branch ${config.pipeline.branchPrefix}${id} (local, not pushed).`;
-        return finish('PASS', round, summary, lastCheck?.issues ?? [], true);
+        return await finish('PASS', round, summary, lastCheck?.issues ?? [], true);
       }
       issues = failed.issues;
       issuesFrom = failed.from;
       say(`round ${round} failed (${failed.from}): ${issues.length} issue(s) → back to ${sequence[0]!.name}`);
     }
-    return finish(
+    return await finish(
       'NEEDS_HUMAN',
       lastRound,
       `${lastRound} rounds without passing every check. Branch ${config.pipeline.branchPrefix}${id} has the latest attempt.`,

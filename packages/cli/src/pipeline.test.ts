@@ -134,7 +134,12 @@ function setup(script: Record<string, Act>, options: { config?: AgentConfig; ini
       deps,
     );
   const pipelineText = () => readFileSync(join(dir, '.agents', 'logs', 'T1', PIPELINE_LOG), 'utf8');
-  return { run, b, runs, prompts, briefs, pipelineText, output: () => out };
+  /** Every FINISHED line (follow stops at the first one, so there must be exactly one per run). */
+  const finishedLines = () =>
+    pipelineText()
+      .split('\n')
+      .filter((l) => l.includes('=== FINISHED'));
+  return { run, b, runs, prompts, briefs, pipelineText, finishedLines, output: () => out };
 }
 
 describe('the pipeline loop', () => {
@@ -168,6 +173,7 @@ describe('the pipeline loop', () => {
     expect(log).toContain('round 1: reviewer APPROVED (final answer posted by the kit, exit 0)');
     expect(log).toContain('round 1: tester PASS (comment, exit 0)');
     expect(log.trim().split('\n').at(-1)).toMatch(/=== FINISHED PASS \(round 1\)/);
+    expect(t.finishedLines()).toHaveLength(1);
     expect(readFileSync(join(dir, '.agents', 'handoff', 'T1.md'), 'utf8')).toContain(
       'Run finished: PASS, rounds used 1.',
     );
@@ -216,6 +222,7 @@ describe('the pipeline loop', () => {
     // Blocked: the status stays where it was.
     expect(t.b.statuses.at(-1)).toBe('in review');
     expect(t.pipelineText()).toContain('round 1: reviewer gave no result');
+    expect(t.finishedLines()).toEqual([expect.stringMatching(/=== FINISHED NEEDS_HUMAN \(round 2\)/)]);
   });
 
   it('a result between two missing ones resets the count', async () => {
@@ -250,6 +257,7 @@ describe('the pipeline loop', () => {
     expect(t.b.statuses.at(-1)).toBe('Ready for Review');
     expect(t.b.notified[0]).toContain('2 rounds without passing every check');
     expect(t.b.notified[0]).toContain('- a.test.ts:1 - AC-2 still fails');
+    expect(t.finishedLines()).toEqual([expect.stringMatching(/=== FINISHED NEEDS_HUMAN \(round 2\)/)]);
   });
 
   it('a role reporting NEEDS_HUMAN stops at once; the status stays', async () => {
