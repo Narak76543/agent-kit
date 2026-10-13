@@ -35,7 +35,7 @@ If you cannot reach Figma (no Figma MCP tools, or they fail), stop as Blocked (`
 
 When the procedure says to invoke `coder`, `reviewer` or `tester`:
 
-1. Start the workspace custom subagent with that name (defined in `.agents/agents/<role>.md`).
+1. Start the workspace custom subagent with that name (defined in `.agents/agents/<role>/agent.md`).
    - Use workspace mode **inherit** (same working tree). Never `branch` or `share`: the work must land on
      the git branch `task/<taskId>` in this checkout.
    - Subagents start without your conversation history, so give them everything in the prompt: task ID,

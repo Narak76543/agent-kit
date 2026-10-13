@@ -42,7 +42,7 @@ describe('init with custom roles and skill scopes', () => {
       expect(existsSync(join(project.dir, '.opencode', 'agents', `${name}.md`))).toBe(true);
     }
     expect(existsSync(join(project.dir, '.opencode', 'agents', 'reviewer.md'))).toBe(false);
-    expect(read('.agents/agents/qa.md')).toContain('name: qa');
+    expect(read('.agents/agents/qa/agent.md')).toContain('name: qa');
     expect(read('.opencode/agents/orchestrator.md')).toContain('Invoke `manager` with task ID');
     expect(read('.opencode/agents/qa.md')).toContain('[AGENT: qa] [RESULT: PASS | FAIL]');
   });

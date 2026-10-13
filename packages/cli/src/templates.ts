@@ -111,9 +111,12 @@ export function kitFiles(
   });
   if (tools.has('antigravity')) {
     for (const name of ANTIGRAVITY_SKILLS) add(`.agents/${name}`, `antigravity/${name}`, all);
+    // Antigravity finds agents as .agents/agents/<name>/agent.md (https://antigravity.google/docs/cli/commands/agents).
+    // The orchestrator is the main agent for headless runs (agy -p … --agent orchestrator).
+    add(antigravityAgentPath('orchestrator'), 'antigravity/agents/orchestrator.md', all);
     for (const role of roles) {
       const wrapper = roleTemplate(role) === 'planner' ? 'reviewer' : roleTemplate(role);
-      add(`.agents/agents/${role.name}.md`, `antigravity/agents/${wrapper}.md`, {
+      add(antigravityAgentPath(role.name), `antigravity/agents/${wrapper}.md`, {
         ...all,
         ...roleVars(config, role, skills, all),
       });
@@ -124,6 +127,9 @@ export function kitFiles(
   for (const skill of skills.values()) if (skill.scope === 'team') files.push(...skillFiles(skill.name));
   return files;
 }
+
+/** Where Antigravity looks for a workspace agent. */
+export const antigravityAgentPath = (name: string) => `.agents/agents/${name}/agent.md`;
 
 /** Antigravity skills (`/start-task`, `/explore`), under `.agents/`. */
 const ANTIGRAVITY_SKILLS = ['skills/start-task/SKILL.md', 'skills/explore/SKILL.md'];

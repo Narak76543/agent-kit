@@ -75,10 +75,17 @@ describe('run --dry-run', () => {
     expect(r.out).toContain(`  $ node "fake agent/agent.js" "${taskPrompt('T1')}"`);
   });
 
-  it('says when no agent would start', async () => {
+  it('antigravity: shows the agy command, and what is missing on this machine', async () => {
     project = gitProject({ runner: 'antigravity' });
     const r = await run(project, ['--task', 'T1', '--dry-run']);
-    expect(r.out).toContain('runner "antigravity" has no headless mode');
+    expect(r.out).toContain(`  $ agy -p "${taskPrompt('T1')}" --agent orchestrator --print-timeout 120m`);
+    expect(r.out).toContain('warning: this folder is not a trusted Antigravity workspace');
+  });
+
+  it('says when no agent would start', async () => {
+    project = gitProject({ runner: 'opencode' });
+    const r = await run(project, ['--task', 'T1', '--dry-run', '--no-agent']);
+    expect(r.out).toContain('(no agent is started: --no-agent)');
   });
 });
 
@@ -155,10 +162,12 @@ describe('run --task', () => {
     expect(git(project, 'branch', '--show-current')).toBe('task/T1');
   });
 
-  it('prints Antigravity instructions instead of running', async () => {
+  it('antigravity: stops before changing anything when agy would refuse the commands', async () => {
     project = gitProject({ runner: 'antigravity' });
     const r = await run(project, ['--task', 'T1']);
-    expect(r.out).toContain('Open this project in Antigravity and run: /start-task T1');
+    expect(r.code).not.toBe(0);
+    expect(r.err).toContain('antigravity: this folder is not a trusted Antigravity workspace');
+    expect(git(project, 'branch', '--show-current')).toBe('main');
   });
 
   it('explains a missing base branch', async () => {

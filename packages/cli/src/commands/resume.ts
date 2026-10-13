@@ -35,7 +35,7 @@ export const RUNNER_FILES: Record<string, { tool: string; file: string } | undef
   opencode: { tool: 'opencode', file: '.opencode/agents/orchestrator.md' },
   'claude-code': { tool: 'claude-code', file: '.claude/agents/orchestrator.md' },
   codex: { tool: 'codex', file: '.codex/orchestrator.md' },
-  antigravity: { tool: 'antigravity', file: '.agents/skills/start-task/SKILL.md' },
+  antigravity: { tool: 'antigravity', file: '.agents/agents/orchestrator/agent.md' },
 };
 
 /** Statuses a resume may pick up: everything the agents own. "human" and closed statuses are never touched. */
@@ -109,7 +109,7 @@ export async function resumeTask(
     );
   }
   const previous = previousTool(readHandoff(ctx.cwd, id)) ?? 'an earlier run';
-  const adapter = adapterFor(config, project.env, ctx.exec, ctx.cwd, id);
+  const adapter = adapterFor(config, project.env, ctx.exec, ctx.cwd, id, ctx.home);
   const profile = opts.profile ?? null;
   const prompt = resumePrompt(id, previous, config.pipeline.baseBranch, profile?.profile.name);
   const command =
@@ -126,8 +126,12 @@ export async function resumeTask(
     log(`  ClickUp: comment "[AGENT: orchestrator] [RESULT: STARTED] … Resumed with ${runner} after ${previous}"`);
     if (profile) logProfile(log, profile);
     if (command) log(`  $ ${formatCommand(command)}`);
+    const problem = command ? adapter.preflight?.() : null;
+    if (problem) log(`  warning: ${problem}`);
     return;
   }
+  const problem = command ? adapter.preflight?.() : null;
+  if (problem) throw new KitError(`${adapter.name}: ${problem}`);
 
   // ---------- ClickUp status: only agent statuses ----------
   const task = await client!.getTask(id, { subtasks: false });

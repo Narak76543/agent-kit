@@ -2,7 +2,7 @@
 # AGENTS.md — rules for every AI agent in this repo
 
 This file is the single source of truth for any agent (OpenCode, Antigravity, Claude Code, or anything
-else). Tool-specific files (`.opencode/agents/*.md`, Antigravity's `.agents/agents/*.md` and `.agents/skills/`)
+else). Tool-specific files (`.opencode/agents/*.md`, Antigravity's `.agents/agents/*/agent.md` and `.agents/skills/`)
 only add role instructions on top of it. If they disagree with this file, this file wins.
 
 The part above the `<!-- PROJECT -->` marker is managed by the Tossana agent kit and is the same in every

@@ -35,7 +35,13 @@ import { MANAGED_TEXT } from '../templates.js';
 import { KIT_VERSION } from '../version.js';
 import { applyFigmaMcp, printFigmaResults, printMergeResults } from '../figma.js';
 import { createClient, type CliContext } from '../context.js';
-import { applyKitFiles, findMarker, migrateDraftsDir, printKitFileResults } from '../kit-files.js';
+import {
+  applyKitFiles,
+  findMarker,
+  migrateAntigravityAgents,
+  migrateDraftsDir,
+  printKitFileResults,
+} from '../kit-files.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
 import { templateVars } from '../template-vars.js';
 import { kitFiles, resolveRoleSkills, listSkills, readTemplate, render } from '../templates.js';
@@ -287,6 +293,7 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
   });
   const agentsMdFile = join(ctx.cwd, 'AGENTS.md');
   const unmarkedAgentsMd = existsSync(agentsMdFile) && findMarker(readFileSync(agentsMdFile, 'utf8')) < 0;
+  const relocated = migrateAntigravityAgents(ctx.cwd);
   const results = await applyKitFiles(ctx, kitFiles(config, vars, resolveRoleSkills(ctx.cwd, config)), {
     force: opts.force,
     prompts,
@@ -294,6 +301,7 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
   });
   log('\nKit files:');
   printKitFileResults(ctx, results);
+  for (const m of relocated) log(`  moved    ${m}`);
   const moved = migrateDraftsDir(ctx.cwd);
   if (moved) log(`  moved    ${moved} comment draft(s) from .agents/tmp/ to .tossana/tmp/`);
   printFigmaResults(ctx, applyFigmaMcp(ctx.cwd, config));

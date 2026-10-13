@@ -3,7 +3,7 @@
  * Later checks are skipped (not failed) when something they depend on is broken, so the
  * first ❌ is always the one to fix first.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { Command } from 'commander';
@@ -23,6 +23,7 @@ import {
   type KitEnv,
 } from '@tossana/agents-core';
 import { wrongAccountHint } from '../account-hint.js';
+import { agySettingsFile, antigravityRules, antigravityState, kitCommand } from '../antigravity.js';
 import { codexTrusted } from '../codex.js';
 import { figmaChecks } from '../figma.js';
 import { SilentExit, createClient, type CliContext } from '../context.js';
@@ -240,6 +241,9 @@ export async function runDoctor(ctx: CliContext): Promise<Check[]> {
     );
   }
 
+  // ---------- Antigravity (when it is one of the tools) ----------
+  if (config?.tools.includes('antigravity')) checks.push(...antigravityChecks(ctx, config));
+
   // ---------- Figma (optional) ----------
   if (config) checks.push(...(await figmaChecks(ctx.cwd, config, ctx.fetch ?? fetch)));
 
@@ -369,7 +373,74 @@ function runnerCheck(ctx: CliContext, config: AgentConfig, env: KitEnv): Check {
           fix: 'Add AGENT_CMD=... to .env, with {agent} and {prompt} placeholders.',
         };
   }
-  return { name: `Runner "${runner}"`, status: 'ok', detail: 'No headless runner; use /start-task in the IDE.' };
+  if (runner === 'antigravity') {
+    const v = versionOf(ctx.exec, 'agy', ctx.cwd);
+    return v
+      ? { name: `Antigravity CLI (agy) ${v}`, status: 'ok' }
+      : {
+          name: 'Antigravity CLI (agy) installed',
+          status: 'fail',
+          detail:
+            '`run` starts Antigravity headless with agy. (In the Antigravity app you can still type /start-task.)',
+          fix: 'Install the Antigravity CLI from https://antigravity.google, then run "agy" once in this folder to log in.',
+        };
+  }
+  return { name: `Runner "${runner}"`, status: 'ok' };
+}
+
+/**
+ * Antigravity: agents must be folders (.agents/agents/<name>/agent.md); for headless runs (agy) the folder must be a
+ * trusted workspace and the kit's permission rules must be in the user's agy settings. Problems fail only when
+ * Antigravity is the runner; otherwise they are warnings (the IDE asks before running commands).
+ */
+function antigravityChecks(ctx: CliContext, config: AgentConfig): Check[] {
+  const checks: Check[] = [];
+  const isRunner = config.pipeline.runner === 'antigravity';
+  const bad: CheckStatus = isRunner ? 'fail' : 'warn';
+  const dir = join(ctx.cwd, '.agents', 'agents');
+  const flat = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.md')) : [];
+  if (flat.length) {
+    checks.push({
+      name: 'Antigravity agents are folders (.agents/agents/<name>/agent.md)',
+      status: 'warn',
+      detail: `Old flat files: ${flat.join(', ')}. Antigravity documents only the folder layout.`,
+      fix: "Run: tossana-agents update (it moves the kit's own files). Move your own to <name>/agent.md.",
+    });
+  }
+  if (versionOf(ctx.exec, 'agy', ctx.cwd) === null) return checks;
+  const kitCmd = kitCommand(ctx.cwd);
+  const state = antigravityState(ctx.home, ctx.cwd, antigravityRules(config, kitCmd));
+  checks.push(
+    state.trusted
+      ? { name: 'Antigravity trusts this folder', status: 'ok' }
+      : {
+          name: 'Antigravity trusts this folder',
+          status: bad,
+          detail: 'agy does not load .agents/agents/ in folders it does not trust.',
+          fix: 'Run "agy" once in this folder and choose to trust it.',
+        },
+  );
+  checks.push(
+    !state.missing.length
+      ? { name: 'Antigravity allows the commands the agents need', status: 'ok' }
+      : {
+          name: 'Antigravity allows the commands the agents need',
+          status: bad,
+          detail:
+            `Headless agy quietly refuses commands that are not allowed. Missing in ${agySettingsFile('~')}:\n` +
+            state.missing.map((r) => `  ${r}`).join('\n'),
+          fix: `Run: ${kitCmd} antigravity permissions`,
+        },
+  );
+  if (state.tooBroad.length) {
+    checks.push({
+      name: 'Antigravity permission rules are narrow',
+      status: 'warn',
+      detail: `These rules also let agents run "git push" or any command: ${state.tooBroad.join(', ')}`,
+      fix: `Remove them from ${agySettingsFile('~')} (agents must never push).`,
+    });
+  }
+  return checks;
 }
 
 function claudeGuardCheck(cwd: string): Check {

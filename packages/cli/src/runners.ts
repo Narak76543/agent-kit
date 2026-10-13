@@ -6,6 +6,8 @@
 import { CLAUDE_RUN_SETTINGS } from './claude.js';
 import { CODEX_ORCHESTRATOR } from './codex.js';
 import { KitError, type AgentConfig, type KitEnv } from '@tossana/agents-core';
+import { homedir } from 'node:os';
+import { antigravityProblem, antigravityRules, antigravityState, kitCommand } from './antigravity.js';
 import { versionOf, type Exec } from './exec.js';
 
 export interface RunnerCommand {
@@ -15,11 +17,13 @@ export interface RunnerCommand {
 
 export interface RunnerAdapter {
   name: string;
-  /** false = no headless mode (Antigravity): `run` prints instructions instead. */
+  /** false = no headless mode: `run` prints instructions instead. */
   headless: boolean;
   isInstalled(): Promise<boolean>;
   buildCommand(opts: { agent: string; prompt: string; cwd: string }): RunnerCommand;
   installHint: string;
+  /** Why the agent cannot do its work on this machine yet (with the fix), or null. Checked before anything changes. */
+  preflight?(): string | null;
 }
 
 export const ORCHESTRATOR = 'orchestrator';
@@ -128,26 +132,48 @@ export function codexAdapter(exec: Exec, cwd: string): RunnerAdapter {
   };
 }
 
-export function antigravityAdapter(): RunnerAdapter {
+/**
+ * Antigravity CLI, headless: `agy -p <prompt> --agent orchestrator` (https://antigravity.google/docs/cli/headless).
+ * The orchestrator is `.agents/agents/orchestrator/agent.md`. No --dangerously-skip-permissions: the commands the agents
+ * need are allowed by narrow rules in the user's agy settings (see antigravity.ts); anything else is refused.
+ * --print-timeout: agy's own limit (5 minutes by default in print mode) set to the kit's run timeout.
+ */
+export function antigravityAdapter(
+  exec: Exec,
+  cwd: string,
+  options: { home: string; config: AgentConfig },
+): RunnerAdapter {
+  const kitCmd = kitCommand(cwd);
   return {
     name: 'antigravity',
-    headless: false,
-    isInstalled: async () => true,
-    buildCommand: () => {
-      throw new KitError('Antigravity has no headless runner');
-    },
-    installHint: '',
+    headless: true,
+    isInstalled: async () => versionOf(exec, 'agy', cwd) !== null,
+    buildCommand: ({ agent, prompt }) => ({
+      cmd: 'agy',
+      args: ['-p', prompt, '--agent', agent, '--print-timeout', `${options.config.pipeline.timeoutMinutes}m`],
+    }),
+    installHint:
+      'Install the Antigravity CLI (agy) from https://antigravity.google, run "agy" once in this folder to log in and trust it.',
+    preflight: () =>
+      antigravityProblem(antigravityState(options.home, cwd, antigravityRules(options.config, kitCmd)), kitCmd),
   };
 }
 
-export function adapterFor(config: AgentConfig, env: KitEnv, exec: Exec, cwd: string, taskId: string): RunnerAdapter {
+export function adapterFor(
+  config: AgentConfig,
+  env: KitEnv,
+  exec: Exec,
+  cwd: string,
+  taskId: string,
+  home: string = homedir(),
+): RunnerAdapter {
   switch (config.pipeline.runner) {
     case 'opencode':
       return opencodeAdapter(exec, cwd);
     case 'custom':
       return customAdapter(env.AGENT_CMD, taskId);
     case 'antigravity':
-      return antigravityAdapter();
+      return antigravityAdapter(exec, cwd, { home, config });
     case 'claude-code':
       return claudeCodeAdapter(exec, cwd);
     case 'codex':

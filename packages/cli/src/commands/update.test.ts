@@ -39,7 +39,7 @@ describe('update', () => {
     await initialized();
     const r = await cli(['update'], { cwd: project.dir });
     expect(r.out).toContain(`Kit files v${KIT_VERSION}:`);
-    expect(r.out).toContain('11 file(s) already up to date');
+    expect(r.out).toContain('12 file(s) already up to date');
   });
 
   it('updates files the person did not edit, and records the new version', async () => {
@@ -98,7 +98,7 @@ describe('update', () => {
     ]);
     expect(read('.opencode/agents/coder.md')).not.toContain('Local note.');
     r = await cli(['update'], { cwd: project.dir });
-    expect(r.out).toContain('11 file(s) already up to date');
+    expect(r.out).toContain('12 file(s) already up to date');
   });
 
   it('removes kit files that are no longer needed when the skill changes', async () => {

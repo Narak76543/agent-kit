@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import type { Command } from 'commander';
 import { detectPackageManager } from '@tossana/agents-core';
 import { loadProject, requireConfig, type CliContext } from '../context.js';
-import { applyKitFiles, migrateDraftsDir, printKitFileResults } from '../kit-files.js';
+import { applyKitFiles, migrateAntigravityAgents, migrateDraftsDir, printKitFileResults } from '../kit-files.js';
 import { readManifest } from '../kit-manifest.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
 import { applyClaudeSettings } from '../claude.js';
@@ -32,6 +32,7 @@ export function registerUpdateCommand(program: Command, ctx: CliContext, prompts
         cwd: ctx.cwd,
         packageManager: detectPackageManager(ctx.cwd),
       });
+      const relocated = migrateAntigravityAgents(ctx.cwd);
       const results = await applyKitFiles(ctx, kitFiles(config, vars, resolveRoleSkills(ctx.cwd, config)), {
         force: opts.force,
         prompts: ctx.io.interactive ? prompts : null,
@@ -39,6 +40,7 @@ export function registerUpdateCommand(program: Command, ctx: CliContext, prompts
       });
       ctx.logger.info(`Kit files ${before && before !== KIT_VERSION ? `v${before} → ` : ''}v${KIT_VERSION}:`);
       printKitFileResults(ctx, results);
+      for (const m of relocated) ctx.logger.info(`  moved    ${m}`);
       const moved = migrateDraftsDir(ctx.cwd);
       if (moved) ctx.logger.info(`  moved    ${moved} comment draft(s) from .agents/tmp/ to .tossana/tmp/`);
       printFigmaResults(ctx, applyFigmaMcp(ctx.cwd, config));

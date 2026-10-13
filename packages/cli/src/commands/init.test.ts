@@ -117,8 +117,8 @@ name: start-task
     ).toBe(true);
     expect(startTask).toContain('`npx tossana-agents run --task <taskId> --no-agent`');
     expect(startTask).toContain('Stop at "ready for narak"');
-    expect(read(project, '.agents/agents/reviewer.md')).not.toMatch(/write_to_file|replace_file_content/);
-    expect(read(project, '.agents/agents/tester.md')).toContain('`npx tossana-agents clickup status`');
+    expect(read(project, '.agents/agents/reviewer/agent.md')).not.toMatch(/write_to_file|replace_file_content/);
+    expect(read(project, '.agents/agents/tester/agent.md')).toContain('`npx tossana-agents clickup status`');
     const agents = read(project, 'AGENTS.md');
     expect(agents.startsWith(`<!-- ${MANAGED_TEXT(KIT_VERSION)} -->\n# AGENTS.md`)).toBe(true);
     expect(agents).toContain('**ready for narak**');
@@ -130,9 +130,10 @@ name: start-task
     const manifest = readManifest(project.dir)!;
     expect(manifest.kitVersion).toBe(KIT_VERSION);
     expect(Object.keys(manifest.files)).toEqual([
-      '.agents/agents/coder.md',
-      '.agents/agents/reviewer.md',
-      '.agents/agents/tester.md',
+      '.agents/agents/coder/agent.md',
+      '.agents/agents/orchestrator/agent.md',
+      '.agents/agents/reviewer/agent.md',
+      '.agents/agents/tester/agent.md',
       '.agents/skills/explore/SKILL.md',
       '.agents/skills/mobile-master/SKILL.md',
       '.agents/skills/start-task/SKILL.md',
@@ -153,7 +154,7 @@ name: start-task
     const r = await cli(['init', '--yes', '--no-doctor'], { cwd: project.dir, api: api() });
     expect(r.code).toBe(0);
     expect(snapshot(project.dir)).toEqual(before);
-    expect(r.out).toContain('11 file(s) already up to date');
+    expect(r.out).toContain('12 file(s) already up to date');
     expect(r.out).not.toContain('Wrote agent.config.json');
     expect(r.out).not.toContain('Updated .gitignore');
   });

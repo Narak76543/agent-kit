@@ -25,7 +25,7 @@ refuses a dirty tree and creates or switches to the branch). If that command fai
 
 When the procedure says to invoke `coder`, `reviewer` or `tester`:
 
-1. Start the workspace custom subagent with that name (defined in `.agents/agents/<role>.md`).
+1. Start the workspace custom subagent with that name (defined in `.agents/agents/<role>/agent.md`).
    - Use workspace mode **inherit** (same working tree). Never `branch` or `share`: the work must land on
      the git branch `{{pipeline.branchPrefix}}<taskId>` in this checkout.
    - Subagents start without your conversation history, so give them everything in the prompt: task ID,

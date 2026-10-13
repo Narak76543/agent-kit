@@ -150,6 +150,38 @@ export async function applyKitFiles(
 }
 
 /**
+ * Antigravity agents moved from flat files (.agents/agents/<name>.md) to .agents/agents/<name>/agent.md, the layout the
+ * Antigravity docs specify. Run before applyKitFiles: every flat file the kit wrote moves to the new path and its
+ * manifest entry follows it, so an untouched file is updated as usual and an edited one stays "edited locally"
+ * (kept unless --force, with a backup). Returns the moved paths. Files the kit did not write are left alone.
+ */
+export function migrateAntigravityAgents(cwd: string): string[] {
+  const manifest = readManifest(cwd);
+  if (!manifest) return [];
+  const moved: string[] = [];
+  const files: Record<string, string> = {};
+  for (const [path, hash] of Object.entries(manifest.files)) {
+    const m = /^\.agents\/agents\/([^/]+)\.md$/.exec(path);
+    if (!m) {
+      files[path] = hash;
+      continue;
+    }
+    const target = `.agents/agents/${m[1]}/agent.md`;
+    const from = projectPath(cwd, path);
+    const to = projectPath(cwd, target);
+    // Deleted by hand, or already at the new path: the old entry is just dropped.
+    if (!existsSync(from) || existsSync(to)) continue;
+    mkdirSync(dirname(to), { recursive: true });
+    renameSync(from, to);
+    files[target] = hash;
+    moved.push(`${path} → ${target}`);
+  }
+  manifest.files = files;
+  writeManifest(cwd, manifest);
+  return moved;
+}
+
+/**
  * Comment drafts moved from .agents/tmp/ to .tossana/tmp/ (Codex keeps .agents/ read-only in its sandbox).
  * Moves leftover drafts once; returns how many files moved.
  */
