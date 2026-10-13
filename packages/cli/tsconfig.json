@@ -4,5 +4,7 @@
     "noEmit": true,
     "customConditions": ["source"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Browser code of the Local Console: checked with DOM types by src/console/web/tsconfig.json.
+  "exclude": ["src/console/web"]
 }

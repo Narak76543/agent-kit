@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Local Console</title>
+    <link rel="icon" href="data:," />
+    <script nonce="__CSP_NONCE__">
+      try {
+        var t = localStorage.getItem('tossana-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    <style nonce="__CSP_NONCE__">
+      /*TOKENS*/
+      /*STYLES*/
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <div class="wrap">
+        <div class="top-row">
+          <div class="brand">
+            <span class="logo" aria-hidden="true">T</span>
+            <span class="title">Local Console</span>
+            <span class="project" id="project-name"></span>
+          </div>
+          <div class="top-right">
+            <span class="muted small" id="project-meta"></span>
+            <button type="button" class="chip" id="theme-toggle"></button>
+          </div>
+        </div>
+        <nav class="tabs" aria-label="Screens">
+          <button type="button" class="tab" data-tab="health">Project health</button>
+          <button type="button" class="tab" data-tab="tasks">My tasks</button>
+          <button type="button" class="tab" data-tab="run">
+            Live run <span class="dot" id="run-dot" hidden></span>
+          </button>
+        </nav>
+      </div>
+    </header>
+    <main class="wrap" id="main">
+      <section id="screen-health" class="screen" hidden></section>
+      <section id="screen-tasks" class="screen" hidden></section>
+      <section id="screen-run" class="screen" hidden></section>
+    </main>
+    <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+    <script nonce="__CSP_NONCE__">
+      /*SCRIPT*/
+    </script>
+  </body>
+</html>

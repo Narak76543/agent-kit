@@ -7,7 +7,7 @@ import { fakeApi, type FakeApi } from '../../core/src/clickup/fake-api.test-help
 import type { Exec, ExecResult } from './exec.js';
 import { runCli } from './program.js';
 
-export { fakeApi, json } from '../../core/src/clickup/fake-api.test-helper.js';
+export { fakeApi, json, type FakeApi } from '../../core/src/clickup/fake-api.test-helper.js';
 
 export const TOKEN = 'pk_12345678_TESTTOKENTESTTOKENTESTTOKEN';
 

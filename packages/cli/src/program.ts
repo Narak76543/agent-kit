@@ -7,6 +7,7 @@ import { registerGuardCommand } from './commands/guard.js';
 import { registerInitCommand } from './commands/init.js';
 import { registerRunCommand } from './commands/run.js';
 import { registerUpdateCommand } from './commands/update.js';
+import { registerUiCommand } from './console/command.js';
 import { SilentExit, createContext, type CliContext } from './context.js';
 import { KIT_VERSION } from './version.js';
 
@@ -31,6 +32,7 @@ export function createProgram(ctx: CliContext): Command {
   registerInitCommand(program, ctx, ctx.prompts);
   registerRunCommand(program, ctx);
   registerUpdateCommand(program, ctx, ctx.prompts);
+  registerUiCommand(program, ctx);
 
   // Subcommands share the parent's output and exit behaviour.
   const inherit = (cmd: Command) => {
