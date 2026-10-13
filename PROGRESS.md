@@ -12,7 +12,7 @@ Last updated: 2026-10-13 (Local Console screens 1–3; see "Next steps")
 | ------------------------- | ----------- | -------------------------------------------------------------------- |
 | 0 — Setup                 | ✅ Done     | CI written but never run (nothing pushed yet)                        |
 | 1 — Core                  | ✅ Done     | 168 tests; guard + protocol at 100% coverage                         |
-| 2 — CLI                   | 🟡 Built    | Only doctor's status check fails (list has no custom statuses)       |
+| 2 — CLI                   | ✅ Done     | doctor all ✅ against the real test list (2026-10-13)                |
 | 3 — Templates             | 🟡 Built    | 328 tests (with Figma); left: one real task, Antigravity check       |
 | 4 — Second project        | 🟡 Prepared | Next.js sample checked, no code changes needed; real project TBD     |
 | 5 — Dashboard             | 🟡 Started  | Board + timeline on sample data; no ClickUp, no login yet            |
@@ -154,21 +154,23 @@ State on 2026-10-12: Phases 0–3 built, Phase 6 docs written, Phase 4 checked o
 (preview on sample data), optional Figma support added. 328 tests, `pnpm check` green. Nothing is pushed.
 IDs of the personal test workspace are kept out of this repo on purpose (see the local notes, not git).
 
-1. **Real ClickUp test (blocker for everything below).** The user was logged in to the wrong ClickUp account when
-   making the statuses. In the account that owns the token in `D:\Ek-Mobile\.env`:
-   - Make a Space (or list) with the 6 statuses: to do, coding, in review, testing, ready for review (active),
-     done (closed). Steps: `docs/clickup-setup.md`. Check with `tossana-agents clickup statuses` — it must list all 6.
-   - Re-create the 5 test tasks in that list with `scripts/copy-test-data.ts` (create-tasks; `--dry-run` first).
-     The AppText task gets a **new task ID**.
-   - Run doctor read-only against the list (temp project, token only in the process environment). All ✅ →
-     mark Phase 2 done in the table above.
-2. **First real agent run (AppText task).**
-   - `init --yes --list <listId> --no-figma` in `D:\Ek-Mobile-test` (git clone of `D:\Ek-Mobile`; never touch the
-     original). Pass the token only through the process environment; init writes it to the clone's git-ignored
-     `.env`. Then `pnpm install` there and commit the kit files in the clone.
+1. ✅ **Real ClickUp test (done 2026-10-13).** Space "Agent Test" in the token's account, with to do / coding, in
+   review, testing, ready for review / done (done group) / complete (closed). Both "done" and "complete" are refused
+   by the Done guard twice (name and ClickUp type). The list is still named "List" in the API (the rename to
+   "EKMONG Test" did not take; harmless). Read-only doctor against it: all ClickUp checks ✅. The 5 test tasks were
+   re-created there (status "to do", **no assignee**; new IDs, kept out of the repo).
+2. **First real agent run (AppText task).** Ready (2026-10-13):
+   - Done: the kit is installed in `D:\Ek-Mobile-test` from the packed tarball (`vendor/tossana-agents-0.1.0.tgz`,
+     `pnpm add -D`), `init --yes --list <listId> --tools opencode --no-figma`, `pnpm install`, kit files committed in
+     the clone. Doctor there: 14 ✅. `.env` (git-ignored) has the token and `CLICKUP_OWNER_USER_ID` of the second
+     test member (Antiz Perfect), so the Ready for Review / Needs-human notifications go to that account.
+   - Note: init only saves the token when it asks for it (interactive), so with `--yes` the `.env` was written first.
+   - Note: the tasks have no assignee, so "My tasks" in the Local Console and `run --next/--all` show nothing until
+     the tasks are assigned to the token's user; `run --task <id>` works either way.
    - The user runs it and watches: `npx tossana-agents run --task <AppText task ID>` in `D:\Ek-Mobile-test`
-     (`--dry-run` first). Expect statuses to move coding → in review → testing → ready for review, one comment per
-     step, a branch `task/<id>`, and never Done. Log: `.agents/logs/`.
+     (`--dry-run` first), or from the Local Console (`npx tossana-agents ui`). Expect statuses to move coding → in
+     review → testing → ready for review, one comment per step, a branch `task/<id>`, and never Done. Log:
+     `.agents/logs/`.
    - Write down what went wrong (prompts, permissions, timeouts) and fix the templates.
 3. **Antigravity check** (someone with Antigravity): steps in `docs/antigravity.md` → "Check the subagent tool
    names". The `tools` names in `packages/templates/antigravity/agents/*.md` are unverified (only 4 of 9 are in the
