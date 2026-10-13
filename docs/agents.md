@@ -94,12 +94,16 @@ To post a comment, an agent writes the text to `.tossana/tmp/<taskId>-<agent>.md
 Do not edit the agent files by hand: `tossana-agents update` would ask to replace them. Put project rules in
 `AGENTS.md` below `<!-- PROJECT -->` instead.
 
-## Custom roles (optional)
+## Custom roles (advanced, off by default)
 
-By default the pipeline is coder → reviewer → tester. A project can list its own roles, in order, in
-`agent.config.json`:
+The pipeline is fixed: orchestrator → coder → reviewer → tester → ready for review. To change what an agent knows,
+change its **skills** instead (see "Customize your agents" in [getting-started.md](./getting-started.md)).
+
+Only if a project really needs its own roles or order, switch on the advanced option and list the roles in
+`agent.config.json`. The locked rules still apply to every role.
 
 ```json
+"advanced": { "customRoles": true },
 "roles": [
   { "name": "manager", "preset": "read-only", "purpose": "Split the task into small steps." },
   { "name": "coder", "preset": "edit-code", "skills": ["frontend-master", "our-api"] },

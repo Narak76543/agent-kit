@@ -535,3 +535,26 @@ resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner comma
 - **Follow-up:** `run --no-agent` (called by /start-task) records "Run started with <pipeline.runner>", so an
   Antigravity session was labeled OpenCode ([BY: OpenCode], "Resumed … after opencode"). /start-task should pass
   `--runner antigravity`, and `--no-agent` without `--runner` should not name a tool.
+
+### Default agents, per-agent skills, locked pipeline (2026-10-13, branch `feat/default-agents`)
+
+- Product decision: the pipeline is fixed (orchestrator → coder → reviewer → tester → ready for review); people change
+  what each agent knows (skills), not the roles. Locked rules unchanged.
+- **Config:** `"agents": { "coder"|"reviewer"|"tester": { "skills": [...] } }` (strict). Custom `roles` only with
+  `"advanced": { "customRoles": true }` (off by default; the error names the fix). `update`/`init` add that flag to
+  older configs that already use `roles`, so they keep working.
+- **Defaults** (`defaultAgentSkills` in core): coder = project.skill; reviewer = `review-checklist` + project.skill;
+  tester = the stack's testing skill (`testing-react-native`, `testing-flutter`, `testing-web` for nextjs/react,
+  `testing-node`; none for `other`). The tester template now names its skill (`role.skillRead`).
+- **New team skills** (drafted, review welcome): `review-checklist`, `testing-react-native`, `testing-flutter`,
+  `testing-web`, `testing-node`. The four `*-master` skills are still placeholders (skills folder never provided).
+- **update keeps edits:** the kit manifest records the defaults it wrote (`agentDefaults`). A role still equal to
+  them gets the new defaults; an edited role is kept and reported with the new default; a project from before
+  `agents` is treated as having the old implicit defaults (stack skill for coder and reviewer).
+- **CLI:** `agents skills [role] [add|remove <skill> | reset]`, `skills [list]`, `skills customize <skill>` (team
+  copy becomes the project's own: no managed header, out of the manifest, so it wins and update keeps it),
+  `skills reset <skill>` (project copy to `.agents/kit/backup/…`, team copy written again). Every change refreshes the
+  agent files through the same code as `update` (`updateProject`).
+- Agent profiles unchanged: their skills are added for the coder and reviewer on top of the per-agent skills.
+- Not in this change: per-agent skill editing in the Local Console (lives on `feature/console-design`).
+- Tests: 14 new (481+ total); goldens: reviewer/tester now name their skills, new skill folders per case.

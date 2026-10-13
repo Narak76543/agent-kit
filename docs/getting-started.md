@@ -179,6 +179,51 @@ Good to know:
 - Your ClickUp token never goes to the browser.
 - Only one run per project at a time, from the console or from the terminal.
 
+## Customize your agents
+
+Every project has the same pipeline: **orchestrator → coder → reviewer → tester → ready for review**. It is fixed,
+and so are the rules (agents never set Done and never push). What you change is what each agent **knows**: its
+skills.
+
+`init` gives each agent the default skills for your project type and writes them to `agent.config.json`:
+
+```json
+"agents": {
+  "coder":    { "skills": ["mobile-master"] },
+  "reviewer": { "skills": ["review-checklist", "mobile-master"] },
+  "tester":   { "skills": ["testing-react-native"] }
+}
+```
+
+| Project type  | coder           | reviewer                          | tester               |
+| ------------- | --------------- | --------------------------------- | -------------------- |
+| react-native  | mobile-master   | review-checklist, mobile-master   | testing-react-native |
+| flutter       | flutter-master  | review-checklist, flutter-master  | testing-flutter      |
+| nextjs, react | frontend-master | review-checklist, frontend-master | testing-web          |
+| node-backend  | backend-master  | review-checklist, backend-master  | testing-node         |
+
+Change one agent at a time (the agent files are updated at once; commit `agent.config.json`):
+
+```powershell
+npx tossana-agents agents skills                          # what each agent uses
+npx tossana-agents agents skills coder add ekmong-i18n     # a skill of your own in .agents/skills/ekmong-i18n/
+npx tossana-agents agents skills reviewer remove mobile-master
+npx tossana-agents agents skills reviewer reset           # back to the defaults
+npx tossana-agents skills                                 # every skill, and who uses it
+```
+
+To change a **team skill** for this project only, copy it into the project and edit the copy:
+
+```powershell
+npx tossana-agents skills customize review-checklist     # now .agents/skills/review-checklist/ is yours
+npx tossana-agents skills reset review-checklist         # back to the team version (your copy is backed up)
+```
+
+Your copy wins over the team version, and `update` never overwrites it. `update` also keeps the skills you chose
+per agent: only agents still on the defaults get new default skills, and it lists what changed.
+
+Agent profiles (below) use these skills too: a profile's skills are added for the coder and the reviewer.
+
 ## Agent profiles: "who works on this task"
 
 An agent profile is a named agent, for example **Rei – Mobile** or **Joe – Backend**:
