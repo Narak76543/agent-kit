@@ -514,3 +514,7 @@ resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner comma
   agent files in `.tossana/tmp/agy-check.json`; `run --runner antigravity` runs it first when stale (dry runs do
   not); doctor shows it without starting agy.
 - Tests: 7 new (468 total).
+- Found while preparing the second real run: the failed run had left `task/z8qu5d3jkp` with no commits of its own,
+  pointing at the old main (old agent files with `command_status`). `run` reuses an existing task branch as it is, so
+  a kit update on main does not reach it; it was fast-forwarded to main by hand (lossless: no own commits).
+  **Follow-up:** let `run` fast-forward a task branch that has no own commits and is behind the base branch.
