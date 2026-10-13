@@ -478,3 +478,26 @@ resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner comma
   `run --agent` (dry run, handoff, staged skills, prompt, runner override, missing skill/unknown agent/tool not set
   up), resume with an agent, comment stamping, console Agents API (confirmations, secrets, personal folder, skills,
   run with a fallback tool, remembered choice).
+
+### Antigravity CLI (agy): agent folders and a real run adapter (2026-10-13, branch `fix/antigravity-agents`)
+
+- Found on the user's machine: Antigravity CLI 1.3.3 (`agy`) documents agents as
+  `.agents/agents/<name>/agent.md` (workspace) and `~/.gemini/config/agents/<name>/agent.md` (global). The kit wrote
+  flat files. Checked with `agy agents`: 1.3.3 also lists flat files, **but only in a trusted folder**; the real
+  reason `D:\Ek-Mobile-test` showed no kit agents was that it was set up with `tools: ["opencode"]` only.
+- Generator: `.agents/agents/<role>/agent.md` + a new main agent `.agents/agents/orchestrator/agent.md`
+  (`mainAgent: true`, `subagent: false`, tools include `invoke_subagent`; it follows `/start-task`).
+  `init`/`update` move old flat kit files and their manifest entries (`migrateAntigravityAgents`); edited files stay
+  "edited locally", files the kit did not write are left alone (doctor warns about them).
+- Run adapter `antigravity` is now headless: `agy -p <prompt> --agent orchestrator --print-timeout <timeout>m`
+  (https://antigravity.google/docs/cli/headless). Before anything changes it checks (`preflight`, also shown in
+  dry runs and in doctor): the folder is in `trustedWorkspaces`, and the kit's allow rules are in
+  `~/.gemini/antigravity-cli/settings.json`. Headless agy soft-denies unapproved commands (exit 0), and agy only
+  reads rules from that global file. New command `tossana-agents antigravity permissions [--yes]` adds narrow rules
+  (kit `clickup`, read-only git, `git add`, `git commit -m`, project lint/typecheck/test) after a confirmation, with a
+  backup. No `--dangerously-skip-permissions`, no deny rules written (they would be global and break the user's
+  other projects); doctor warns about broad rules (`command(*)`, `command(git)`, `git push`).
+- Not verified yet: the tool names in the agent files other than the documented ones (`view_file`,
+  `replace_file_content`, `grep_search`, `run_command`, `invoke_subagent`); a wrong name can hang a subagent. The
+  first real agy run will show it.
+- Tests: 9 new (461 total, PowerShell e2e included).

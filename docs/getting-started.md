@@ -73,7 +73,7 @@ npx tossana-agents init
 | `.env`                               | Your token. **Never commit it.** `init` adds it to .gitignore.    |
 | `AGENTS.md`                          | Rules for all agents. Add project notes below `<!-- PROJECT -->`. |
 | `.opencode/agents/*.md`              | The four OpenCode agents.                                         |
-| `.agents/skills/`, `.agents/agents/` | Antigravity skills and subagents, and the coding skill.           |
+| `.agents/skills/`, `.agents/agents/` | Antigravity skills and agents (`<name>/agent.md`), coding skill.  |
 
 Commit the new files (not `.env`):
 
