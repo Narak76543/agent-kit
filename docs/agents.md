@@ -1,25 +1,32 @@
 # How the agents work
 
-## The four agents
+## The agents
 
-| Agent            | Job                                                                        | May edit                                 |
-| ---------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
-| **orchestrator** | Runs one task from start to end. Calls the others. Sets statuses.          | Only its comment file                    |
-| **coder**        | Writes the code on branch `task/<taskId>` and commits.                     | Project code (not kit files, not `.env`) |
-| **reviewer**     | Reads the diff and checks it against the task, specs and `AGENTS.md`.      | Nothing (read only)                      |
-| **tester**       | Runs lint, type check and tests. Writes tests for the acceptance criteria. | Test files only                          |
+| Agent            | Job                                                                         | May edit                                 |
+| ---------------- | --------------------------------------------------------------------------- | ---------------------------------------- |
+| **coder**        | Writes the code on branch `task/<taskId>` and commits.                      | Project code (not kit files, not `.env`) |
+| **reviewer**     | Reads the diff and checks it against the task, specs and `AGENTS.md`.       | Nothing (read only)                      |
+| **tester**       | Runs lint, type check and tests. Writes tests for the acceptance criteria.  | Test files only                          |
+| **orchestrator** | Optional: runs the roles as subagents (`/start-task`, `--ai-orchestrator`). | Only its comment file                    |
 
-The agent files are in `.opencode/agents/` (OpenCode) and `.agents/agents/` (Antigravity).
-The rules for all agents are in `AGENTS.md`.
+The agent files are in `.opencode/agents/` (OpenCode), `.agents/agents/` (Antigravity), `.claude/agents/` (Claude
+Code) and `.codex/agents/` (Codex). The rules for all agents are in `AGENTS.md`.
+
+Every role is a **top-level agent**: it shows in `agy agents` / `/agents` and can be started on its own
+(`agy --agent coder`, `opencode run --agent coder`, `claude --agent coder`). It is still a subagent too, so
+`/start-task` in the IDE works as before.
 
 ## One task, step by step
 
+`run` and `watch` run the pipeline **in the kit's code**. Each role is a separate headless agent, started one after
+the other, so the order is always the same and you can watch each one.
+
 ```
-run --task 86abc  →  branch task/86abc  →  orchestrator
+run --task 86abc  →  branch task/86abc  →  the kit
                                               │
           ┌───────────────────────────────────┘
           ▼
-  round 1..5:  coder ──► reviewer ──► tester
+  round 1..5:  coder ──► reviewer ──► tester        (each one its own agent and its own log)
                  ▲          │            │
                  └── CHANGES_NEEDED      │
                  └────────────────── FAIL
@@ -28,15 +35,69 @@ run --task 86abc  →  branch task/86abc  →  orchestrator
                               status "ready for review" + notify
 ```
 
-1. The orchestrator reads the task, its comments and the handoff file. It posts `STARTED` and sets **coding**.
-2. **Coder** writes code and commits. Result: `DONE_CODING`.
-3. Status **in review**. **Reviewer** checks. `CHANGES_NEEDED` → back to the coder with the issues.
-4. Status **testing**. **Tester** runs the checks. `FAIL` → back to the coder with the issues.
-5. `APPROVED` and `PASS` in the same round → status **ready for review**, comment `PASS`, notification to the owner.
-6. After 5 rounds without success → status **ready for review**, comment `NEEDS_HUMAN` with what keeps failing.
-7. If something is missing or broken (no access, unclear task) → comment `NEEDS_HUMAN`, status unchanged, stop.
+1. The kit posts `STARTED` and sets **coding**.
+2. It writes a **brief** for the role (`.tossana/tmp/<taskId>-r<round>-<role>-brief.md`: task, round, the issues
+   to fix, the owner's feedback) and starts the role, e.g. `agy -p "You are the coder for ClickUp task 86abc,
+round 1. Read your brief first: …" --agent coder`.
+3. **Coder** writes code and commits. Result: `DONE_CODING`.
+4. Status **in review**. **Reviewer** checks. `CHANGES_NEEDED` → next round, back to the coder with the issues.
+5. Status **testing**. **Tester** runs the checks. `FAIL` → next round, back to the coder with the issues.
+6. `APPROVED` and `PASS` in the same round → status **ready for review**, comment `PASS`, notification to the owner.
+7. After 5 rounds without success → status **ready for review**, comment `NEEDS_HUMAN` with what keeps failing.
+8. A role reports `NEEDS_HUMAN` (missing information, broken environment) → comment `NEEDS_HUMAN`, status unchanged,
+   stop.
 
-The number of rounds is `pipeline.maxRounds` in `agent.config.json` (default 5).
+The number of rounds is `pipeline.maxRounds` in `agent.config.json` (default 5). `pipeline.timeoutMinutes` (default 120) is the limit for each agent.
+
+**How the kit reads a role's result**, in this order:
+
+1. the role's ClickUp comment posted while it ran;
+2. otherwise its comment draft `.tossana/tmp/<taskId>-<role>.md`, which the kit posts;
+3. otherwise the `[AGENT: …] [RESULT: …]` report in its final answer, which the kit posts (the Antigravity and Codex
+   reviewers cannot write files, so this is their normal way).
+
+**Rules the kit applies:**
+
+- **No result** from a role (none of the three) = a failed round: the next round starts at the coder.
+- **The same role without a result twice in a row** = stop with `NEEDS_HUMAN` (the remaining rounds are not used).
+- **No new commit from the coder**, or uncommitted changes left by the coder or tester = a failed round, with that
+  as the issue for the next round.
+
+The agents never set a ClickUp status; the kit does.
+
+**Resume** (`run --task <id> --resume`, or `watch` after Ctrl+C): the kit reads the comments and continues after
+the last role that reported. A role that was stopped before it reported runs again. Feedback from the owner
+(`feedback`, or a comment picked up by `watch`) starts a new round at the coder.
+
+**The AI orchestrator** is still there: `run --ai-orchestrator` (and `watch --ai-orchestrator`) start the
+orchestrator agent, which calls the roles as subagents in one process, as before. `/start-task` in the IDE works
+that way too.
+
+## Watching the agents
+
+Every role has its own log, in the project's main folder (also when the task runs in a worktree):
+
+| File                                         | What                                                          |
+| -------------------------------------------- | ------------------------------------------------------------- |
+| `.agents/logs/<taskId>/<round>-<role>.log`   | What the agent did: its text, each command or file it used    |
+| `.agents/logs/<taskId>/<round>-<role>.jsonl` | The raw events (Antigravity and Claude Code only)             |
+| `.agents/logs/<taskId>/pipeline.log`         | The kit's lines: statuses, each result, decisions, `FINISHED` |
+
+Watch them live, from the project folder, while `run` or `watch` works:
+
+```
+npx tossana-agents follow <taskId>                  # everything, lines prefixed [kit], [r1 coder], [r1 reviewer] …
+npx tossana-agents follow <taskId> --role coder     # only the coder, round after round
+npx tossana-agents follow <taskId> --split          # one terminal per role
+```
+
+- `follow` waits for the run to start and stops when the pipeline finishes. Ctrl+C stops only `follow`, never the
+  agents.
+- `--split` opens panes in **iTerm2** and **Windows Terminal**, and one window per role in **macOS Terminal**. In
+  any other terminal it prints the commands; open a terminal for each.
+- Antigravity and Claude Code only print their final answer in text mode, so the kit runs them with
+  `--output-format stream-json` and turns the events into readable lines. If a tool changes its event format, the
+  raw lines are shown instead; nothing is lost.
 
 ## The comment format
 
@@ -50,12 +111,12 @@ Issues:
 Next: <agent name | human>
 ```
 
-| Agent        | RESULT values              |
-| ------------ | -------------------------- |
-| orchestrator | STARTED, PASS, NEEDS_HUMAN |
-| coder        | DONE_CODING                |
-| reviewer     | APPROVED, CHANGES_NEEDED   |
-| tester       | PASS, FAIL                 |
+| Agent        | RESULT values                                  |
+| ------------ | ---------------------------------------------- |
+| orchestrator | STARTED, PASS, NEEDS_HUMAN (posted by the kit) |
+| coder        | DONE_CODING                                    |
+| reviewer     | APPROVED, CHANGES_NEEDED                       |
+| tester       | PASS, FAIL                                     |
 
 Programs (like the team dashboard) read these comments, so the first line must be exact.
 

@@ -119,10 +119,13 @@ What `run` does:
 
 1. Checks that your git tree is clean (commit or stash your work first).
 2. Creates the branch `task/<taskId>` from `main`.
-3. Starts the orchestrator agent in OpenCode. You see its output in the terminal.
+3. Runs the pipeline: the coder, then the reviewer, then the tester, each as its own agent (in OpenCode by default),
+   for up to 5 rounds. You see their output in the terminal.
 4. When the agents finish, switches back to `main`. The work stays on `task/<taskId>`.
 
-A full log is saved in `.agents/logs/`. Press Ctrl+C to stop.
+Each role has its own log in `.agents/logs/<taskId>/`. To watch one agent per terminal, run
+`npx tossana-agents follow <taskId> --split` (or `follow <taskId> --role coder`) in another terminal. See
+[How the agents work](./agents.md#watching-the-agents). Press Ctrl+C to stop.
 
 Other ways to run:
 

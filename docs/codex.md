@@ -26,8 +26,8 @@ prints the lines to add.
   `allow` rules, so they run outside the sandbox. `git push`, `git reset`, `rebase`, `merge`, `checkout`, `switch`,
   `commit --amend` and deleting branches are `forbidden`. The kit's ClickUp command itself refuses Done.
 - **Per role:** Codex rules apply to the whole project, so "tester edits test files only" is only an instruction
-  there (like in Antigravity). The reviewer and planners are really read-only (their sandbox is `read-only`); the
-  orchestrator posts their comments for them.
+  there (like in Antigravity). The reviewer and planners are really read-only (their sandbox is `read-only`); the kit
+  (or the orchestrator) posts their comments for them.
 
 ## Run a task
 
@@ -35,6 +35,8 @@ prints the lines to add.
 npx tossana-agents run --task <taskId>
 ```
 
-With `runner: "codex"` this starts `codex exec --sandbox workspace-write -c approval_policy=never "<task> You are
-the orchestrator: read .codex/orchestrator.md …"`. Nothing waits for approval: a command that is not allowed fails
+With `runner: "codex"` the kit starts each role on its own. Codex has no `--agent` flag, so the prompt points at the
+role's file: `codex exec --sandbox workspace-write -c approval_policy=never "You are the coder for ClickUp task …
+Your role instructions are the developer_instructions in .codex/agents/coder.toml …"`. The reviewer gets
+`--sandbox read-only`. With `--ai-orchestrator` the prompt points at `.codex/orchestrator.md` instead. Nothing waits for approval: a command that is not allowed fails
 and the agent reports it.

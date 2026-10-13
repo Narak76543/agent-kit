@@ -33,8 +33,10 @@ nobody pushes or sets Done). A blocked call shows `BLOCKED by the Tossana agent 
 npx tossana-agents run --task <taskId>
 ```
 
-With `runner: "claude-code"` this starts
-`claude -p "<task>" --agent orchestrator --permission-mode dontAsk --settings .claude/tossana-run.settings.json`.
+With `runner: "claude-code"` the kit starts each role on its own:
+`claude -p "<prompt>" --agent coder --permission-mode dontAsk --settings .claude/tossana-run.settings.json
+--output-format stream-json --verbose`, then the reviewer and the tester. With `--ai-orchestrator` it starts
+`--agent orchestrator` instead.
 `dontAsk` means anything not allowed is refused instead of asking, so a run never waits for you.
 
 You can also work interactively: `claude --agent orchestrator`, then "Work on ClickUp task <taskId>". The guard

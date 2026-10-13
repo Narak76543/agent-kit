@@ -10,14 +10,14 @@ The agents follow the same rules and post the same ClickUp comments as in OpenCo
 
 ## What `init` adds for Antigravity
 
-| File                                                       | What it is                                                    |
-| ---------------------------------------------------------- | ------------------------------------------------------------- |
-| `AGENTS.md`                                                | Rules for all agents. Antigravity reads it automatically.     |
-| `.agents/skills/start-task/SKILL.md`                       | The `/start-task <taskId>` command (runs one task)            |
-| `.agents/skills/explore/SKILL.md`                          | The `/explore` command (refresh specs and the project notes)  |
-| `.agents/skills/<skill>/SKILL.md`                          | The coding skill for this project type                        |
-| `.agents/agents/<role>/agent.md` (coder, reviewer, tester) | Subagents. They follow `.opencode/agents/<role>.md`.          |
-| `.agents/agents/orchestrator/agent.md`                     | The main agent for headless runs (`agy --agent orchestrator`) |
+| File                                                       | What it is                                                   |
+| ---------------------------------------------------------- | ------------------------------------------------------------ |
+| `AGENTS.md`                                                | Rules for all agents. Antigravity reads it automatically.    |
+| `.agents/skills/start-task/SKILL.md`                       | The `/start-task <taskId>` command (runs one task)           |
+| `.agents/skills/explore/SKILL.md`                          | The `/explore` command (refresh specs and the project notes) |
+| `.agents/skills/<skill>/SKILL.md`                          | The coding skill for this project type                       |
+| `.agents/agents/<role>/agent.md` (coder, reviewer, tester) | Subagents. They follow `.opencode/agents/<role>.md`.         |
+| `.agents/agents/orchestrator/agent.md`                     | The orchestrator for `/start-task` and `--ai-orchestrator`   |
 
 There is one copy of each role's instructions (in `.opencode/agents/`). The Antigravity files only point to
 them, so both tools always do the same thing.
@@ -59,8 +59,11 @@ npx tossana-agents run --task <taskId> --runner antigravity --dry-run
 npx tossana-agents run --task <taskId> --runner antigravity
 ```
 
-The kit prepares the branch, then runs `agy -p "<prompt>" --agent orchestrator --print-timeout <minutes>m`. It
-does not use `--dangerously-skip-permissions`. If doctor finds rules like `command(git)` or `command(*)` in your
+The kit prepares the branch, then starts each role on its own:
+`agy -p "<prompt>" --agent coder --add-dir <folder> --print-timeout <minutes>m --output-format stream-json`, then
+the reviewer and the tester (see [How the agents work](./agents.md)). With `--ai-orchestrator` it starts
+`--agent orchestrator` instead, which calls the roles as subagents. It does not use
+`--dangerously-skip-permissions`. If doctor finds rules like `command(git)` or `command(*)` in your
 agy settings, remove them: they would let an agent push.
 
 ## Run a task in the app (/start-task)
