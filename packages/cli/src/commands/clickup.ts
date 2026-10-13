@@ -2,7 +2,7 @@
  * `tossana-agents clickup …`: the only way agents talk to ClickUp. Ported from
  * EKMONG_MOBILE scripts/clickup.ts; `status` now takes role names instead of raw status names.
  */
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import type { Command } from 'commander';
 import {
@@ -13,7 +13,6 @@ import {
   ROLES,
   appendHandoff,
   canAgentSet,
-  docsSettings,
   isRole,
   isValidTaskId,
   profileLabel,
@@ -21,12 +20,14 @@ import {
   statusForRole,
   withBy,
   type ClickUpClient,
-  type ClickUpDocPage,
   type Role,
 } from '@tossana/agents-core';
 import { wrongAccountHint } from '../account-hint.js';
 import { createClient, loadProject, requireConfig, type CliContext, type Project } from '../context.js';
 import { lastRun } from './resume.js';
+import { syncDocs } from '../task-context.js';
+
+export { collectDocFiles, pageMarkdown } from '../task-context.js';
 
 interface TextOptions {
   file?: string;
@@ -204,23 +205,12 @@ export function registerClickupCommands(program: Command, ctx: CliContext): void
     });
 
   cu.command('sync-docs')
-    .description('pull ClickUp Docs (clickup.docs.ids) into markdown files the agents can read')
+    .description('pull ClickUp Docs (clickup.docs.ids) into markdown files the agents can read (only changed pages)')
     .action(async () => {
       const { project, client } = setup();
-      const { ids, outDir } = docsSettings(project.config, project.env);
-      if (!ids.length) throw new KitError('no ClickUp Doc IDs: set clickup.docs.ids in agent.config.json');
-      const files = collectDocFiles(await Promise.all(ids.map((id) => client.getDocPages(id))));
-      // Only replace the folder after every download succeeded.
-      const out = resolve(ctx.cwd, outDir);
-      rmSync(out, { recursive: true, force: true });
-      mkdirSync(out, { recursive: true });
-      for (const f of files) writeFileSync(join(out, f.file), f.content);
-      writeFileSync(
-        join(out, 'INDEX.md'),
-        `# ClickUp docs (synced ${ctx.now().toISOString()})\n\nDo not edit by hand. Run: tossana-agents clickup sync-docs\n\n` +
-          `${files.map((f) => `- [${f.name}](./${f.file})`).join('\n')}\n`,
-      );
-      print(`OK: synced ${files.length} pages into ${outDir}/`);
+      const result = await syncDocs(ctx.cwd, project.config, project.env, client);
+      if (!result) throw new KitError('no ClickUp Doc IDs: set clickup.docs.ids in agent.config.json');
+      print(`OK: ${result.pages} pages in ${result.outDir}/ (${result.written} updated, ${result.removed} removed)`);
     });
 }
 
@@ -258,42 +248,6 @@ async function listTasks(
 
 function statusName(project: Project, role: Role): string {
   return project.config ? statusForRole(project.config, role) : DEFAULT_STATUSES[role];
-}
-
-/**
- * A page as a Markdown file. Adds `# <page name>` only when the content does not already start with a
- * heading, so a page that was uploaded from a synced file (which has its own heading) is not doubled.
- */
-export function pageMarkdown(name: string, content: string): string {
-  const body = content.charCodeAt(0) === 0xfeff ? content.slice(1) : content;
-  if (/^\s*#{1,6}\s/.test(body)) return `${body.trimEnd()}\n`;
-  return `# ${name}\n\n${body.trimEnd()}\n`.replace(/\n\n\n$/, '\n');
-}
-
-/** Flattens nested Doc pages into files; skips deleted and archived pages. */
-export function collectDocFiles(docs: ClickUpDocPage[][]): { file: string; name: string; content: string }[] {
-  const slug = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 80);
-  const files: { file: string; name: string; content: string }[] = [];
-  const used = new Set<string>();
-  const walk = (pages: ClickUpDocPage[], prefix: string) => {
-    for (const p of pages) {
-      if (p.deleted || p.archived) continue;
-      const name = p.name || p.id;
-      const base = `${prefix}${slug(name) || p.id}`;
-      let file = `${base}.md`;
-      for (let n = 2; used.has(file); n++) file = `${base}-${n}.md`;
-      used.add(file);
-      files.push({ file, name, content: pageMarkdown(name, p.content ?? '') });
-      if (p.pages?.length) walk(p.pages, `${base}__`);
-    }
-  };
-  for (const pages of docs) walk(pages, '');
-  return files;
 }
 
 /** Agents write comment text to .tossana/tmp/ (no shell quoting); remove it once it has been used. */

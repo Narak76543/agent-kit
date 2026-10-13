@@ -106,7 +106,7 @@ describe('init --yes', () => {
     expect(read(project, '.env')).toBe(`CLICKUP_API_TOKEN=${TOKEN}\nCLICKUP_OWNER_USER_ID=777\n`);
     expect(read(project, '.env.example')).toContain('CLICKUP_API_TOKEN=\n');
     expect(read(project, '.gitignore')).toContain(
-      '.env\n.env.*\n!.env.example\n.agents/handoff/\n.agents/logs/\n.tossana/tmp/',
+      '.env\n.env.*\n!.env.example\n.agents/handoff/\n.agents/logs/\n.agents/context/\n.tossana/tmp/',
     );
 
     for (const f of ['orchestrator', 'coder', 'reviewer', 'tester']) {

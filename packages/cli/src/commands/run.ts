@@ -20,6 +20,7 @@ import {
 } from '@tossana/agents-core';
 import { createClient, loadProject, requireConfig, type CliContext, type Project } from '../context.js';
 import { acquireRunLock } from '../run-lock.js';
+import { CONTEXT_DIR, refreshContext } from '../task-context.js';
 import { assertToolFiles, logProfile, recordRunStart, resumeTask } from './resume.js';
 import { assertProfileRunnable, planProfileRun, stageProfileSkills, type ProfileRun } from '../profiles.js';
 import { ORCHESTRATOR, adapterFor, formatCommand, taskPrompt, type RunnerCommand } from '../runners.js';
@@ -41,6 +42,8 @@ export interface RunOptions {
   signal?: AbortSignal;
   /** Agent profile id (`--agent <id>`): its tool (unless --runner) and its skills for the coding and review roles. */
   profile?: string;
+  /** commander's --no-context sets context=false: skip the ClickUp context refresh. */
+  context?: boolean;
 }
 
 export const LOG_DIR = join('.agents', 'logs');
@@ -54,6 +57,7 @@ export function registerRunCommand(program: Command, ctx: CliContext): void {
     .option('--all', 'run all "todo" tasks assigned to me, one at a time')
     .option('--dry-run', 'show what would happen (and the exact command) without changing anything')
     .option('--agent <id>', 'run as this agent profile (see: tossana-agents agents list)')
+    .option('--no-context', 'do not refresh the ClickUp context (docs, task, comments) before the agent starts')
     .option('--no-agent', 'only prepare the task branch (then work in OpenCode/Antigravity yourself)')
     .option('--resume', 'continue a task another tool started: keeps its branch and round (with --task)')
     .option('--runner <runner>', `use this runner for this run (${RUNNERS.join(', ')})`)
@@ -111,6 +115,8 @@ async function runLocked(
       { ...opts, task: opts.task, profile },
       {
         git: (args) => git(ctx, args),
+        refreshContext:
+          opts.context === false ? undefined : (id) => refreshContext(ctx.cwd, config, project.env, client!, id, log),
         runAgent: (command) => runAgent(ctx, command, opts.task!, config.pipeline.timeoutMinutes, opts.signal),
         lastResult,
       },
@@ -157,6 +163,11 @@ async function runLocked(
           `  (no agent is started: ${opts.agent === false ? '--no-agent' : `runner "${adapter.name}" has no headless mode`})`,
         );
       }
+      if (opts.context !== false && command) {
+        log(
+          `  context: refresh ClickUp docs and ${join(CONTEXT_DIR, task.id)}/ (task, parent, subtasks, links, comments)`,
+        );
+      }
       log(`  log: ${join(LOG_DIR, `${task.id}-<timestamp>.log`)}`);
       continue;
     }
@@ -193,6 +204,7 @@ async function runLocked(
       continue;
     }
     if (!(await adapter.isInstalled())) throw new KitError(`${adapter.name} is not available. ${adapter.installHint}`);
+    if (opts.context !== false) await refreshContext(ctx.cwd, config, project.env, client!, task.id, log);
 
     const code = await runAgent(ctx, command, task.id, config.pipeline.timeoutMinutes, opts.signal);
     const result = await lastResult(client!, task.id);

@@ -21,7 +21,9 @@ text in the command line: quotes break on Windows.
 
 1. If no task ID was given, stop and say so.
 2. Read `.agents/handoff/<taskId>.md` if it exists (earlier runs, human feedback history).
-3. `cu get <taskId>` and `cu comments <taskId>`. Comments from humans (no `[AGENT: …]` tag) are
+3. Read `.agents/context/<taskId>/INDEX.md` (refreshed from ClickUp before this run: the task, parent, subtasks,
+   linked tasks, all comments, attachment links) and open the files you need. If it is missing, use
+   `cu get <taskId>` and `cu comments <taskId>`. Comments from humans (no `[AGENT: …]` tag) are
    instructions from the owner; they override earlier agent decisions.
 4. If the status is Done/Complete/Closed: stop, do nothing. If it is "ready for review" and there is
    no new human comment since the last agent comment, stop: nothing to do.

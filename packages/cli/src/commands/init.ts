@@ -92,6 +92,7 @@ export const GITIGNORE_LINES = [
   '!.env.example',
   '.agents/handoff/',
   '.agents/logs/',
+  '.agents/context/',
   '.tossana/tmp/',
   '.agents/kit/backup/',
 ];

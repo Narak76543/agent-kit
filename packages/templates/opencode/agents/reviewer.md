@@ -43,7 +43,8 @@ To post a comment, write the text to `.tossana/tmp/<taskId>-{{role.name}}.md`, t
 ## What to read
 
 1. `.agents/handoff/<taskId>.md` — especially earlier review rounds, so you check those issues were fixed.
-2. The task: `cu get <taskId>` and `cu comments <taskId>` (human comments are requirements too).
+2. The task: `.agents/context/<taskId>/INDEX.md` (task, comments, linked tasks; or `cu get <taskId>` and
+   `cu comments <taskId>` if it is missing). Human comments are requirements too.
 3. The spec pages and FR/AC codes for the task (in `{{docs.outDir}}/` if the project syncs ClickUp Docs).
 4. The change: `git log {{pipeline.baseBranch}}..HEAD --oneline` and `git diff {{pipeline.baseBranch}}...HEAD`.
    Open full files when the diff lacks context.

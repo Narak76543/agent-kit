@@ -4,6 +4,7 @@ import { DoneGuardError, KitError, clickUpErrorHint } from '@tossana/agents-core
 import { registerAgentsCommand } from './commands/agents.js';
 import { registerAntigravityCommand } from './commands/antigravity.js';
 import { registerClickupCommands } from './commands/clickup.js';
+import { registerContextCommand } from './commands/task-context-cmd.js';
 import { registerDoctorCommand } from './commands/doctor.js';
 import { registerGuardCommand } from './commands/guard.js';
 import { registerInitCommand } from './commands/init.js';
@@ -31,6 +32,7 @@ export function createProgram(ctx: CliContext): Command {
   registerAgentsCommand(program, ctx, ctx.prompts);
   registerAntigravityCommand(program, ctx, ctx.prompts);
   registerClickupCommands(program, ctx);
+  registerContextCommand(program, ctx);
   registerDoctorCommand(program, ctx);
   registerGuardCommand(program, ctx);
   registerInitCommand(program, ctx, ctx.prompts);

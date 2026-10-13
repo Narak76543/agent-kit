@@ -84,6 +84,8 @@ export function assertToolFiles(cwd: string, config: AgentConfig, runner: string
 
 export interface ResumeDeps {
   git: (args: string[]) => { ok: boolean; out: string; err: string };
+  /** Refreshes the ClickUp context before the agent starts (undefined with --no-context). */
+  refreshContext?: (taskId: string) => Promise<void>;
   runAgent: (command: { cmd: string; args: string[] }) => Promise<number | null>;
   lastResult: (client: ClickUpClient, taskId: string) => Promise<(AgentComment & { rounds: number }) | null>;
 }
@@ -207,6 +209,7 @@ export async function resumeTask(
     return;
   }
   if (!(await adapter.isInstalled())) throw new KitError(`${adapter.name} is not available. ${adapter.installHint}`);
+  await deps.refreshContext?.(id);
 
   const code = await deps.runAgent(command);
   const result = await deps.lastResult(client!, id);

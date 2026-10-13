@@ -92,7 +92,7 @@ in the command line.
 
 1. Read `.agents/handoff/<taskId>.md` (what happened before, what was asked).
 2. `git branch --show-current` must be `task/<taskId>`. If it isn't, stop and report it.
-3. Read the task (`cu get <taskId>`), the spec pages and FR/AC codes you were given, and the existing code
+3. Read the task context (`.agents/context/<taskId>/INDEX.md`, or `cu get <taskId>` if it is missing), the spec pages and FR/AC codes you were given, and the existing code
    in the areas you'll touch. Reuse existing components and patterns.
 
 ## Round 1: implement

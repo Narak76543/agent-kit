@@ -90,7 +90,7 @@ Never put comment text in the command line.
 
 ## Steps
 
-1. Read `.agents/handoff/<taskId>.md`, `cu get <taskId>`, `cu comments <taskId>`, and the spec pages /
+1. Read `.agents/handoff/<taskId>.md`, `.agents/context/<taskId>/INDEX.md` (or `cu get <taskId>`, `cu comments <taskId>`), and the spec pages /
    acceptance criteria (AC-xx) you were given. Look at `git diff main...HEAD` to see what changed.
 2. List every acceptance criterion this task covers (from the task text and the spec).
 3. For each one, write or update a test that would fail if the criterion were broken. If it truly cannot be

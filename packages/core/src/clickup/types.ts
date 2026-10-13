@@ -35,6 +35,21 @@ export interface ClickUpTask {
   text_content?: string;
   markdown_description?: string;
   subtasks?: ClickUpTask[];
+  /** Tasks linked to this one; either id can be this task (a link is stored from one side). */
+  linked_tasks?: { task_id: string; link_id: string }[];
+  /** Waiting-on / blocking relations; either id can be this task. */
+  dependencies?: { task_id: string; depends_on: string; type?: number }[];
+  attachments?: ClickUpAttachment[];
+  date_created?: string | null;
+}
+
+export interface ClickUpAttachment {
+  id: string;
+  title?: string;
+  url?: string;
+  extension?: string;
+  /** Bytes. */
+  size?: number | string;
 }
 
 export interface ClickUpComment {

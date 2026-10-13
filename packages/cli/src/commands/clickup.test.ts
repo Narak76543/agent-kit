@@ -294,7 +294,7 @@ describe('clickup sync-docs', () => {
       { id: 'p3', name: 'Old', content: 'x', archived: true },
     ]);
     const r = await cli(['clickup', 'sync-docs'], { cwd: project.dir, api });
-    expect(r.out).toBe('OK: synced 2 pages into docs/specs/\n');
+    expect(r.out).toBe('OK: 2 pages in docs/specs/ (3 updated, 1 removed)\n');
     const read = (f: string) => readFileSync(join(project.dir, 'docs', 'specs', f), 'utf8');
     expect(read('login-spec.md')).toBe('# Login Spec\n\nFR-1\n');
     expect(read('login-spec__errors.md')).toBe('# Errors\n\nFR-2\n');

@@ -42,7 +42,7 @@ To post a comment, write the text to `.tossana/tmp/<taskId>-{{role.name}}.md`, t
 
 ## What to read
 
-1. `.agents/handoff/<taskId>.md` and the task: `cu get <taskId>`, `cu comments <taskId>` (human comments are
+1. `.agents/handoff/<taskId>.md` and the task: `.agents/context/<taskId>/INDEX.md` (or `cu get <taskId>`, `cu comments <taskId>`) (human comments are
    requirements too).
 2. The spec pages and FR/AC codes for the task (in `{{docs.outDir}}/` if the project syncs ClickUp Docs).
 3. The code the task will touch, the project section of `AGENTS.md` and {{role.skillRef}}.
