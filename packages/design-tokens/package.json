@@ -1,0 +1,12 @@
+{
+  "name": "@tossana/design-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Colors and radii (dark default, light optional) shared by the dashboard and the Local Console.",
+  "files": [
+    "tokens.css"
+  ],
+  "exports": {
+    "./tokens.css": "./tokens.css"
+  }
+}
