@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ResultBadge } from '@/components/result-badge';
-import { TOOL_LABEL } from '@/lib/library';
 import { ROLE_LABEL, getTask, since, type TimelineEntry } from '@/lib/data';
 
 export default async function TaskPage({ params }: PageProps<'/tasks/[id]'>) {
@@ -45,7 +44,7 @@ export default async function TaskPage({ params }: PageProps<'/tasks/[id]'>) {
             })}
           </span>
           <span className="text-xs text-muted sm:ml-auto">
-            Ran with <span className="font-medium text-ink">{task.tool ? TOOL_LABEL[task.tool] : 'not run yet'}</span>
+            Ran by <span className="font-medium text-ink">{task.by ?? 'not run yet'}</span>
           </span>
         </div>
         <a
@@ -106,6 +105,7 @@ function Entry({ entry }: { entry: TimelineEntry }) {
               <span className="font-medium capitalize">{a.agent}</span>
               <ResultBadge result={a.result} />
               {a.round !== null && <span className="text-xs text-muted">Round {a.round}</span>}
+              {a.by && <span className="text-xs text-muted">· {a.by}</span>}
             </>
           ) : (
             <span className="font-medium">{entry.author} (human)</span>

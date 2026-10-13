@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { Filters } from '@/components/filters';
 import { ResultBadge } from '@/components/result-badge';
-import { TOOL_LABEL } from '@/lib/library';
 import { ROLES, ROLE_LABEL, getProjects, getTasks, since, type Role, type Task } from '@/lib/data';
 
 export default async function BoardPage({ searchParams }: PageProps<'/'>) {
@@ -95,7 +94,7 @@ function TaskCard({ task }: { task: Task }) {
           {task.assignee}
         </span>
         <span className="flex items-center gap-2">
-          {task.tool && <span className="rounded bg-subtle px-1.5 py-0.5 text-[11px]">{TOOL_LABEL[task.tool]}</span>}
+          {task.by && <span className="rounded bg-subtle px-1.5 py-0.5 text-[11px]">{task.by}</span>}
           {task.round !== null && <span className="tabular-nums">Round {task.round}</span>}
         </span>
       </div>
