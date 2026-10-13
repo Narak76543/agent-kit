@@ -469,6 +469,18 @@ describe('run --task: the kit runs the pipeline, one agent per role', () => {
     ]);
     expect(git(project, 'show', 'task/T1:work.txt')).toBe('round 2 fixed');
     expect(read(project, '.tossana/tmp/T1-r2-coder-brief.md')).toContain('- work.txt:1 - wrong text');
+    // The coder's log starts with what it was handed (follow shows the hand-off) and ends with its result.
+    const coder2 = read(project, '.agents/logs/T1/2-coder.log');
+    expect(coder2).toContain('===== round 2 · coder: handed over by the kit (with the issues from the reviewer) =====');
+    expect(coder2).toContain('Prompt: You are the coder for ClickUp task T1, round 2.');
+    expect(coder2).toMatch(
+      /----- brief: \.tossana\/tmp\/T1-r2-coder-brief\.md -----\n# Brief: coder, task T1, round 2/,
+    );
+    expect(coder2).toContain('- work.txt:1 - wrong text\n');
+    expect(coder2.indexOf('----- coder at work -----')).toBeLessThan(coder2.indexOf('agent got:'));
+    expect(coder2.trim().split('\n').at(-1)).toBe(
+      '===== coder → DONE_CODING (draft posted by the kit); the kit decides the next step =====',
+    );
   });
 
   it('--resume continues after the last role that reported (here: the reviewer of round 1)', async () => {

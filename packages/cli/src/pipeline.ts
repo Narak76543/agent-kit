@@ -14,8 +14,8 @@
  * Statuses and the orchestrator's comments are set by the kit; the agents never set a status.
  * The AI orchestrator stays available with `run --ai-orchestrator` (and /start-task in the IDE).
  */
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import {
   appendHandoff,
   formatAgentComment,
@@ -292,24 +292,51 @@ export async function runPipeline(
     ): Promise<AgentComment | null | 'stop'> => {
       await setStatus(role.status);
       const brief = briefPath(id, round, role.name);
+      const handed = briefText(config, {
+        ...known,
+        taskId: id,
+        taskName: opts.taskName,
+        role,
+        round,
+        lastRound,
+        plans,
+      });
+      const prompt = rolePrompt(id, role.name, round, brief, opts.profileName);
       mkdirSync(join(ctx.cwd, ...TMP_DIR.split('/')), { recursive: true });
-      writeFileSync(
-        join(ctx.cwd, ...brief.split('/')),
-        briefText(config, { ...known, taskId: id, taskName: opts.taskName, role, round, lastRound, plans }),
-      );
+      writeFileSync(join(ctx.cwd, ...brief.split('/')), handed);
       const before = new Set((await deps.client.getComments(id)).map((c) => String(c.id)));
       const logName = roleLogName(round, role.name);
       const log = join(deps.log.dir, logName);
       const raw = deps.format === 'text' ? undefined : log.replace(/\.log$/, '.jsonl');
       if (existsSync(log)) writeFileSync(log, `\n===== run again ${ctx.now().toISOString()} =====\n`, { flag: 'a' });
+      // What the role is handed, at the top of its log: follow shows the hand-off from agent to agent.
+      const from = known.feedback ? 'the owner' : known.issuesFrom ? `the ${known.issuesFrom}` : null;
+      appendLog(
+        log,
+        ctx.logger.redact,
+        [
+          `===== round ${round} · ${role.name}: handed over by the kit${from ? ` (with the issues from ${from})` : ''} =====`,
+          `Prompt: ${prompt}`,
+          `----- brief: ${brief} -----`,
+          handed.trimEnd(),
+          `----- ${role.name} at work -----`,
+        ].join('\n'),
+      );
       say(`round ${round}: ${role.name} started (log: ${logName})`);
       const startedAt = Date.now();
-      const run = await deps.runRole(role, rolePrompt(id, role.name, round, brief, opts.profileName), { log, raw });
+      const run = await deps.runRole(role, prompt, { log, raw });
       if (run.stopped === 'interrupted' || run.stopped === 'aborted') {
         say(`round ${round}: ${role.name} stopped`);
         return 'stop';
       }
       const found = await collectResult(ctx, deps, post, id, role, run, before, startedAt);
+      appendLog(
+        log,
+        ctx.logger.redact,
+        found
+          ? `===== ${role.name} → ${found.comment.result} (${found.source}); the kit decides the next step =====`
+          : `===== ${role.name} gave no result =====`,
+      );
       const exit = run.stopped === 'timeout' ? 'timed out' : `exit ${run.code ?? 'killed'}`;
       say(
         found
@@ -413,6 +440,12 @@ export async function runPipeline(
   function interrupted(round: number): PipelineResult {
     return { result: 'INTERRUPTED', round, note: 'stopped; it resumes from the last finished role' };
   }
+}
+
+/** Appends the kit's lines to a role's log (redacted like everything else in the logs). */
+function appendLog(file: string, redact: (s: string) => string, text: string) {
+  mkdirSync(dirname(file), { recursive: true });
+  appendFileSync(file, `${redact(text)}\n`);
 }
 
 /** The "no new commit" rule for coding roles, and no uncommitted changes from any role that may edit. */

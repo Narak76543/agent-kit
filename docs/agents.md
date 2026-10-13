@@ -91,6 +91,8 @@ npx tossana-agents follow <taskId> --role coder     # only the coder, round afte
 npx tossana-agents follow <taskId> --split          # one terminal per role
 ```
 
+- Each role's log starts with what the kit handed it (the prompt and the full brief: task, round, the issues from
+  the previous agent, the owner's feedback) and ends with its result, so you see the hand-off from agent to agent.
 - `follow` waits for the run to start and stops when the pipeline finishes. Ctrl+C stops only `follow`, never the
   agents.
 - `--split` opens panes in **iTerm2** and **Windows Terminal**, and one window per role in **macOS Terminal**. In
