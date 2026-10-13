@@ -8,7 +8,7 @@
  * - `.env` (git-ignored), the task's handoff notes and the agy check result are copied in; the install command runs.
  * Nothing is ever deleted except a worktree folder the user asks to clean (branches are always kept).
  */
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { ENV_FILE, KitError, isValidTaskId, type AgentConfig } from '@tossana/agents-core';
 import type { CliContext } from './context.js';
@@ -25,8 +25,16 @@ function git(ctx: CliContext, args: string[], cwd = ctx.cwd) {
   return { ok: r.code === 0, out: r.stdout.trim(), err: (r.stderr || r.error?.message || '').trim() };
 }
 
+/** Real path when it exists: git prints /private/var/… on macOS where the kit has /var/… (a symlink). */
+const real = (p: string) => {
+  try {
+    return realpathSync.native(p);
+  } catch {
+    return resolve(p);
+  }
+};
 const samePath = (a: string, b: string) =>
-  resolve(a).replace(/\\/g, '/').toLowerCase() === resolve(b).replace(/\\/g, '/').toLowerCase();
+  real(a).replace(/\\/g, '/').toLowerCase() === real(b).replace(/\\/g, '/').toLowerCase();
 
 interface GitWorktree {
   path: string;
