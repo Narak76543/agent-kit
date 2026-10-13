@@ -138,6 +138,14 @@ export function prepareWorktree(
           `"${install}" failed in ${path}:\n${(r.stderr || r.stdout || r.error?.message || '').trim().split(/\r?\n/).slice(-8).join('\n')}`,
         );
       }
+      // A new worktree has no work in it: tracked files the install changed are the install's own doing, e.g. pnpm
+      // rewriting the relative path of a local "file:" dependency in the lockfile (the worktree is one folder
+      // deeper). Restore them, or the run would refuse to start on "uncommitted changes".
+      const changed = git(ctx, ['diff', '--name-only'], path).out.split(/\r?\n/).filter(Boolean);
+      if (changed.length) {
+        git(ctx, ['checkout', '--', ...changed], path);
+        log(`[worktree] the install changed ${changed.join(', ')}; restored (the task starts from a clean tree)`);
+      }
     }
   }
   log(`[worktree] ${existing ? 'using' : 'created'} ${path} (${branch})`);

@@ -152,6 +152,25 @@ describe('worktrees', () => {
     expect(exec.calls.some((c) => c.cmd === 'notify-send' && c.args[0] === 'Ready for review: Task T1')).toBe(true);
   });
 
+  it('tracked files the install changes in a new worktree are restored (pnpm and a local file: dependency)', async () => {
+    // pnpm rewrites the relative path of a "file:" dependency in the lockfile: the worktree is one folder deeper.
+    await setUp({ install: "node -e \"require('fs').writeFileSync('lock.yaml','../../kit.tgz')\"" });
+    project.write('lock.yaml', '../kit.tgz');
+    git(project.dir, 'add', '-A');
+    git(project.dir, 'commit', '-q', '-m', 'lockfile');
+    const r = await cli(['watch', '--once', '--ai-orchestrator'], {
+      cwd: project.dir,
+      exec: execWith(),
+      api: watchApi(),
+    });
+    expect(r.code, r.err).toBe(0);
+    const wt = worktreePath(project.dir, 'T1');
+    expect(r.out).toContain('[worktree] the install changed lock.yaml; restored');
+    expect(readFileSync(join(wt, 'lock.yaml'), 'utf8')).toBe('../kit.tgz');
+    expect(existsSync(join(wt, 'ran-here.txt'))).toBe(true);
+    expect(r.out).toContain('[watch] T1: ready');
+  });
+
   it('a stale task branch (no own commits) is moved to main; one with own commits is kept', async () => {
     await setUp();
     git(project.dir, 'branch', 'task/T1'); // left by a failed run, on the old main
