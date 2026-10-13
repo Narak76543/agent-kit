@@ -179,6 +179,11 @@ describe('run --runner antigravity checks the agents first', () => {
     const r = await cli(['run', '--task', 'T1', '--dry-run'], { cwd: project.dir, exec: agy });
     expect(r.out).toContain('warning: the agents are not checked with this agy version yet');
     expect(agy.calls).toHaveLength(0);
+    // Once checked, the dry run shows only the agy command (no warning, no "no agent is started").
+    await check(agy);
+    const ready = await cli(['run', '--task', 'T1', '--dry-run'], { cwd: project.dir, exec: agy });
+    expect(ready.out).toContain('$ agy -p');
+    expect(ready.out).not.toMatch(/warning|no agent is started/);
   });
 
   it('doctor shows the remembered check', async () => {

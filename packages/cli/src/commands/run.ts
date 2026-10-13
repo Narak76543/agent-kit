@@ -148,13 +148,15 @@ async function runLocked(
       log(`[run] dry run: nothing is changed`);
       log(`  git: ${describeBranchStep(ctx, config, branch)}`);
       if (profile) logProfile(log, profile);
-      if (command) log(`  $ ${formatCommand(command)}`);
-      const problem = command ? adapter.preflight?.() : null;
-      if (problem) log(`  warning: ${problem}`);
-      else
+      if (command) {
+        log(`  $ ${formatCommand(command)}`);
+        const problem = adapter.preflight?.();
+        if (problem) log(`  warning: ${problem}`);
+      } else {
         log(
           `  (no agent is started: ${opts.agent === false ? '--no-agent' : `runner "${adapter.name}" has no headless mode`})`,
         );
+      }
       log(`  log: ${join(LOG_DIR, `${task.id}-<timestamp>.log`)}`);
       continue;
     }
