@@ -179,3 +179,13 @@ describe('update and the default agents', () => {
     expect(existsSync(join(project.dir, '.opencode/agents/reviewer.md'))).toBe(false);
   });
 });
+
+describe('update and .gitignore', () => {
+  it('adds ignore lines a newer kit needs (e.g. .agents/context/) to an existing project', async () => {
+    await initProject();
+    project.write('.gitignore', read('.gitignore').replace('.agents/context/\n', ''));
+    const r = await run(['update']);
+    expect(r.out).toContain('updated  .gitignore');
+    expect(read('.gitignore')).toContain('.agents/context/');
+  });
+});

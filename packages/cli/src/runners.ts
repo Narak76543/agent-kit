@@ -8,7 +8,7 @@ import { CODEX_ORCHESTRATOR } from './codex.js';
 import { KitError, type AgentConfig, type KitEnv } from '@tossana/agents-core';
 import { homedir } from 'node:os';
 import { agyCheckProblem, currentAgyCheck, runAgyCheck } from './agy-check.js';
-import { antigravityProblem, antigravityRules, antigravityState, kitCommand } from './antigravity.js';
+import { antigravityProblem, antigravityRules, antigravityState, kitCommand, packageScripts } from './antigravity.js';
 import { versionOf, type Exec } from './exec.js';
 
 export interface RunnerCommand {
@@ -184,7 +184,7 @@ export function antigravityAdapter(
     installHint: 'Install the Antigravity CLI (agy) from https://antigravity.google, then run "agy" once to log in.',
     preflight: ({ live = false, log } = {}) => {
       const setup = antigravityProblem(
-        antigravityState(options.home, cwd, antigravityRules(options.config, kitCmd)),
+        antigravityState(options.home, cwd, antigravityRules(options.config, kitCmd, packageScripts(cwd))),
         kitCmd,
       );
       if (setup) return setup;

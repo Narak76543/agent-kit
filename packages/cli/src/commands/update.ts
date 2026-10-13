@@ -17,6 +17,7 @@ import {
   writeRawConfig,
 } from '../agent-skills.js';
 import { loadProject, requireConfig, type CliContext } from '../context.js';
+import { ensureGitignore } from './init.js';
 import { applyKitFiles, migrateAntigravityAgents, migrateDraftsDir, printKitFileResults } from '../kit-files.js';
 import { readManifest } from '../kit-manifest.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
@@ -73,6 +74,8 @@ export async function updateProject(
   log(`Kit files ${version && version !== KIT_VERSION ? `v${version} → ` : ''}v${KIT_VERSION}:`);
   printKitFileResults(ctx, results);
   for (const m of relocated) log(`  moved    ${m}`);
+  // New kit versions may ignore more local files (e.g. .agents/context/): add the missing lines.
+  if (ensureGitignore(ctx.cwd)) log('  updated  .gitignore');
   const moved = migrateDraftsDir(ctx.cwd);
   if (moved) log(`  moved    ${moved} comment draft(s) from .agents/tmp/ to .tossana/tmp/`);
   printFigmaResults(ctx, applyFigmaMcp(ctx.cwd, config));

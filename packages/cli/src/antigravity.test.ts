@@ -187,6 +187,46 @@ describe('antigravity permissions', () => {
     expect(rules.every((r) => r.startsWith('command(regex:^') && r.endsWith('$)'))).toBe(true);
   });
 
+  it("allows the project's own package.json scripts, never package-manager commands", () => {
+    const pnpmConfig = parseConfig({
+      ...CONFIG,
+      commands: { install: 'pnpm install', lint: 'pnpm lint', typecheck: 'pnpm typecheck', test: 'pnpm test' },
+    });
+    const rules = antigravityRules(pnpmConfig, 'npx tossana-agents', [
+      'i18n:check',
+      'lint',
+      'test',
+      'install',
+      'start',
+    ]);
+    for (const c of [
+      'pnpm i18n:check',
+      'pnpm.cmd i18n:check',
+      'pnpm run i18n:check',
+      'pnpm.cmd run i18n:check',
+      'pnpm test -- tests/i18n.test.ts',
+      'pnpm start',
+    ]) {
+      expect(matches(rules, c), c).toBe(true);
+    }
+    for (const c of [
+      'pnpm add left-pad',
+      'pnpm install',
+      'pnpm run install',
+      'pnpm dlx some-tool',
+      'pnpm exec rm -rf /',
+      'pnpm deploy',
+      'pnpm unknown-script',
+      'pnpm i18n:check && git push',
+      'pnpm i18n:check; git push',
+      'npm run i18n:check',
+    ]) {
+      expect(matches(rules, c), c).toBe(false);
+    }
+    // No install command (e.g. Flutter): no script rule.
+    expect(antigravityRules(parseConfig(CONFIG), 'tossana-agents', ['i18n:check']).join(' ')).not.toContain('i18n');
+  });
+
   it('uses the global command when the project is not a Node project, and escapes project commands', () => {
     const rules = antigravityRules(
       parseConfig({ ...CONFIG, commands: { test: 'flutter test --coverage' } }),

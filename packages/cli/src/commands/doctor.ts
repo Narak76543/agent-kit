@@ -24,7 +24,7 @@ import {
 } from '@tossana/agents-core';
 import { wrongAccountHint } from '../account-hint.js';
 import { currentAgyCheck } from '../agy-check.js';
-import { agySettingsFile, antigravityRules, antigravityState, kitCommand } from '../antigravity.js';
+import { agySettingsFile, antigravityRules, antigravityState, kitCommand, packageScripts } from '../antigravity.js';
 import { codexTrusted } from '../codex.js';
 import { figmaChecks } from '../figma.js';
 import { SilentExit, createClient, type CliContext } from '../context.js';
@@ -433,7 +433,7 @@ function antigravityChecks(ctx: CliContext, config: AgentConfig, runner: string 
   }
   if (versionOf(ctx.exec, 'agy', ctx.cwd) === null) return checks;
   const kitCmd = kitCommand(ctx.cwd);
-  const state = antigravityState(ctx.home, ctx.cwd, antigravityRules(config, kitCmd));
+  const state = antigravityState(ctx.home, ctx.cwd, antigravityRules(config, kitCmd, packageScripts(ctx.cwd)));
   checks.push(
     !state.missing.length
       ? { name: 'Antigravity allows the commands the agents need', status: 'ok' }

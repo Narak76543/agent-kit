@@ -36,7 +36,7 @@ interface AgySettings {
  * not contain shell control characters (; & | < > ` $ or a line break), so nothing can be chained after an allowed
  * command. Nothing here matches push, amend, reset, rebase, branch deletion or checkout.
  */
-export function antigravityRules(config: AgentConfig, kitCmd: string): string[] {
+export function antigravityRules(config: AgentConfig, kitCmd: string, scripts: string[] = []): string[] {
   const project = [config.commands.lint, config.commands.typecheck, config.commands.test]
     .map((c) => c?.trim())
     .filter((c): c is string => !!c);
@@ -49,8 +49,43 @@ export function antigravityRules(config: AgentConfig, kitCmd: string): string[] 
     `^git add ${ARGS}+$`,
     '^git commit -m "[^";&|<>\\x60$\\r\\n]+"$',
     ...project.map((c) => `^${commandPattern(c)}$`),
+    ...scriptRule(config, scripts),
   ];
   return [...new Set(rules)].map((r) => `command(regex:${r})`);
+}
+
+/** Package-manager commands that are not package.json scripts: never allowed through the script rule. */
+const PM_BUILTINS = new Set(
+  'add audit bin config create deploy dlx env exec i import init install link list ls outdated pack patch prune publish rebuild remove rm root setup store un uninstall unlink up update upgrade why self-update'.split(
+    ' ',
+  ),
+);
+
+/**
+ * The project's own package.json scripts (e.g. `pnpm i18n:check`, `pnpm run i18n:check`, `pnpm test -- <file>`), for
+ * the package manager of the install command. Not new power: agents can already run project code through the test
+ * script. Package-manager commands (add, install, dlx, exec…) are never allowed.
+ */
+function scriptRule(config: AgentConfig, scripts: string[]): string[] {
+  const pm = config.commands.install?.trim().split(/\s+/)[0];
+  if (!pm || !['pnpm', 'npm', 'yarn', 'bun'].includes(pm)) return [];
+  const names = scripts.filter((s) => /^[A-Za-z0-9:._-]+$/.test(s) && !PM_BUILTINS.has(s));
+  if (!names.length) return [];
+  const p = escapeRegex(pm);
+  return [`^(${p}|${p}\\.cmd) (run )?(${names.map(escapeRegex).join('|')})( ${ARGS}*)?$`];
+}
+
+/** Script names from package.json in `cwd` (none when there is no package.json). */
+export function packageScripts(cwd: string): string[] {
+  try {
+    const text = readFileSync(join(cwd, 'package.json'), 'utf8');
+    const pkg = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text) as {
+      scripts?: Record<string, string>;
+    };
+    return Object.keys(pkg.scripts ?? {}).sort();
+  } catch {
+    return [];
+  }
 }
 
 /** Argument characters: anything but shell control characters (backtick written as \x60). */

@@ -11,6 +11,7 @@ import {
   antigravityState,
   kitCommand,
   legacyAntigravityRules,
+  packageScripts,
   planAntigravityRules,
 } from '../antigravity.js';
 import { antigravityAgents, runAgyCheck } from '../agy-check.js';
@@ -28,7 +29,7 @@ export function registerAntigravityCommand(program: Command, ctx: CliContext, pr
     .action(async (opts: { yes?: boolean }) => {
       const config = requireConfig(loadProject(ctx));
       const kitCmd = kitCommand(ctx.cwd);
-      const rules = antigravityRules(config, kitCmd);
+      const rules = antigravityRules(config, kitCmd, packageScripts(ctx.cwd));
       const state = antigravityState(ctx.home, ctx.cwd, rules);
       const legacy = legacyAntigravityRules(config, kitCmd);
       const plan = planAntigravityRules(ctx.home, rules, legacy);
