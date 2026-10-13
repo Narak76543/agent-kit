@@ -85,13 +85,13 @@ async function antigravityProject(runner = 'antigravity') {
 const check = (exec: Exec) => cli(['antigravity', 'check'], { cwd: project.dir, exec });
 
 describe('antigravity check', () => {
-  it('starts every agent once with "pong": the orchestrator as it is, subagents as main-agent copies', async () => {
+  it('starts every agent once with "pong", each as a main-agent copy with the same tools and a trivial body', async () => {
     await antigravityProject();
     const agy = fakeAgy();
     const r = await check(agy);
     expect(r.code, r.err).toBe(0);
     expect(agy.calls.map((c) => c.agent)).toEqual([
-      'orchestrator',
+      'zz-tossana-check-orchestrator',
       'zz-tossana-check-coder',
       'zz-tossana-check-reviewer',
       'zz-tossana-check-tester',
@@ -103,6 +103,9 @@ describe('antigravity check', () => {
     for (const tool of coder.match(/^ {2}- \w+$/gm)!) expect(coderCopy).toContain(tool);
     expect(coderCopy).toMatch(/^mainAgent: true$/m);
     expect(coderCopy).toMatch(/^commandExecutionPolicy: auto$/m);
+    // The orchestrator copy keeps its tools (invoke_subagent) but not its procedure.
+    expect(agy.calls[0]!.file).toContain('  - invoke_subagent');
+    expect(agy.calls[0]!.file).not.toContain('start-task');
     expect(readAgyCheck(project.dir)?.agents.every((a) => a.ok)).toBe(true);
   });
 

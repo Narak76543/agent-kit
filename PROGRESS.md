@@ -510,7 +510,7 @@ resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner comma
 - Removed `command_status` from the four agent templates. The tools lists stay: per the docs an agent without one
   gets no tools, and they keep the reviewer read-only (the permission rules cannot do that per agent).
 - New `tossana-agents antigravity check`: starts each agent once with "Reply with the single word pong"
-  (subagents as a temporary main-agent copy, since agy only starts main agents). Remembered per agy version and
+  (each as a temporary main-agent copy with the same tools and a trivial body). Remembered per agy version and
   agent files in `.tossana/tmp/agy-check.json`; `run --runner antigravity` runs it first when stale (dry runs do
   not); doctor shows it without starting agy.
 - Tests: 7 new (468 total).

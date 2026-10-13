@@ -92,6 +92,5 @@ To check the agents of a project on your computer:
 npx tossana-agents antigravity check
 ```
 
-It starts each agent once with "Reply with the single word pong" (one short model call each; subagents are started
-as a temporary copy, because agy only starts main agents directly). The result is remembered until agy or the agent
+It starts each agent once with "Reply with the single word pong" (one short model call each; every agent is started as a temporary copy with the same tools and a trivial body, because agy only starts main agents directly and the real orchestrator would start its procedure). The result is remembered until agy or the agent
 files change. `run --runner antigravity` does the same check first when it is not remembered, and doctor shows it.

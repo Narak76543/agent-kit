@@ -4,8 +4,9 @@
  * agy refuses an agent whose `tools:` list names a tool it does not know, while it builds the agent and before any
  * model call: `failed to resolve components: unknown component: tool "command_status" not found in registry`
  * (agy 1.3.3). A wrong name in a subagent only shows up when the orchestrator starts it, in the middle of a task.
- * So each agent is started once with a trivial prompt ("reply pong"): the orchestrator as it is, and each subagent
- * as a temporary main-agent copy with the same tools (agy only lets --agent pick main agents).
+ * So each agent is started once with a trivial prompt ("reply pong"), as a temporary main-agent copy with the same
+ * tools and settings and a trivial body (agy only lets --agent pick main agents, and the real orchestrator would
+ * start its procedure instead of answering).
  *
  * A passing check is remembered for this agy version and these exact agent files (.tossana/tmp/agy-check.json), so
  * `run` only checks again after an update or an agy upgrade. Each check is one tiny model call per agent.
@@ -105,17 +106,14 @@ export function runAgyCheck(ctx: CheckCtx, log: (s: string) => void = () => {}):
   try {
     for (const agent of agents) {
       const source = readFileSync(join(ctx.cwd, AGENTS_DIR, agent, 'agent.md'), 'utf8');
-      // The orchestrator is checked as it is (it is a main agent); subagents as a main-agent copy.
-      const name = agent === 'orchestrator' ? agent : `zz-tossana-check-${agent}`;
-      let args: string[];
-      if (agent === 'orchestrator') {
-        args = ['-p', PROMPT, '--agent', name, '--print-timeout', '2m'];
-      } else {
-        const dir = join(tmp, AGENTS_DIR, name);
-        mkdirSync(dir, { recursive: true });
-        writeFileSync(join(dir, 'agent.md'), probeAgent(source, name));
-        args = ['-p', PROMPT, '--agent', name, '--add-dir', tmp, '--print-timeout', '2m'];
-      }
+      // Every agent (the orchestrator too) as a copy with the same tools and settings but a trivial body: the check
+      // is whether agy can load the agent, not what its instructions make it do (the real orchestrator would start
+      // its procedure and run commands).
+      const name = `zz-tossana-check-${agent}`;
+      const dir = join(tmp, AGENTS_DIR, name);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'agent.md'), probeAgent(source, name));
+      const args = ['-p', PROMPT, '--agent', name, '--add-dir', tmp, '--print-timeout', '2m'];
       log(`  ${agent} …`);
       const r = ctx.exec('agy', args, { cwd: ctx.cwd, timeoutMs: PER_AGENT_TIMEOUT_MS });
       const out = `${r.stdout}\n${r.stderr}`;
