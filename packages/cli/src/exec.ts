@@ -14,11 +14,16 @@ export interface ExecResult {
   error?: Error;
 }
 
-export type Exec = (cmd: string, args: string[], options?: { cwd?: string; timeoutMs?: number }) => ExecResult;
+export type Exec = (
+  cmd: string,
+  args: string[],
+  options?: { cwd?: string; timeoutMs?: number; /** Added to the process environment. */ env?: Record<string, string> },
+) => ExecResult;
 
 export const exec: Exec = (cmd, args, options = {}) => {
   const res = spawn.sync(cmd, args, {
     cwd: options.cwd,
+    env: options.env ? { ...process.env, ...options.env } : undefined,
     encoding: 'utf8',
     timeout: options.timeoutMs ?? 30_000,
     windowsHide: true,

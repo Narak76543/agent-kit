@@ -44,6 +44,8 @@ export interface RunOptions {
   profile?: string;
   /** commander's --no-context sets context=false: skip the ClickUp context refresh. */
   context?: boolean;
+  /** With --resume: the owner's feedback, the coder's top-priority instruction in a new round. */
+  feedback?: string;
 }
 
 export const LOG_DIR = join('.agents', 'logs');
@@ -337,7 +339,8 @@ function runAgent(
     const child = spawn(command.cmd, command.args, {
       cwd: ctx.cwd,
       // A stale PWD (Git Bash, `--cwd`) would point Node/Bun-based agents at the wrong folder.
-      env: { ...process.env, PWD: ctx.cwd },
+      // TOSSANA_AGENT: commands meant for people only (review) refuse to run inside an agent.
+      env: { ...process.env, PWD: ctx.cwd, TOSSANA_AGENT: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
       // macOS/Linux: its own process group, so Stop and timeouts can kill everything the agent started.

@@ -49,8 +49,6 @@ export function registerAntigravityCommand(program: Command, ctx: CliContext, pr
             `${result.backup ? ` Backup: ${result.backup}` : ''}`,
         );
       }
-      if (!state.trusted)
-        print('Also: run "agy" once in this folder and choose to trust it, or it will not load the agents.');
       if (state.tooBroad.length) {
         ctx.logger.warn(
           `warning: these rules in ${file} also allow "git push" or any command: ${state.tooBroad.join(', ')}. Remove them.`,

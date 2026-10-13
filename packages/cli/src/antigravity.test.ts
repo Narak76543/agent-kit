@@ -104,7 +104,7 @@ describe('agy run adapter', () => {
     const cmd = a.buildCommand({ agent: 'orchestrator', prompt: 'Work on T1', cwd: project.dir });
     expect(cmd).toEqual({
       cmd: 'agy',
-      args: ['-p', 'Work on T1', '--agent', 'orchestrator', '--print-timeout', '120m'],
+      args: ['-p', 'Work on T1', '--agent', 'orchestrator', '--add-dir', project.dir, '--print-timeout', '120m'],
     });
     expect(cmd.args.join(' ')).not.toMatch(/dangerously|skip-permissions/);
   });
@@ -120,14 +120,10 @@ describe('agy run adapter', () => {
     expect(await no.isInstalled()).toBe(false);
   });
 
-  it('preflight: untrusted folder, then missing rules, then ready', () => {
+  it('preflight: missing rules, then ready (no trust needed: runs pass --add-dir)', () => {
     project = tempProject();
     project.write('package.json', '{}'); // a Node project: agents call the kit with npx
     const a = antigravityAdapter(fakeExec(), project.dir, { home: home(), config });
-    expect(a.preflight!()).toContain('not a trusted Antigravity workspace');
-    project.write('../home/.gemini/antigravity-cli/settings.json', {
-      trustedWorkspaces: [project.dir.replace(/\\/g, '/')],
-    });
     expect(a.preflight!()).toContain('Allow them with: npx tossana-agents antigravity permissions');
     addAntigravityRules(home(), antigravityRules(config, 'npx tossana-agents'));
     // Setup is complete; what is left is the live agent check (agy-check.test.ts).
@@ -240,7 +236,7 @@ describe('antigravity permissions', () => {
     const exec = fakeExec({ 'agy --version': { code: 0, stdout: '1.3.3\n' } });
     const d = await cli(['doctor'], { cwd: project.dir, exec, api: fakeApi() });
     expect(d.out).toMatch(/Antigravity CLI \(agy\) 1\.3\.3/);
-    expect(d.out).toMatch(/(❌|\[FAIL\]) Antigravity trusts this folder/);
+    expect(d.out).not.toContain('trusts this folder');
     expect(d.out).toMatch(/(❌|\[FAIL\]) Antigravity allows the commands the agents need/);
   });
 });

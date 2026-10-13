@@ -56,7 +56,8 @@ export function registerDoctorCommand(program: Command, ctx: CliContext): void {
     });
 }
 
-export async function runDoctor(ctx: CliContext): Promise<Check[]> {
+/** `runner`: check for this runner instead of pipeline.runner (watch --runner). */
+export async function runDoctor(ctx: CliContext, options: { runner?: string } = {}): Promise<Check[]> {
   const checks: Check[] = [];
   const add = (c: Check) => checks.push(c);
   const run = ctx.exec;
@@ -243,13 +244,14 @@ export async function runDoctor(ctx: CliContext): Promise<Check[]> {
   }
 
   // ---------- Antigravity (when it is one of the tools) ----------
-  if (config?.tools.includes('antigravity')) checks.push(...antigravityChecks(ctx, config));
+  const runner = options.runner ?? config?.pipeline.runner;
+  if (config?.tools.includes('antigravity')) checks.push(...antigravityChecks(ctx, config, runner));
 
   // ---------- Figma (optional) ----------
   if (config) checks.push(...(await figmaChecks(ctx.cwd, config, ctx.fetch ?? fetch)));
 
   // ---------- runner ----------
-  if (config) add(runnerCheck(ctx, config, env));
+  if (config) add(runnerCheck(ctx, config, env, runner));
 
   // ---------- kit files ----------
   add(kitFilesCheck(ctx));
@@ -333,8 +335,12 @@ function statusChecks(config: AgentConfig, list: ClickUpList): Check[] {
   return checks;
 }
 
-function runnerCheck(ctx: CliContext, config: AgentConfig, env: KitEnv): Check {
-  const runner = config.pipeline.runner;
+function runnerCheck(
+  ctx: CliContext,
+  config: AgentConfig,
+  env: KitEnv,
+  runner: string = config.pipeline.runner,
+): Check {
   if (runner === 'opencode') {
     const v = versionOf(ctx.exec, 'opencode', ctx.cwd);
     return v
@@ -390,13 +396,13 @@ function runnerCheck(ctx: CliContext, config: AgentConfig, env: KitEnv): Check {
 }
 
 /**
- * Antigravity: agents must be folders (.agents/agents/<name>/agent.md); for headless runs (agy) the folder must be a
- * trusted workspace and the kit's permission rules must be in the user's agy settings. Problems fail only when
+ * Antigravity: agents must be folders (.agents/agents/<name>/agent.md); for headless runs (agy) the kit's
+ * permission rules must be in the user's agy settings (trust is not needed: runs pass --add-dir). Problems fail only when
  * Antigravity is the runner; otherwise they are warnings (the IDE asks before running commands).
  */
-function antigravityChecks(ctx: CliContext, config: AgentConfig): Check[] {
+function antigravityChecks(ctx: CliContext, config: AgentConfig, runner: string | undefined): Check[] {
   const checks: Check[] = [];
-  const isRunner = config.pipeline.runner === 'antigravity';
+  const isRunner = runner === 'antigravity';
   const bad: CheckStatus = isRunner ? 'fail' : 'warn';
   const dir = join(ctx.cwd, '.agents', 'agents');
   const flat = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.md')) : [];
@@ -408,19 +414,26 @@ function antigravityChecks(ctx: CliContext, config: AgentConfig): Check[] {
       fix: "Run: tossana-agents update (it moves the kit's own files). Move your own to <name>/agent.md.",
     });
   }
+  if (ctx.platform === 'win32') {
+    const policy = ctx.exec('powershell', ['-NoProfile', '-NonInteractive', '-Command', 'Get-ExecutionPolicy'], {
+      cwd: ctx.cwd,
+      timeoutMs: 15_000,
+    });
+    const value = policy.stdout.trim();
+    if (policy.code === 0 && /^(Restricted|AllSigned)$/i.test(value)) {
+      checks.push({
+        name: `PowerShell can run scripts (execution policy: ${value})`,
+        status: bad,
+        detail: 'Antigravity runs commands in PowerShell; pnpm and npx are .ps1 scripts that this policy blocks.',
+        fix: 'In PowerShell: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned',
+      });
+    } else if (policy.code === 0) {
+      checks.push({ name: `PowerShell can run scripts (execution policy: ${value})`, status: 'ok' });
+    }
+  }
   if (versionOf(ctx.exec, 'agy', ctx.cwd) === null) return checks;
   const kitCmd = kitCommand(ctx.cwd);
   const state = antigravityState(ctx.home, ctx.cwd, antigravityRules(config, kitCmd));
-  checks.push(
-    state.trusted
-      ? { name: 'Antigravity trusts this folder', status: 'ok' }
-      : {
-          name: 'Antigravity trusts this folder',
-          status: bad,
-          detail: 'agy does not load .agents/agents/ in folders it does not trust.',
-          fix: 'Run "agy" once in this folder and choose to trust it.',
-        },
-  );
   checks.push(
     !state.missing.length
       ? { name: 'Antigravity allows the commands the agents need', status: 'ok' }

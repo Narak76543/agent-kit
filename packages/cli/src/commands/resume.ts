@@ -95,7 +95,15 @@ export async function resumeTask(
   project: Project,
   config: AgentConfig,
   client: ClickUpClient | null,
-  opts: { task: string; dryRun?: boolean; yes?: boolean; agent?: boolean; profile?: ProfileRun | null },
+  opts: {
+    task: string;
+    dryRun?: boolean;
+    yes?: boolean;
+    agent?: boolean;
+    profile?: ProfileRun | null;
+    /** The owner's feedback: a new round starts at the coder with it as the top-priority instruction. */
+    feedback?: string;
+  },
   deps: ResumeDeps,
 ): Promise<void> {
   const log = (s: string) => ctx.logger.info(s);
@@ -113,7 +121,7 @@ export async function resumeTask(
   const previous = previousTool(readHandoff(ctx.cwd, id)) ?? 'an earlier run';
   const adapter = adapterFor(config, project.env, ctx.exec, ctx.cwd, id, ctx.home, ctx.now);
   const profile = opts.profile ?? null;
-  const prompt = resumePrompt(id, previous, config.pipeline.baseBranch, profile?.profile.name);
+  const prompt = resumePrompt(id, previous, config.pipeline.baseBranch, profile?.profile.name, opts.feedback);
   const command =
     adapter.headless && opts.agent !== false
       ? adapter.buildCommand({ agent: ORCHESTRATOR, prompt, cwd: ctx.cwd })
@@ -182,21 +190,33 @@ export async function resumeTask(
 
   // ---------- tell ClickUp and the handoff file ----------
   const last = await deps.lastResult(client!, id);
-  const round = Math.max(1, last?.rounds ?? 0);
+  // Feedback starts a new round; otherwise the run continues the round it stopped in.
+  const round = opts.feedback ? (last?.rounds ?? 0) + 1 : Math.max(1, last?.rounds ?? 0);
   await client!.postComment(
     id,
     formatAgentComment({
       agent: 'orchestrator',
       result: 'STARTED',
       round,
-      summary:
-        `Resumed with ${runner} after ${previous}. Branch ${branch}, continuing round ${round}` +
-        `${last ? ` (last: ${last.agent} ${last.result})` : ''}.`,
-      next: last?.next ?? 'orchestrator',
+      summary: opts.feedback
+        ? `Resumed with ${runner} after ${previous} for the owner's feedback. Branch ${branch}, round ${round} ` +
+          'starts at the coder.'
+        : `Resumed with ${runner} after ${previous}. Branch ${branch}, continuing round ${round}` +
+          `${last ? ` (last: ${last.agent} ${last.result})` : ''}.`,
+      next: opts.feedback ? 'coder' : (last?.next ?? 'orchestrator'),
       by: profile?.label ?? profileLabel(null, runner),
     }),
   );
   recordRunStart(ctx, id, runner, previous, profile);
+  if (opts.feedback) {
+    appendHandoff(
+      ctx.cwd,
+      id,
+      'Owner feedback (top priority)',
+      `Round ${round} starts at the coder with this as the first instruction:\n\n${opts.feedback}`,
+      ctx.now(),
+    );
+  }
   if (profile) stageProfileSkills(ctx, profile);
   log(`[run] on branch ${branch}; posted the resume comment`);
 

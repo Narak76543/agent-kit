@@ -43,7 +43,21 @@ export const taskPrompt = (taskId: string, profileName?: string) =>
   `Work on ClickUp task ${taskId}. Follow AGENTS.md and your agent instructions.${profileNote(taskId, profileName)}`;
 
 /** Prompt for `run --resume`: continue where the previous tool stopped, never restart the task. */
-export const resumePrompt = (taskId: string, previous: string, baseBranch: string, profileName?: string) =>
+/** The owner's feedback as the first, top-priority instruction of a new round (feedback loop). */
+const feedbackNote = (feedback?: string) =>
+  feedback
+    ? `TOP PRIORITY: the owner sent the task back with this feedback: """${feedback.replace(/"""/g, '"')}""". Start a ` +
+      `new round at the coder with this feedback as its first instruction, then the normal review and test steps. `
+    : '';
+
+export const resumePrompt = (
+  taskId: string,
+  previous: string,
+  baseBranch: string,
+  profileName?: string,
+  feedback?: string,
+) =>
+  feedbackNote(feedback) +
   `Resume ClickUp task ${taskId}; it was being worked on with ${previous}. Do not restart the task. First read ` +
   `.agents/handoff/${taskId}.md, the latest agent comment (tossana-agents clickup comments ${taskId}) and ` +
   `git log ${baseBranch}..HEAD, then continue from that point and round. If the last turn has no agent comment ` +
@@ -152,12 +166,22 @@ export function antigravityAdapter(
     name: 'antigravity',
     headless: true,
     isInstalled: async () => versionOf(exec, 'agy', cwd) !== null,
+    // --add-dir: agy then loads this folder's agents and runs allowed commands without the folder being trusted
+    // (checked with agy 1.3.3), so task worktrees work without touching the user's trust list.
     buildCommand: ({ agent, prompt }) => ({
       cmd: 'agy',
-      args: ['-p', prompt, '--agent', agent, '--print-timeout', `${options.config.pipeline.timeoutMinutes}m`],
+      args: [
+        '-p',
+        prompt,
+        '--agent',
+        agent,
+        '--add-dir',
+        cwd,
+        '--print-timeout',
+        `${options.config.pipeline.timeoutMinutes}m`,
+      ],
     }),
-    installHint:
-      'Install the Antigravity CLI (agy) from https://antigravity.google, run "agy" once in this folder to log in and trust it.',
+    installHint: 'Install the Antigravity CLI (agy) from https://antigravity.google, then run "agy" once to log in.',
     preflight: ({ live = false, log } = {}) => {
       const setup = antigravityProblem(
         antigravityState(options.home, cwd, antigravityRules(options.config, kitCmd)),

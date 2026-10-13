@@ -78,8 +78,9 @@ describe('run --dry-run', () => {
   it('antigravity: shows the agy command, and what is missing on this machine', async () => {
     project = gitProject({ runner: 'antigravity' });
     const r = await run(project, ['--task', 'T1', '--dry-run']);
-    expect(r.out).toContain(`  $ agy -p "${taskPrompt('T1')}" --agent orchestrator --print-timeout 120m`);
-    expect(r.out).toContain('warning: this folder is not a trusted Antigravity workspace');
+    expect(r.out).toContain(`  $ agy -p "${taskPrompt('T1')}" --agent orchestrator --add-dir`);
+    expect(r.out).toContain('--print-timeout 120m');
+    expect(r.out).toContain('warning: Antigravity would quietly refuse the commands the agents need');
   });
 
   it('says when no agent would start', async () => {
@@ -166,7 +167,7 @@ describe('run --task', () => {
     project = gitProject({ runner: 'antigravity' });
     const r = await run(project, ['--task', 'T1']);
     expect(r.code).not.toBe(0);
-    expect(r.err).toContain('antigravity: this folder is not a trusted Antigravity workspace');
+    expect(r.err).toContain('antigravity: Antigravity would quietly refuse the commands the agents need');
     expect(git(project, 'branch', '--show-current')).toBe('main');
   });
 

@@ -1,8 +1,8 @@
 /**
  * Antigravity CLI (`agy`) headless runs: what has to be true on this machine.
  *
- * - The project folder must be a trusted workspace (`trustedWorkspaces` in ~/.gemini/antigravity-cli/settings.json),
- *   or agy does not load its `.agents/agents/` (checked with agy 1.3.3).
+ * - Trust is not needed: runs pass `--add-dir <folder>`, which makes agy load the folder's agents (checked with
+ *   agy 1.3.3, also for task worktrees that are never in the user's trust list).
  * - In print mode a command that needs approval is soft-denied: the run goes on and exits 0
  *   (https://antigravity.google/docs/cli/headless). So the commands the agents need must be allowed with
  *   `permissions.allow` rules. agy only reads them from the user's global settings file (no project file,
@@ -132,12 +132,6 @@ export function antigravityState(home: string, cwd: string, rules: string[]): Ag
 
 /** Why a headless run cannot work yet, with the fix; null when it can. */
 export function antigravityProblem(state: AgyState, kitCmd: string): string | null {
-  if (!state.trusted) {
-    return (
-      'this folder is not a trusted Antigravity workspace, so agy does not load the agents here. ' +
-      'Run "agy" once in this folder and choose to trust it.'
-    );
-  }
   if (state.missing.length) {
     return (
       `Antigravity would quietly refuse the commands the agents need (${state.missing.length} rule(s) missing). ` +
