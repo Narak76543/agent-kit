@@ -566,7 +566,7 @@ User goal (to pass the kit to the team once it works for them). Order: 1 → 3/4
 1. **Context before every run** — `tossana-agents context <taskId>` (run/resume call it; `--no-context` skips):
    incremental `sync-docs` with a short `docs/clickup/INDEX.md` (one line per page), and a git-ignored task bundle
    `.agents/context/<taskId>/` (task, parent, subtasks, linked tasks + dependencies, all comments, attachment links,
-   INDEX.md). Agents read the two INDEX files and open only what they need. _(in progress: feat/context-refresh)_
+   INDEX.md). Agents read the two INDEX files and open only what they need. **Built** (feat/context-refresh): `tossana-agents context <taskId> [--no-docs]`; run/resume refresh before the agent starts (`--no-context` skips); the docs sync is incremental (unchanged pages are not rewritten, removed pages are deleted, INDEX has no timestamp); only GET requests; a failed Docs sync keeps the old files and the run goes on. Checked read-only against the real ClickUp API (28 spec pages, task z8qu5d3jkp). Templates point every role to the INDEX files, with `cu get`/`cu comments` as fallback (IDE runs without `run`). 8 new tests (498).
 2. **Planner step** — fixed read-only planner before the coder: subtasks with acceptance criteria when the task is
    bigger than one small change, plan posted as a comment, pipeline per subtask. `pipeline.planApproval`:
    `auto` (default) or `human` (waits for the comment "approved", resumed by watch mode or `feedback`).
