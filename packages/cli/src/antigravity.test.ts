@@ -205,7 +205,6 @@ describe('antigravity permissions', () => {
       'pnpm run i18n:check',
       'pnpm.cmd run i18n:check',
       'pnpm test -- tests/i18n.test.ts',
-      'pnpm start',
     ]) {
       expect(matches(rules, c), c).toBe(true);
     }
@@ -220,6 +219,7 @@ describe('antigravity permissions', () => {
       'pnpm i18n:check && git push',
       'pnpm i18n:check; git push',
       'npm run i18n:check',
+      'pnpm start', // long-running: servers, simulators and watchers are left out
     ]) {
       expect(matches(rules, c), c).toBe(false);
     }

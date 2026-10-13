@@ -61,6 +61,9 @@ const PM_BUILTINS = new Set(
   ),
 );
 
+/** Scripts that start servers, simulators or watchers: an agent would wait on them until the run times out. */
+const LONG_RUNNING = /^(start|dev|serve|watch|android|ios|web|e2e)(:.*)?$/i;
+
 /**
  * The project's own package.json scripts (e.g. `pnpm i18n:check`, `pnpm run i18n:check`, `pnpm test -- <file>`), for
  * the package manager of the install command. Not new power: agents can already run project code through the test
@@ -69,7 +72,7 @@ const PM_BUILTINS = new Set(
 function scriptRule(config: AgentConfig, scripts: string[]): string[] {
   const pm = config.commands.install?.trim().split(/\s+/)[0];
   if (!pm || !['pnpm', 'npm', 'yarn', 'bun'].includes(pm)) return [];
-  const names = scripts.filter((s) => /^[A-Za-z0-9:._-]+$/.test(s) && !PM_BUILTINS.has(s));
+  const names = scripts.filter((s) => /^[A-Za-z0-9:._-]+$/.test(s) && !PM_BUILTINS.has(s) && !LONG_RUNNING.test(s));
   if (!names.length) return [];
   const p = escapeRegex(pm);
   return [`^(${p}|${p}\\.cmd) (run )?(${names.map(escapeRegex).join('|')})( ${ARGS}*)?$`];
