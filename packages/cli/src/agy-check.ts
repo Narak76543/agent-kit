@@ -19,7 +19,7 @@ import type { CliContext } from './context.js';
 /** What the check needs from the CLI context (the run adapter has only these). */
 export type CheckCtx = Pick<CliContext, 'exec' | 'cwd' | 'now'>;
 import { versionOf } from './exec.js';
-import { TMP_DIR } from './presets.js';
+import { TMP_DIR } from './paths.js';
 
 const AGENTS_DIR = join('.agents', 'agents');
 const CACHE = `${TMP_DIR}/agy-check.json`;

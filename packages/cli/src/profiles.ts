@@ -21,7 +21,7 @@ import {
 } from '@tossana/agents-core';
 import type { CliContext } from './context.js';
 import { readManifest } from './kit-manifest.js';
-import { TMP_DIR } from './presets.js';
+import { TMP_DIR } from './paths.js';
 import { listSkills, templatesDir } from './templates.js';
 
 export const TEAM_PROFILES_DIR = join('.agents', 'profiles');

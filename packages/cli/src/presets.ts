@@ -8,8 +8,10 @@ import { FIGMA_READ_TOOLS } from './figma.js';
 import { TEST_GLOBS, testKind } from './template-vars.js';
 
 export const KIT_PREFIXES = ['tossana-agents', 'npx tossana-agents'];
-/** Folder for comment drafts (the only place read-only roles may write). */
-export const TMP_DIR = '.tossana/tmp';
+/** Folder for comment drafts (the only place read-only roles may write). Defined in paths.ts (no imports). */
+import { TMP_DIR } from './paths.js';
+
+export { TMP_DIR };
 
 export interface RolePolicy {
   role: string;

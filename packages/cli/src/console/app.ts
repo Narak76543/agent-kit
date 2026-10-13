@@ -34,7 +34,7 @@ import { createClient, createContext, loadProject, type CliContext } from '../co
 import { runDoctor } from '../commands/doctor.js';
 import { RUNNER_FILES, previousTool } from '../commands/resume.js';
 import { lastResult, runTasks } from '../commands/run.js';
-import { TMP_DIR } from '../presets.js';
+import { TMP_DIR } from '../paths.js';
 import {
   availableSkills,
   createProjectSkill,
