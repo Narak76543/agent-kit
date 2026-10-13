@@ -27,8 +27,48 @@ interface AgySettings {
   [key: string]: unknown;
 }
 
-/** The allow rules a headless run in this project needs (prefix rules, word by word). */
+/**
+ * The allow rules a headless run in this project needs.
+ *
+ * Tested against agy 1.3.3 with a throwaway agent (one command per session, see PROGRESS.md): a plain rule such as
+ * `command(git log)` only matches that exact text, not `git log -n 5 --oneline`, and agents on Windows run
+ * `npx.cmd` / `pnpm.cmd`. So every rule is an anchored `regex:` rule; the first word may end in `.cmd`; arguments may
+ * not contain shell control characters (; & | < > ` $ or a line break), so nothing can be chained after an allowed
+ * command. Nothing here matches push, amend, reset, rebase, branch deletion or checkout.
+ */
 export function antigravityRules(config: AgentConfig, kitCmd: string): string[] {
+  const project = [config.commands.lint, config.commands.typecheck, config.commands.test]
+    .map((c) => c?.trim())
+    .filter((c): c is string => !!c);
+  const kit = commandPattern(kitCmd);
+  const rules = [
+    `^${kit} clickup ${ARGS}*$`,
+    `^${kit} run --task [A-Za-z0-9_-]+ --no-agent$`,
+    `^git (status|diff|log|show|rev-parse)( ${ARGS}*)?$`,
+    '^git branch( (-a|--all|-r|--show-current|--list))?$',
+    `^git add ${ARGS}+$`,
+    '^git commit -m "[^";&|<>\\x60$\\r\\n]+"$',
+    ...project.map((c) => `^${commandPattern(c)}$`),
+  ];
+  return [...new Set(rules)].map((r) => `command(regex:${r})`);
+}
+
+/** Argument characters: anything but shell control characters (backtick written as \x60). */
+const ARGS = '[^;&|<>\\x60$\\r\\n]';
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** "pnpm lint" → "(pnpm|pnpm\.cmd) lint": the exact command, with the Windows .cmd shim allowed for the program. */
+function commandPattern(command: string): string {
+  const [program, ...rest] = command.trim().split(/\s+/);
+  const p = escapeRegex(program!);
+  return [`(${p}|${p}\\.cmd)`, ...rest.map(escapeRegex)].join(' ');
+}
+
+/**
+ * Rules earlier kit versions added (plain prefixes; agy 1.3.3 matches them only as exact text, so they never let
+ * the agents work). `antigravity permissions` replaces exactly these, nothing else.
+ */
+export function legacyAntigravityRules(config: AgentConfig, kitCmd: string): string[] {
   const project = [config.commands.lint, config.commands.typecheck, config.commands.test]
     .map((c) => c?.trim())
     .filter((c): c is string => !!c);
@@ -107,26 +147,45 @@ export function antigravityProblem(state: AgyState, kitCmd: string): string | nu
   return null;
 }
 
-/** Adds the missing rules to the user's agy settings (a backup is made first). Nothing is removed. */
+export interface RulesChange {
+  file: string;
+  added: string[];
+  /** Old kit rules being replaced (only rules the kit itself added before). */
+  removed: string[];
+}
+
+/** What `addAntigravityRules` would change, without writing anything. */
+export function planAntigravityRules(home: string, rules: string[], legacy: string[]): RulesChange {
+  const file = agySettingsFile(home);
+  const allow = readSettings(home)?.permissions?.allow ?? [];
+  return {
+    file,
+    added: rules.filter((r) => !allow.includes(r)),
+    removed: allow.filter((r) => legacy.includes(r) && !rules.includes(r)),
+  };
+}
+
+/** Adds the missing rules and drops the old kit rules (a backup is made first). Nothing else changes. */
 export function addAntigravityRules(
   home: string,
   rules: string[],
   now = new Date(),
-): { file: string; backup: string | null; added: string[] } {
+  legacy: string[] = [],
+): RulesChange & { backup: string | null } {
   const file = agySettingsFile(home);
   const exists = existsSync(file);
   const settings = exists ? readSettings(home) : {};
   if (!settings) throw new KitError(`${file} is not valid JSON; fix it first (agy reads the same file).`);
-  const allow = settings.permissions?.allow ?? [];
-  const added = rules.filter((r) => !allow.includes(r));
-  if (!added.length) return { file, backup: null, added };
+  const change = planAntigravityRules(home, rules, legacy);
+  if (!change.added.length && !change.removed.length) return { ...change, backup: null };
   let backup: string | null = null;
   if (exists) {
     backup = `${file}.bak-${now.toISOString().replace(/[:.]/g, '-')}`;
     copyFileSync(file, backup);
   }
-  settings.permissions = { ...settings.permissions, allow: [...allow, ...added] };
+  const allow = (settings.permissions?.allow ?? []).filter((r) => !change.removed.includes(r));
+  settings.permissions = { ...settings.permissions, allow: [...allow, ...change.added] };
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
-  return { file, backup, added };
+  return { ...change, backup };
 }

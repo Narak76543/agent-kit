@@ -10,6 +10,8 @@ import {
   antigravityRules,
   antigravityState,
   kitCommand,
+  legacyAntigravityRules,
+  planAntigravityRules,
 } from '../antigravity.js';
 import { antigravityAgents, runAgyCheck } from '../agy-check.js';
 import { SilentExit, loadProject, requireConfig, type CliContext } from '../context.js';
@@ -28,18 +30,24 @@ export function registerAntigravityCommand(program: Command, ctx: CliContext, pr
       const kitCmd = kitCommand(ctx.cwd);
       const rules = antigravityRules(config, kitCmd);
       const state = antigravityState(ctx.home, ctx.cwd, rules);
+      const legacy = legacyAntigravityRules(config, kitCmd);
+      const plan = planAntigravityRules(ctx.home, rules, legacy);
       const file = agySettingsFile(ctx.home);
-      if (!state.missing.length) {
+      if (!plan.added.length && !plan.removed.length) {
         print(`All ${rules.length} rules are already in ${file}.`);
       } else {
-        print(`These rules would be added to "permissions.allow" in ${file}:`);
-        for (const r of state.missing) print(`  ${r}`);
-        print('They apply to every agy session on this computer. Nothing else in the file changes; a backup is kept.');
-        const ok =
-          opts.yes || (ctx.io.interactive && (await (ctx.prompts ?? prompts).confirm('Add these rules?', true)));
-        if (!ok) throw new KitError('nothing changed. Run again with --yes to add the rules.');
-        const result = addAntigravityRules(ctx.home, rules, ctx.now());
-        print(`Added ${result.added.length} rule(s).${result.backup ? ` Backup: ${result.backup}` : ''}`);
+        print(`Changes to "permissions.allow" in ${file}:`);
+        for (const r of plan.removed) print(`- ${r}`);
+        for (const r of plan.added) print(`+ ${r}`);
+        if (plan.removed.length) print('(- = rules an older kit version added; agy matched them only as exact text.)');
+        print('These apply to every agy session on this computer. Nothing else in the file changes; a backup is kept.');
+        const ok = opts.yes || (ctx.io.interactive && (await (ctx.prompts ?? prompts).confirm('Apply?', true)));
+        if (!ok) throw new KitError('nothing changed. Run again with --yes to apply these changes.');
+        const result = addAntigravityRules(ctx.home, rules, ctx.now(), legacy);
+        print(
+          `Added ${result.added.length}, removed ${result.removed.length} rule(s).` +
+            `${result.backup ? ` Backup: ${result.backup}` : ''}`,
+        );
       }
       if (!state.trusted)
         print('Also: run "agy" once in this folder and choose to trust it, or it will not load the agents.');

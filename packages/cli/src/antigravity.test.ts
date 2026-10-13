@@ -2,7 +2,13 @@ import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { parseConfig } from '@tossana/agents-core';
-import { addAntigravityRules, agySettingsFile, antigravityRules, antigravityState } from './antigravity.js';
+import {
+  addAntigravityRules,
+  agySettingsFile,
+  antigravityRules,
+  antigravityState,
+  legacyAntigravityRules,
+} from './antigravity.js';
 import { readManifest } from './kit-manifest.js';
 import { antigravityAdapter } from './runners.js';
 import { CONFIG, cli, fakeApi, fakeExec, tempProject, type TempProject } from './test-utils.test-helper.js';
@@ -130,39 +136,100 @@ describe('agy run adapter', () => {
 });
 
 describe('antigravity permissions', () => {
-  it('lists narrow rules: kit clickup, read-only git, add/commit, the project commands; never push or *', () => {
-    const rules = antigravityRules(config, 'npx tossana-agents');
-    expect(rules).toContain('command(npx tossana-agents clickup)');
-    expect(rules).toContain('command(git commit -m)');
-    expect(rules).toContain('command(pnpm lint)');
-    expect(rules).toContain('command(pnpm test)');
-    expect(rules.join(' ')).not.toMatch(/push|\*|reset|rebase|merge|clean|command\(git\)/);
+  // The command texts agy 1.3.3 showed in a real run, and what must stay refused. The same 18 were checked against
+  // these rules with a throwaway agy agent, one command per session (PROGRESS.md); this keeps the rules honest.
+  const ALLOWED = [
+    'git log -n 5 --oneline',
+    'git branch -a',
+    'git status --porcelain',
+    'git commit -m "z8qu5d3jkp: use AppText and design tokens in tab screens"',
+    'pnpm.cmd typecheck',
+    'pnpm typecheck',
+    'npx.cmd tossana-agents clickup get T1',
+    'npx tossana-agents clickup get T1',
+    'npx.cmd tossana-agents run --task T1 --no-agent',
+    'git add -A',
+    'npx.cmd tossana-agents clickup comment T1 --file .tossana/tmp/T1-coder.md',
+    'git branch --show-current',
+    'pnpm.cmd lint',
+    'pnpm test',
+  ];
+  const REFUSED = [
+    'git push',
+    'git push origin main',
+    'git commit --amend -m "x"',
+    'git reset --hard HEAD~1',
+    'git rebase main',
+    'git branch -D main',
+    'npx.cmd tossana-agents clickup get T1; git push',
+    'git log -n 1 && git push',
+    'git commit -m "x" && git push',
+    'git commit -m "$(git push)"',
+    'npx tossana-agents run --task T1',
+    'git checkout -- src/app.ts',
+    'git clean -fd',
+    'pnpm.cmd install',
+    'git log | sh',
+  ];
+  const matches = (rules: string[], command: string) =>
+    rules.some((r) => new RegExp(/^command\(regex:(.*)\)$/.exec(r)![1]!).test(command));
+
+  it('allows the exact forms agents run (npx.cmd, pnpm.cmd, quoted commit messages, git options)', () => {
+    const rules = antigravityRules(
+      parseConfig({ ...CONFIG, commands: { lint: 'pnpm lint', typecheck: 'pnpm typecheck', test: 'pnpm test' } }),
+      'npx tossana-agents',
+    );
+    for (const c of ALLOWED) expect(matches(rules, c), c).toBe(true);
   });
 
-  it('adds only the missing rules after a yes, with a backup, keeping everything else', async () => {
+  it('never allows push, history rewrites, deleting branches, chained or substituted commands', () => {
+    const rules = antigravityRules(
+      parseConfig({ ...CONFIG, commands: { lint: 'pnpm lint', typecheck: 'pnpm typecheck', test: 'pnpm test' } }),
+      'npx tossana-agents',
+    );
+    for (const c of REFUSED) expect(matches(rules, c), c).toBe(false);
+    expect(rules.every((r) => r.startsWith('command(regex:^') && r.endsWith('$)'))).toBe(true);
+  });
+
+  it('uses the global command when the project is not a Node project, and escapes project commands', () => {
+    const rules = antigravityRules(
+      parseConfig({ ...CONFIG, commands: { test: 'flutter test --coverage' } }),
+      'tossana-agents',
+    );
+    expect(matches(rules, 'tossana-agents.cmd clickup get T1')).toBe(true);
+    expect(matches(rules, 'flutter test --coverage')).toBe(true);
+    expect(matches(rules, 'flutter.cmd test --coverage')).toBe(true);
+    expect(matches(rules, 'flutter test --coverage --update-goldens')).toBe(false);
+  });
+
+  it('shows a diff, writes nothing without --yes, then replaces only the old kit rules (backup kept)', async () => {
     project = tempProject();
     project.write('package.json', '{}');
+    const legacy = legacyAntigravityRules(parseConfig(CONFIG), 'npx tossana-agents');
     project.write('../home/.gemini/antigravity-cli/settings.json', {
       model: 'x',
       trustedWorkspaces: [project.dir],
-      permissions: { allow: ['command(git status)', 'command(git)'] },
+      permissions: { allow: ['command(ffmpeg -version)', ...legacy, 'command(git)'] },
     });
     const cmd = (args: string[], interactive = false) =>
       cli(['antigravity', 'permissions', ...args], { cwd: project.dir, exec: fakeExec(), interactive });
 
     const no = await cmd([]);
     expect(no.code).not.toBe(0);
-    expect(no.out).toContain('  command(npx tossana-agents clickup)');
-    expect(no.out).not.toContain('  command(git status)\n');
-    expect(settings().permissions).toEqual({ allow: ['command(git status)', 'command(git)'] });
+    expect(no.out).toContain('- command(git log)');
+    expect(no.out).toContain('+ command(regex:^git commit -m "');
+    expect(no.err).toContain('nothing changed');
+    expect(settings().permissions).toEqual({ allow: ['command(ffmpeg -version)', ...legacy, 'command(git)'] });
 
     const yes = await cmd(['--yes']);
     expect(yes.code, yes.err).toBe(0);
-    expect(yes.out).toMatch(/Added \d+ rule\(s\)\. Backup: .*settings\.json\.bak-/);
+    expect(yes.out).toMatch(/Added \d+, removed \d+ rule\(s\)\. Backup: .*settings\.json\.bak-/);
     expect(yes.err).toContain('also allow "git push" or any command: command(git)');
     const s = settings() as { model: string; permissions: { allow: string[] } };
     expect(s.model).toBe('x');
-    expect(s.permissions.allow.filter((r) => r === 'command(git status)')).toHaveLength(1);
+    // The user's own rules stay (even the broad one: doctor warns about it, the kit does not delete it).
+    expect(s.permissions.allow.slice(0, 2)).toEqual(['command(ffmpeg -version)', 'command(git)']);
+    for (const r of legacy) expect(s.permissions.allow).not.toContain(r);
     const state = antigravityState(home(), project.dir, antigravityRules(parseConfig(CONFIG), 'npx tossana-agents'));
     expect(state.missing).toEqual([]);
     expect((await cmd(['--yes'])).out).toContain('rules are already in');
