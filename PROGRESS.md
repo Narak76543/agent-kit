@@ -597,6 +597,20 @@ an INDEX.md. Only GET requests; a failed Docs sync keeps the old files. Checked 
   VS Code; then push the branch (+ a PR with gh if installed), send feedback, or skip. Done stays manual.
 - Tests: 14 new (512 total; real git, fake ClickUp, a fake agent). Docs: getting-started "Fully automatic mode".
 
+### Real test of watch (2026-10-13, Windows, antigravity runner, "Implement pnpm i18n:check")
+
+- Run 1 timeline: 14:24:10 doctor OK (3 s) → 14:24:13 task picked → 14:24:19 worktree created + pnpm install (6 s) →
+  14:24:54 agent check, 4 agents pong (35 s) → 14:24:55 context → 14:24:55 agy started → 14:30 coder subagent
+  started → 14:34:09 run ended: status still coding, nothing committed.
+- Cause (from agy's own conversation record, step 84): the coder ran `node -v`, which is not on the allow list;
+  headless agy ends the whole run at a refused command. Also found and fixed on the way: `update` did not add new
+  .gitignore lines (`.agents/context/`); the task needs `pnpm i18n:check` (rule for the project's package.json
+  scripts added, long-running ones like start/android/ios excluded).
+- Fix: the Antigravity agents now get the exact list of commands headless agy allows (and: put new script files in
+  package.json scripts); version checks are allowed; `watch --retry` re-runs a task whatever its status.
+- **Not re-run yet** (the user moved testing to macOS). Next: `tossana-agents antigravity permissions` on the Mac
+  (adds the version-check rule), then `watch --runner antigravity --once --retry <i18n task id>`.
+
 ### Step 5 — Feedback loop (built with steps 3 and 4)
 
 `tossana-agents feedback <taskId> "text"` posts the comment as the owner, moves the task to coding and records it in
