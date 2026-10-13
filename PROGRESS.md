@@ -1,3 +1,26 @@
+3. - 4. **Watch mode, worktrees, review helper, feedback** (spec 2026-10-13; branch feat/watch):
+   * **Worktrees:** `<parent>/<repo>-tasks/<taskId>` on `task/<id>` from the local base branch (not origin: a clone
+     origin may not have the kit). Existing branch with own commits → reused; branch with no own commits → reset to
+     base (the stale-branch case). Branch checked out in the main folder → skipped with the fix. `.env` and the agy
+     check result are copied in; the install command runs there. `worktrees list | clean [taskId] [--force]`
+     (clean = no uncommitted changes and task closed or branch merged; branches are never deleted).
+   * **watch:** `watch [--runner] [--interval 5m]` — doctor must pass first (new: Windows PowerShell execution
+     policy when Antigravity is used); one poll = my "to do" tasks (oldest first) + feedback candidates; one task at
+     a time in its worktree; state in `.tossana/tmp/watch-state.json` (main folder) so a restart neither repeats a
+     finished/failed task nor loses an interrupted one (resumed once); main-folder run lock against a second watcher;
+     Ctrl+C aborts the agent (whole process tree) and saves state; desktop notification (Windows toast via PowerShell
+     with the text in environment variables, macOS osascript argv, Linux notify-send) on ready for review / NEEDS_HUMAN.
+   * **Antigravity in worktrees:** checked with a sandboxed agy: trusting a parent folder does not cover subfolders,
+     but `--add-dir <folder>` loads the agents and runs allowed commands without trust, so the adapter always passes
+     `--add-dir` and trust is no longer required.
+   * **review <taskId>** (human only: refuses without an interactive terminal or inside an agent run,
+     `TOSSANA_AGENT=1` is set for agent processes): summary, rounds, quality gate run in the worktree, diff --stat,
+     diff opened in VS Code; then [1] push the branch (+ PR with gh if installed), [2] feedback, [3] skip. Never Done.
+   * **feedback <taskId> "text"** (step 5): posts the comment, moves the task to coding, records it in the handoff as
+     the top-priority instruction. watch resumes tasks in coding whose newest comment is a human one after a
+     finished pipeline (orchestrator PASS / NEEDS_HUMAN), with that comment first in the coder's instructions.
+   * **Real test:** "Implement pnpm i18n:check" task, antigravity runner, via watch, until ready for review.
+
 # Progress
 
 Status of the Tossana Agent Kit build. Read this first when you continue the work (in OpenCode or any other tool).
