@@ -2,7 +2,9 @@ import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { createContext } from '../context.js';
 import { exec } from '../exec.js';
+import { runTasks } from './run.js';
 import { RUN_LOCK } from '../run-lock.js';
 import { customAdapter, formatCommand, splitCommand, taskPrompt } from '../runners.js';
 import { CONFIG, LIST, TOKEN, cli, fakeApi, tempProject, type TempProject } from '../test-utils.test-helper.js';
@@ -356,6 +358,8 @@ if (role === 'coder') {
   fs.writeFileSync('work.txt', 'round ' + round + (brief.includes('Fix these issues') ? ' fixed' : ''));
   execFileSync('git', ['-c', 'user.name=A', '-c', 'user.email=a@e', 'commit', '-qam', task + ': round ' + round]);
   draft(report('DONE_CODING'));
+} else if (role === 'reviewer' && process.env.HANG === 'reviewer') {
+  setInterval(() => {}, 1000);
 } else if (role === 'reviewer') {
   const no = process.env.REVIEW === 'no' && round === '1';
   console.log('Looked at the diff.\\n' + report(no ? 'CHANGES_NEEDED' : 'APPROVED', no ? '- work.txt:1 - wrong text' : '- none'));
@@ -495,5 +499,34 @@ describe('run --task: the kit runs the pipeline, one agent per role', () => {
     expect(board.state.comments[2]!.comment_text).toContain('Next: reviewer');
     expect(existsSync(join(project.dir, '.agents', 'logs', 'T1', '1-coder.log'))).toBe(false);
     expect(r.out).toContain('T1: resumed with custom, PASS in round 1');
+  });
+
+  it('Stop (or Ctrl+C) during a role: the agent is stopped, the run ends at once and goes back to main', async () => {
+    project = loopProject();
+    const board = boardApi();
+    const controller = new AbortController();
+    let out = '';
+    const ctx = createContext({
+      cwd: project.dir,
+      home: join(project.dir, '..', 'home'),
+      processEnv: {},
+      fetch: board.api.fetch,
+      exec,
+      io: { out: (t) => (out += t), err: (t) => (out += t) },
+    });
+    process.env.HANG = 'reviewer';
+    try {
+      const done = runTasks(ctx, { task: 'T1', signal: controller.signal });
+      const reviewerLog = join(project.dir, '.agents', 'logs', 'T1', '1-reviewer.log');
+      for (let i = 0; i < 200 && !existsSync(reviewerLog); i++) await new Promise((r) => setTimeout(r, 25));
+      controller.abort();
+      await done;
+    } finally {
+      delete process.env.HANG;
+    }
+    expect(board.results()).toEqual(['orchestrator STARTED 1', 'coder DONE_CODING 1']);
+    expect(read(project, '.agents/logs/T1/pipeline.log').trim().split('\n').at(-1)).toMatch(/=== FINISHED STOPPED$/);
+    expect(out).toContain('T1: stopped in round 1 (resume with --resume)');
+    expect(git(project, 'branch', '--show-current')).toBe('main');
   });
 });

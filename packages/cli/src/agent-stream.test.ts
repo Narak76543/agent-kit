@@ -61,6 +61,9 @@ describe('agy stream-json (event shapes from agy 1.3.4)', () => {
     expect(r.line('Error: not logged in')).toEqual(['Error: not logged in']);
     expect(r.line('{"event":"something_new"}')).toEqual([]);
     expect(r.line('')).toEqual([]);
+    // agy 1.3.4 for an agent it cannot start (e.g. not a main agent):
+    const error = { event: 'result', result: { status: 'ERROR', response: '', error: 'unknown agent "x"' } };
+    expect(r.line(JSON.stringify(error))).toEqual(['[agy] finished: ERROR: unknown agent "x"']);
   });
 });
 

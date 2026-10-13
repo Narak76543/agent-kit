@@ -164,6 +164,7 @@ async function runLocked(
   }
 
   const summary: string[] = [];
+  let interrupted = false;
   for (const task of tasks) {
     if (!isValidTaskId(task.id)) throw new KitError(`invalid task id "${task.id}"`);
     const branch = `${config.pipeline.branchPrefix}${task.id}`;
@@ -269,7 +270,7 @@ async function runLocked(
       summary.push(
         `${task.id}: ${pipelineSummary(outcome)}, status "${after.status?.status ?? '?'}", branch ${branch}`,
       );
-      if (outcome.result === 'INTERRUPTED') break;
+      interrupted = outcome.result === 'INTERRUPTED';
     } else {
       const code = await runAgent(ctx, command, task.id, config.pipeline.timeoutMinutes, opts.signal);
       const result = await lastResult(client!, task.id);
@@ -287,6 +288,8 @@ async function runLocked(
       break;
     }
     git(ctx, ['switch', config.pipeline.baseBranch]);
+    // Stopped (Ctrl+C, Stop): no further tasks of --all / --next.
+    if (interrupted) break;
   }
 
   if (summary.length) {

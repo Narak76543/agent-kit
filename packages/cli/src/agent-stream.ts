@@ -124,7 +124,8 @@ function agyRenderer(): StreamRenderer {
         const r = (ev.result ?? {}) as Record<string, unknown>;
         if (typeof r.response === 'string') final = r.response;
         const secs = typeof r.duration_seconds === 'number' ? `, ${Math.round(r.duration_seconds)} s` : '';
-        return [...text.flush(), `[agy] finished: ${String(r.status ?? '?')}${secs}`];
+        const error = typeof r.error === 'string' && r.error ? `: ${r.error}` : '';
+        return [...text.flush(), `[agy] finished: ${String(r.status ?? '?')}${secs}${error}`];
       }
       if (ev.event !== 'step_update') return [];
       const s = (ev.step_update ?? {}) as Record<string, unknown>;
