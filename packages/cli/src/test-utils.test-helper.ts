@@ -68,6 +68,8 @@ export async function cli(
   args: string[],
   opts: {
     cwd: string;
+    /** Default: a "home" folder next to the temp project, never the real one. */
+    home?: string;
     api?: FakeApi;
     stdin?: string;
     processEnv?: Record<string, string>;
@@ -81,6 +83,7 @@ export async function cli(
   let err = '';
   const code = await runCli(args, {
     cwd: opts.cwd,
+    home: opts.home ?? join(dirname(opts.cwd), 'home'),
     processEnv: opts.processEnv ?? {},
     fetch: (opts.api ?? fakeApi()).fetch,
     now: () => new Date('2026-10-09T12:00:00Z'),

@@ -3,6 +3,7 @@
  * (fake fetch, captured output, temp folders) exactly as they run for real.
  */
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
   ClickUpClient,
@@ -34,6 +35,8 @@ export interface CliContext {
   exec: Exec;
   platform: NodeJS.Platform;
   cwd: string;
+  /** The user's home folder (personal agent profiles, user skills); a temp folder in tests. */
+  home: string;
   /** The real process environment (not .env). */
   processEnv: Record<string, string | undefined>;
   io: CliIO;
@@ -50,6 +53,7 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 export function createContext(options: {
   cwd?: string;
+  home?: string;
   processEnv?: Record<string, string | undefined>;
   io?: Partial<CliIO>;
   fetch?: FetchLike;
@@ -71,6 +75,7 @@ export function createContext(options: {
     exec: options.exec ?? exec,
     platform: options.platform ?? process.platform,
     cwd: options.cwd ?? process.cwd(),
+    home: options.home ?? homedir(),
     processEnv: options.processEnv ?? process.env,
     io,
     logger,

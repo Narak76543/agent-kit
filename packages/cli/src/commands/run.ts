@@ -20,7 +20,8 @@ import {
 } from '@tossana/agents-core';
 import { createClient, loadProject, requireConfig, type CliContext, type Project } from '../context.js';
 import { acquireRunLock } from '../run-lock.js';
-import { assertToolFiles, recordRunStart, resumeTask } from './resume.js';
+import { assertToolFiles, logProfile, recordRunStart, resumeTask } from './resume.js';
+import { assertProfileRunnable, planProfileRun, stageProfileSkills, type ProfileRun } from '../profiles.js';
 import { ORCHESTRATOR, adapterFor, formatCommand, taskPrompt, type RunnerCommand } from '../runners.js';
 
 export interface RunOptions {
@@ -38,6 +39,8 @@ export interface RunOptions {
   yes?: boolean;
   /** Stops the agent (whole process tree), e.g. the Local Console's Stop button. */
   signal?: AbortSignal;
+  /** Agent profile id (`--agent <id>`): its tool (unless --runner) and its skills for the coding and review roles. */
+  profile?: string;
 }
 
 export const LOG_DIR = join('.agents', 'logs');
@@ -50,11 +53,19 @@ export function registerRunCommand(program: Command, ctx: CliContext): void {
     .option('--next', 'run the next "todo" task assigned to me')
     .option('--all', 'run all "todo" tasks assigned to me, one at a time')
     .option('--dry-run', 'show what would happen (and the exact command) without changing anything')
+    .option('--agent <id>', 'run as this agent profile (see: tossana-agents agents list)')
     .option('--no-agent', 'only prepare the task branch (then work in OpenCode/Antigravity yourself)')
     .option('--resume', 'continue a task another tool started: keeps its branch and round (with --task)')
     .option('--runner <runner>', `use this runner for this run (${RUNNERS.join(', ')})`)
     .option('-y, --yes', 'with --resume: commit leftover changes as "WIP: handoff from …" without asking')
-    .action((opts: RunOptions) => runTasks(ctx, opts));
+    // --agent <id> and --no-agent share one commander option: a string is a profile id, false is --no-agent.
+    .action((opts: Omit<RunOptions, 'agent'> & { agent?: string | boolean }) =>
+      runTasks(ctx, {
+        ...opts,
+        agent: opts.agent === false ? false : undefined,
+        profile: typeof opts.agent === 'string' ? opts.agent : undefined,
+      }),
+    );
 }
 
 interface TaskRef {
@@ -67,17 +78,27 @@ export async function runTasks(ctx: CliContext, opts: RunOptions): Promise<void>
   if (modes !== 1) throw new KitError('choose one: --task <taskId>, --next or --all');
 
   const project = loadProject(ctx);
-  const config = withRunner(requireConfig(project), opts.runner);
+  const base = requireConfig(project);
+  const profile = opts.profile ? planProfileRun(ctx, base, opts.profile, opts.runner) : null;
+  if (profile) assertProfileRunnable(profile);
+  if (profile && !opts.dryRun) for (const w of profile.mcpWarnings) ctx.logger.warn(`[run] warning: ${w}`);
+  const config = withRunner(base, opts.runner ?? profile?.profile.tool);
   // One run per project at a time (CLI and Local Console alike). A dry run changes nothing, so it needs no lock.
   const lock = opts.dryRun ? null : acquireRunLock(ctx.cwd, opts.task, ctx.now());
   try {
-    await runLocked(ctx, opts, project, config);
+    await runLocked(ctx, opts, project, config, profile);
   } finally {
     lock?.release();
   }
 }
 
-async function runLocked(ctx: CliContext, opts: RunOptions, project: Project, config: AgentConfig): Promise<void> {
+async function runLocked(
+  ctx: CliContext,
+  opts: RunOptions,
+  project: Project,
+  config: AgentConfig,
+  profile: ProfileRun | null,
+): Promise<void> {
   const log = (s: string) => ctx.logger.info(s);
   if (opts.resume) {
     if (!opts.task) throw new KitError('--resume needs --task <taskId>');
@@ -87,7 +108,7 @@ async function runLocked(ctx: CliContext, opts: RunOptions, project: Project, co
       project,
       config,
       client,
-      { ...opts, task: opts.task },
+      { ...opts, task: opts.task, profile },
       {
         git: (args) => git(ctx, args),
         runAgent: (command) => runAgent(ctx, command, opts.task!, config.pipeline.timeoutMinutes, opts.signal),
@@ -95,7 +116,7 @@ async function runLocked(ctx: CliContext, opts: RunOptions, project: Project, co
       },
     );
   }
-  if (opts.runner) assertToolFiles(ctx.cwd, config, config.pipeline.runner);
+  if (opts.runner || profile) assertToolFiles(ctx.cwd, config, config.pipeline.runner);
   const todo = statusForRole(config, 'todo');
 
   // A dry run for one task needs no ClickUp access at all.
@@ -115,13 +136,18 @@ async function runLocked(ctx: CliContext, opts: RunOptions, project: Project, co
     const adapter = adapterFor(config, project.env, ctx.exec, ctx.cwd, task.id);
     const command =
       adapter.headless && opts.agent !== false
-        ? adapter.buildCommand({ agent: ORCHESTRATOR, prompt: taskPrompt(task.id), cwd: ctx.cwd })
+        ? adapter.buildCommand({
+            agent: ORCHESTRATOR,
+            prompt: taskPrompt(task.id, profile?.profile.name),
+            cwd: ctx.cwd,
+          })
         : null;
 
     log(`\n[run] ===== ${task.id}${task.name ? `: ${task.name}` : ''} =====`);
     if (opts.dryRun) {
       log(`[run] dry run: nothing is changed`);
       log(`  git: ${describeBranchStep(ctx, config, branch)}`);
+      if (profile) logProfile(log, profile);
       if (command) log(`  $ ${formatCommand(command)}`);
       else
         log(
@@ -143,7 +169,8 @@ async function runLocked(ctx: CliContext, opts: RunOptions, project: Project, co
     }
 
     prepareBranch(ctx, config, branch);
-    recordRunStart(ctx, task.id, config.pipeline.runner);
+    recordRunStart(ctx, task.id, config.pipeline.runner, undefined, profile);
+    if (profile) stageProfileSkills(ctx, profile);
     log(`[run] on branch ${branch}`);
 
     if (!command) {

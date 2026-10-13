@@ -16,13 +16,17 @@ import {
   docsSettings,
   isRole,
   isValidTaskId,
+  profileLabel,
+  readHandoff,
   statusForRole,
+  withBy,
   type ClickUpClient,
   type ClickUpDocPage,
   type Role,
 } from '@tossana/agents-core';
 import { wrongAccountHint } from '../account-hint.js';
 import { createClient, loadProject, requireConfig, type CliContext, type Project } from '../context.js';
+import { lastRun } from './resume.js';
 
 interface TextOptions {
   file?: string;
@@ -76,7 +80,11 @@ export function registerClickupCommands(program: Command, ctx: CliContext): void
     .description('post a comment and append it to .agents/handoff/<taskId>.md (text, --file <path>, or - for stdin)')
     .option('--file <path>', 'read the comment text from a file')
     .action(async (taskId: string, words: string[], opts: TextOptions) => {
-      const text = await readText(ctx, words, opts, 'comment <taskId> "<text>" | --file <path> | -');
+      const text = stampBy(
+        ctx,
+        taskId,
+        await readText(ctx, words, opts, 'comment <taskId> "<text>" | --file <path> | -'),
+      );
       await setup().client.postComment(taskId, text);
       if (isValidTaskId(taskId)) appendHandoff(ctx.cwd, taskId, 'ClickUp comment', text, ctx.now());
       removeAgentTempFile(ctx, opts);
@@ -87,7 +95,11 @@ export function registerClickupCommands(program: Command, ctx: CliContext): void
     .description('comment assigned to CLICKUP_OWNER_USER_ID, so the owner gets a notification')
     .option('--file <path>', 'read the text from a file')
     .action(async (taskId: string, words: string[], opts: TextOptions) => {
-      const text = await readText(ctx, words, opts, 'notify <taskId> "<text>" | --file <path> | -');
+      const text = stampBy(
+        ctx,
+        taskId,
+        await readText(ctx, words, opts, 'notify <taskId> "<text>" | --file <path> | -'),
+      );
       const { project, client } = setup();
       await client.notify(taskId, text, project.env.CLICKUP_OWNER_USER_ID ?? '');
       if (isValidTaskId(taskId)) appendHandoff(ctx.cwd, taskId, 'Owner notified', text, ctx.now());
@@ -292,4 +304,14 @@ function removeAgentTempFile(ctx: CliContext, opts: TextOptions): void {
   const file = resolve(ctx.cwd, opts.file);
   const rel = relative(resolve(ctx.cwd, AGENT_TMP_DIR), file);
   if (rel && !rel.startsWith('..') && !isAbsolute(rel)) rmSync(file, { force: true });
+}
+
+/**
+ * Adds `[BY: <agent profile> · <tool>]` to an agent comment, from the latest run entry of the handoff file, so
+ * comments and the dashboard show who ran the task even when the model leaves the tag out.
+ */
+function stampBy(ctx: CliContext, taskId: string, text: string): string {
+  if (!isValidTaskId(taskId)) return text;
+  const run = lastRun(readHandoff(ctx.cwd, taskId));
+  return run ? withBy(text, profileLabel(run.profile, run.tool)) : text;
 }
