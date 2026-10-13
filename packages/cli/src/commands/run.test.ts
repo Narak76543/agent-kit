@@ -1,7 +1,9 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { exec } from '../exec.js';
+import { RUN_LOCK } from '../run-lock.js';
 import { customAdapter, formatCommand, splitCommand, taskPrompt } from '../runners.js';
 import { CONFIG, TOKEN, cli, fakeApi, tempProject, type TempProject } from '../test-utils.test-helper.js';
 
@@ -295,5 +297,28 @@ describe('runner helpers', () => {
     expect(formatCommand({ cmd: 'opencode', args: ['run', 'a b', 'say "x"', 'C:\\x\\y.js'] })).toBe(
       'opencode run "a b" "say \\"x\\"" C:\\x\\y.js',
     );
+  });
+});
+
+describe('run: one run per project', () => {
+  it('refuses to start while another run holds the lock, and takes over a stale lock', async () => {
+    project = gitProject();
+    const other = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+    try {
+      project.write(RUN_LOCK, JSON.stringify({ pid: other.pid, task: 'T9', startedAt: '2026-10-13T08:00:00Z' }));
+      const busy = await run(project, ['--task', 'T1']);
+      expect(busy.code).not.toBe(0);
+      expect(busy.err).toContain(`another run is already going in this project (pid ${other.pid}, task T9`);
+      expect(git(project, 'branch', '--show-current')).toBe('main');
+      // A dry run changes nothing, so it does not need the lock.
+      expect((await run(project, ['--task', 'T1', '--dry-run'])).code).toBe(0);
+    } finally {
+      other.kill();
+    }
+
+    project.write(RUN_LOCK, JSON.stringify({ pid: 2 ** 30 }));
+    const r = await run(project, ['--task', 'T1']);
+    expect(r.code, r.err).toBe(0);
+    expect(existsSync(join(project.dir, RUN_LOCK))).toBe(false);
   });
 });

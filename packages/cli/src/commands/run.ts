@@ -18,7 +18,8 @@ import {
   type AgentConfig,
   type ClickUpClient,
 } from '@tossana/agents-core';
-import { createClient, loadProject, requireConfig, type CliContext } from '../context.js';
+import { createClient, loadProject, requireConfig, type CliContext, type Project } from '../context.js';
+import { acquireRunLock } from '../run-lock.js';
 import { assertToolFiles, recordRunStart, resumeTask } from './resume.js';
 import { ORCHESTRATOR, adapterFor, formatCommand, taskPrompt, type RunnerCommand } from '../runners.js';
 
@@ -35,6 +36,8 @@ export interface RunOptions {
   runner?: string;
   /** With --resume: commit leftover changes without asking. */
   yes?: boolean;
+  /** Stops the agent (whole process tree), e.g. the Local Console's Stop button. */
+  signal?: AbortSignal;
 }
 
 export const LOG_DIR = join('.agents', 'logs');
@@ -65,6 +68,16 @@ export async function runTasks(ctx: CliContext, opts: RunOptions): Promise<void>
 
   const project = loadProject(ctx);
   const config = withRunner(requireConfig(project), opts.runner);
+  // One run per project at a time (CLI and Local Console alike). A dry run changes nothing, so it needs no lock.
+  const lock = opts.dryRun ? null : acquireRunLock(ctx.cwd, opts.task, ctx.now());
+  try {
+    await runLocked(ctx, opts, project, config);
+  } finally {
+    lock?.release();
+  }
+}
+
+async function runLocked(ctx: CliContext, opts: RunOptions, project: Project, config: AgentConfig): Promise<void> {
   const log = (s: string) => ctx.logger.info(s);
   if (opts.resume) {
     if (!opts.task) throw new KitError('--resume needs --task <taskId>');
@@ -77,7 +90,7 @@ export async function runTasks(ctx: CliContext, opts: RunOptions): Promise<void>
       { ...opts, task: opts.task },
       {
         git: (args) => git(ctx, args),
-        runAgent: (command) => runAgent(ctx, command, opts.task!, config.pipeline.timeoutMinutes),
+        runAgent: (command) => runAgent(ctx, command, opts.task!, config.pipeline.timeoutMinutes, opts.signal),
         lastResult,
       },
     );
@@ -146,7 +159,7 @@ export async function runTasks(ctx: CliContext, opts: RunOptions): Promise<void>
     }
     if (!(await adapter.isInstalled())) throw new KitError(`${adapter.name} is not available. ${adapter.installHint}`);
 
-    const code = await runAgent(ctx, command, task.id, config.pipeline.timeoutMinutes);
+    const code = await runAgent(ctx, command, task.id, config.pipeline.timeoutMinutes, opts.signal);
     const result = await lastResult(client!, task.id);
     const after = await client!.getTask(task.id, { subtasks: false });
     summary.push(
@@ -264,6 +277,7 @@ function runAgent(
   command: RunnerCommand,
   taskId: string,
   timeoutMinutes: number,
+  signal?: AbortSignal,
 ): Promise<number | null> {
   mkdirSync(join(ctx.cwd, LOG_DIR), { recursive: true });
   const logPath = join(LOG_DIR, `${taskId}-${ctx.now().toISOString().replace(/[:.]/g, '-')}.log`);
@@ -279,6 +293,9 @@ function runAgent(
       env: { ...process.env, PWD: ctx.cwd },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
+      // macOS/Linux: its own process group, so Stop and timeouts can kill everything the agent started.
+      // (Windows: taskkill /T walks the tree; detached would open a console window there.)
+      detached: process.platform !== 'win32',
     });
     const out = lineRedactor(redact, (s) => {
       ctx.io.out(s);
@@ -298,10 +315,14 @@ function runAgent(
     const timer = setTimeout(() => stop(`timed out after ${timeoutMinutes} min`), timeoutMinutes * 60_000);
     const onSigint = () => stop('interrupted (Ctrl+C)');
     process.once('SIGINT', onSigint);
+    const onAbort = () => stop('stopped by the user');
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener('abort', onAbort, { once: true });
 
     const done = () => {
       clearTimeout(timer);
       process.off('SIGINT', onSigint);
+      signal?.removeEventListener('abort', onAbort);
       out.flush();
       err.flush();
     };
@@ -316,11 +337,20 @@ function runAgent(
   });
 }
 
-/** On Windows the agent may run under cmd.exe (npm .cmd shims); kill the whole process tree. */
-function killTree(ctx: CliContext, pid: number | undefined): void {
+/**
+ * Kills the agent and everything it started. On Windows the agent may run under cmd.exe (npm .cmd shims), so
+ * taskkill /T walks the tree; elsewhere the agent leads its own process group (see `detached` above).
+ * Uses the real platform: this is a real process, even when tests fake ctx.platform.
+ */
+export function killTree(ctx: CliContext, pid: number | undefined): void {
   if (!pid) return;
-  if (ctx.platform === 'win32') ctx.exec('taskkill', ['/pid', String(pid), '/T', '/F']);
-  else {
+  if (process.platform === 'win32') {
+    ctx.exec('taskkill', ['/pid', String(pid), '/T', '/F']);
+    return;
+  }
+  try {
+    process.kill(-pid, 'SIGTERM');
+  } catch {
     try {
       process.kill(pid, 'SIGTERM');
     } catch {
@@ -332,7 +362,10 @@ function killTree(ctx: CliContext, pid: number | undefined): void {
 // ---------- result ----------
 
 /** The last agent comment on the task, plus the highest round seen. */
-async function lastResult(client: ClickUpClient, taskId: string): Promise<(AgentComment & { rounds: number }) | null> {
+export async function lastResult(
+  client: ClickUpClient,
+  taskId: string,
+): Promise<(AgentComment & { rounds: number }) | null> {
   const parsed = (await client.getComments(taskId))
     .map((c) => parseAgentComment(c.comment_text ?? ''))
     .filter((c): c is AgentComment => c !== null);
