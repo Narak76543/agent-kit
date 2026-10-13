@@ -8,7 +8,6 @@ tools:
   - find_by_name
   - grep_search
   - run_command
-  - command_status
 subagent: true
 mainAgent: false
 model: inherit

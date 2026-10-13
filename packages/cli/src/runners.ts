@@ -7,6 +7,7 @@ import { CLAUDE_RUN_SETTINGS } from './claude.js';
 import { CODEX_ORCHESTRATOR } from './codex.js';
 import { KitError, type AgentConfig, type KitEnv } from '@tossana/agents-core';
 import { homedir } from 'node:os';
+import { agyCheckProblem, currentAgyCheck, runAgyCheck } from './agy-check.js';
 import { antigravityProblem, antigravityRules, antigravityState, kitCommand } from './antigravity.js';
 import { versionOf, type Exec } from './exec.js';
 
@@ -22,8 +23,11 @@ export interface RunnerAdapter {
   isInstalled(): Promise<boolean>;
   buildCommand(opts: { agent: string; prompt: string; cwd: string }): RunnerCommand;
   installHint: string;
-  /** Why the agent cannot do its work on this machine yet (with the fix), or null. Checked before anything changes. */
-  preflight?(): string | null;
+  /**
+   * Why the agent cannot do its work on this machine yet (with the fix), or null. Checked before anything changes.
+   * `live`: may start the tool to check it (a real run); without it only cheap checks run (dry run).
+   */
+  preflight?(opts?: { live?: boolean; log?: (s: string) => void }): string | null;
 }
 
 export const ORCHESTRATOR = 'orchestrator';
@@ -141,7 +145,7 @@ export function codexAdapter(exec: Exec, cwd: string): RunnerAdapter {
 export function antigravityAdapter(
   exec: Exec,
   cwd: string,
-  options: { home: string; config: AgentConfig },
+  options: { home: string; config: AgentConfig; now?: () => Date },
 ): RunnerAdapter {
   const kitCmd = kitCommand(cwd);
   return {
@@ -154,8 +158,25 @@ export function antigravityAdapter(
     }),
     installHint:
       'Install the Antigravity CLI (agy) from https://antigravity.google, run "agy" once in this folder to log in and trust it.',
-    preflight: () =>
-      antigravityProblem(antigravityState(options.home, cwd, antigravityRules(options.config, kitCmd)), kitCmd),
+    preflight: ({ live = false, log } = {}) => {
+      const setup = antigravityProblem(
+        antigravityState(options.home, cwd, antigravityRules(options.config, kitCmd)),
+        kitCmd,
+      );
+      if (setup) return setup;
+      // Can agy start every agent (tool names)? Remembered per agy version and agent files.
+      const ctx = { exec, cwd, now: options.now ?? (() => new Date()) };
+      if (currentAgyCheck(ctx)) return null;
+      if (!live) {
+        return (
+          'the agents are not checked with this agy version yet. Run: ' +
+          `${kitCmd} antigravity check (a real run checks first: one short model call per agent)`
+        );
+      }
+      log?.('[run] checking that agy can start every agent ("reply pong", once per agy version and agent files)');
+      const problem = agyCheckProblem(runAgyCheck(ctx, log));
+      return problem ? `agy cannot start these agents: ${problem}` : null;
+    },
   };
 }
 
@@ -166,6 +187,7 @@ export function adapterFor(
   cwd: string,
   taskId: string,
   home: string = homedir(),
+  now?: () => Date,
 ): RunnerAdapter {
   switch (config.pipeline.runner) {
     case 'opencode':
@@ -173,7 +195,7 @@ export function adapterFor(
     case 'custom':
       return customAdapter(env.AGENT_CMD, taskId);
     case 'antigravity':
-      return antigravityAdapter(exec, cwd, { home, config });
+      return antigravityAdapter(exec, cwd, { home, config, now });
     case 'claude-code':
       return claudeCodeAdapter(exec, cwd);
     case 'codex':

@@ -11,7 +11,9 @@ import {
   antigravityState,
   kitCommand,
 } from '../antigravity.js';
-import { loadProject, requireConfig, type CliContext } from '../context.js';
+import { antigravityAgents, runAgyCheck } from '../agy-check.js';
+import { SilentExit, loadProject, requireConfig, type CliContext } from '../context.js';
+import { versionOf } from '../exec.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
 
 export function registerAntigravityCommand(program: Command, ctx: CliContext, prompts: Prompts = clackPrompts): void {
@@ -46,5 +48,31 @@ export function registerAntigravityCommand(program: Command, ctx: CliContext, pr
           `warning: these rules in ${file} also allow "git push" or any command: ${state.tooBroad.join(', ')}. Remove them.`,
         );
       }
+    });
+
+  ag.command('check')
+    .description(
+      'start every Antigravity agent once ("reply pong") to make sure agy accepts it (one short model call each)',
+    )
+    .action(() => {
+      const version = versionOf(ctx.exec, 'agy', ctx.cwd);
+      if (!version)
+        throw new KitError('agy is not installed. Install the Antigravity CLI from https://antigravity.google');
+      const agents = antigravityAgents(ctx.cwd);
+      if (!agents.length) {
+        throw new KitError(
+          'no Antigravity agents in .agents/agents/. Add the tool: tossana-agents init --tools …,antigravity',
+        );
+      }
+      print(`Starting ${agents.length} agent(s) with agy ${version}:`);
+      const check = runAgyCheck(ctx, print);
+      for (const a of check.agents) print(`${a.ok ? '✓' : '✗'} ${a.agent}${a.ok ? ': pong' : `: ${a.problem}`}`);
+      if (check.agents.some((a) => !a.ok)) {
+        ctx.logger.error(
+          'Not every agent can start. Fix the agent files (kit files: tossana-agents update) and check again.',
+        );
+        throw new SilentExit(1);
+      }
+      print('All agents start. The result is remembered until agy or the agent files change.');
     });
 }

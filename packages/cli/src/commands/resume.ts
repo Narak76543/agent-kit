@@ -109,7 +109,7 @@ export async function resumeTask(
     );
   }
   const previous = previousTool(readHandoff(ctx.cwd, id)) ?? 'an earlier run';
-  const adapter = adapterFor(config, project.env, ctx.exec, ctx.cwd, id, ctx.home);
+  const adapter = adapterFor(config, project.env, ctx.exec, ctx.cwd, id, ctx.home, ctx.now);
   const profile = opts.profile ?? null;
   const prompt = resumePrompt(id, previous, config.pipeline.baseBranch, profile?.profile.name);
   const command =
@@ -130,7 +130,7 @@ export async function resumeTask(
     if (problem) log(`  warning: ${problem}`);
     return;
   }
-  const problem = command ? adapter.preflight?.() : null;
+  const problem = command ? adapter.preflight?.({ live: true, log }) : null;
   if (problem) throw new KitError(`${adapter.name}: ${problem}`);
 
   // ---------- ClickUp status: only agent statuses ----------

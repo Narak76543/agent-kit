@@ -11,7 +11,6 @@ tools:
   - replace_file_content
   - multi_replace_file_content
   - run_command
-  - command_status
 subagent: true
 mainAgent: false
 model: inherit

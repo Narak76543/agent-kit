@@ -133,7 +133,7 @@ async function runLocked(
   for (const task of tasks) {
     if (!isValidTaskId(task.id)) throw new KitError(`invalid task id "${task.id}"`);
     const branch = `${config.pipeline.branchPrefix}${task.id}`;
-    const adapter = adapterFor(config, project.env, ctx.exec, ctx.cwd, task.id, ctx.home);
+    const adapter = adapterFor(config, project.env, ctx.exec, ctx.cwd, task.id, ctx.home, ctx.now);
     const command =
       adapter.headless && opts.agent !== false
         ? adapter.buildCommand({
@@ -159,8 +159,8 @@ async function runLocked(
       continue;
     }
 
-    // The agent could not do its work here (e.g. Antigravity permissions): stop before anything changes.
-    const problem = command ? adapter.preflight?.() : null;
+    // The agent could not do its work here (e.g. Antigravity permissions, tool names): stop before anything changes.
+    const problem = command ? adapter.preflight?.({ live: true, log }) : null;
     if (problem) throw new KitError(`${adapter.name}: ${problem}`);
 
     // Re-check: the task may have moved since it was listed, or be closed.

@@ -10,7 +10,6 @@ tools:
   - write_to_file
   - replace_file_content
   - run_command
-  - command_status
   - invoke_subagent
 mainAgent: true
 subagent: false

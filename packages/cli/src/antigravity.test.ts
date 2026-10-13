@@ -124,7 +124,8 @@ describe('agy run adapter', () => {
     });
     expect(a.preflight!()).toContain('Allow them with: npx tossana-agents antigravity permissions');
     addAntigravityRules(home(), antigravityRules(config, 'npx tossana-agents'));
-    expect(a.preflight!()).toBeNull();
+    // Setup is complete; what is left is the live agent check (agy-check.test.ts).
+    expect(a.preflight!()).toContain('the agents are not checked with this agy version yet');
   });
 });
 

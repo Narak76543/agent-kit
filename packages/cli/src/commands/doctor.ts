@@ -23,6 +23,7 @@ import {
   type KitEnv,
 } from '@tossana/agents-core';
 import { wrongAccountHint } from '../account-hint.js';
+import { currentAgyCheck } from '../agy-check.js';
 import { agySettingsFile, antigravityRules, antigravityState, kitCommand } from '../antigravity.js';
 import { codexTrusted } from '../codex.js';
 import { figmaChecks } from '../figma.js';
@@ -430,6 +431,21 @@ function antigravityChecks(ctx: CliContext, config: AgentConfig): Check[] {
             `Headless agy quietly refuses commands that are not allowed. Missing in ${agySettingsFile('~')}:\n` +
             state.missing.map((r) => `  ${r}`).join('\n'),
           fix: `Run: ${kitCmd} antigravity permissions`,
+        },
+  );
+  const check = currentAgyCheck(ctx);
+  checks.push(
+    check
+      ? {
+          name: `Antigravity starts every agent (checked ${check.at.slice(0, 10)}, agy ${check.agyVersion})`,
+          status: 'ok',
+        }
+      : {
+          name: 'Antigravity starts every agent',
+          status: 'warn',
+          detail:
+            'Not checked with this agy version and these agent files. A wrong tool name stops agy before it starts.',
+          fix: `Run: ${kitCmd} antigravity check (a run with --runner antigravity also checks first)`,
         },
   );
   if (state.tooBroad.length) {
