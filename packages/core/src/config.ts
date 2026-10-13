@@ -95,6 +95,17 @@ const pipelineRoleSchema = z.object({
 
 const command = z.string().trim().describe('Shell command, run from the project root');
 
+/** The agents of the fixed pipeline whose skills can be edited. */
+export const AGENT_ROLES = ['coder', 'reviewer', 'tester'] as const;
+export type AgentRole = (typeof AGENT_ROLES)[number];
+
+const agentSkillsSchema = z.strictObject({
+  skills: z
+    .array(z.string().regex(ROLE_NAME, 'skill names use lower-case letters, digits and hyphens'))
+    .refine((s) => new Set(s).size === s.length, 'a skill is listed twice')
+    .describe('Skills this agent reads (project .agents/skills, user ~/.agents/skills, or team)'),
+});
+
 export const configSchema = z
   .object({
     $schema: z.string().optional(),
@@ -144,11 +155,32 @@ export const configSchema = z
       .min(1)
       .default(['opencode', 'antigravity'])
       .describe('Agent tools to generate files for (several allowed)'),
+    agents: z
+      .strictObject({
+        coder: agentSkillsSchema.optional(),
+        reviewer: agentSkillsSchema.optional(),
+        tester: agentSkillsSchema.optional(),
+      })
+      .optional()
+      .describe(
+        'Skills per agent of the fixed pipeline (coder → reviewer → tester). Written by init with the defaults for the ' +
+          'project type; edit with: tossana-agents agents skills <role> add|remove <skill>',
+      ),
+    advanced: z
+      .object({
+        customRoles: z
+          .boolean()
+          .default(false)
+          .describe('Use "roles" (your own pipeline roles and order) instead of the fixed pipeline. Not recommended.'),
+      })
+      .prefault({}),
     roles: z
       .array(pipelineRoleSchema)
       .min(1)
       .optional()
-      .describe('Pipeline roles in order. Default: coder → reviewer → tester. The orchestrator is always added.'),
+      .describe(
+        'Advanced (needs advanced.customRoles): your own pipeline roles in order. The orchestrator is always added.',
+      ),
     pipeline: z
       .object({
         maxRounds: z.number().int().min(1).max(20).default(5),
@@ -164,6 +196,15 @@ export const configSchema = z
     if (!config.roles) return;
     const issue = (message: string, path: (string | number)[] = ['roles']) =>
       ctx.addIssue({ code: 'custom', message, path });
+    if (!config.advanced.customRoles) {
+      issue(
+        'custom roles are an advanced option and the pipeline is fixed by default. To keep them, add ' +
+          '"advanced": { "customRoles": true } (tossana-agents update does this for you); to use the fixed pipeline, ' +
+          'remove "roles" and set skills under "agents"',
+      );
+      return;
+    }
+    if (config.agents) issue('with custom roles, set skills in roles[].skills, not in "agents"', ['agents']);
     const seen = new Set<string>();
     config.roles.forEach((r, i) => {
       if (r.name === 'orchestrator') issue('"orchestrator" is added by the kit; do not list it', ['roles', i, 'name']);

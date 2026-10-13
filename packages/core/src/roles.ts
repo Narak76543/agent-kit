@@ -5,7 +5,42 @@
 import { homedir } from 'node:os';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AgentConfig, RolePreset } from './config.js';
+import type { AgentConfig, AgentRole, ProjectType, RolePreset } from './config.js';
+
+/** Team skill every reviewer reads (general review checklist). */
+export const REVIEW_SKILL = 'review-checklist';
+
+/** Team testing skill for the tester, per project type. */
+export const TESTING_SKILL: Partial<Record<ProjectType, string>> = {
+  'react-native': 'testing-react-native',
+  flutter: 'testing-flutter',
+  nextjs: 'testing-web',
+  react: 'testing-web',
+  'node-backend': 'testing-node',
+};
+
+/**
+ * The default skills of each agent: the stack skill (project.skill, e.g. mobile-master) for the coder and the
+ * reviewer, the review checklist for the reviewer, the stack's testing skill for the tester.
+ */
+export function defaultAgentSkills(config: Pick<AgentConfig, 'project'>): Record<AgentRole, string[]> {
+  const testing = TESTING_SKILL[config.project.type];
+  return {
+    coder: [config.project.skill],
+    reviewer: [REVIEW_SKILL, config.project.skill],
+    tester: testing ? [testing] : [],
+  };
+}
+
+/** The skills each agent uses: agent.config.json "agents", else the defaults. */
+export function agentSkills(config: AgentConfig): Record<AgentRole, string[]> {
+  const d = defaultAgentSkills(config);
+  return {
+    coder: config.agents?.coder?.skills ?? d.coder,
+    reviewer: config.agents?.reviewer?.skills ?? d.reviewer,
+    tester: config.agents?.tester?.skills ?? d.tester,
+  };
+}
 
 export type RoleKind = 'plan' | 'code' | 'check';
 
@@ -32,15 +67,17 @@ const STATUS_FOR_PRESET: Record<RolePreset, PipelineRole['status']> = {
   'edit-tests-only': 'testing',
 };
 
-/** True when agent.config.json has no `roles`, i.e. the built-in coder → reviewer → tester pipeline. */
-export const usesDefaultRoles = (config: AgentConfig) => !config.roles;
+/** True unless custom roles are switched on (advanced): the fixed coder → reviewer → tester pipeline. */
+export const usesDefaultRoles = (config: AgentConfig) => !(config.advanced.customRoles && config.roles);
 
 export function pipelineRoles(config: AgentConfig): PipelineRole[] {
   const figma = config.figma.enabled ? ['figma'] : [];
-  const roles = config.roles ?? [
-    { name: 'coder', preset: 'edit-code' as const, mcp: figma },
-    { name: 'reviewer', preset: 'read-only' as const, mcp: figma },
-    { name: 'tester', preset: 'edit-tests-only' as const, skills: [] as string[], mcp: [] as string[] },
+  const skills = agentSkills(config);
+  // The pipeline is fixed; custom roles only with advanced.customRoles (the schema refuses them otherwise).
+  const roles = (!usesDefaultRoles(config) && config.roles) || [
+    { name: 'coder', preset: 'edit-code' as const, skills: skills.coder, mcp: figma },
+    { name: 'reviewer', preset: 'read-only' as const, skills: skills.reviewer, mcp: figma },
+    { name: 'tester', preset: 'edit-tests-only' as const, skills: skills.tester, mcp: [] as string[] },
   ];
   const firstCoder = roles.findIndex((r) => r.preset === 'edit-code');
   return roles.map((r, i) => ({

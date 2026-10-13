@@ -3,7 +3,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { parseConfig } from './config.js';
-import { pipelineRoles, resolveSkill, roleSkillNames, usesDefaultRoles } from './roles.js';
+import {
+  agentSkills,
+  defaultAgentSkills,
+  pipelineRoles,
+  resolveSkill,
+  roleSkillNames,
+  usesDefaultRoles,
+} from './roles.js';
 
 const base = {
   version: 1,
@@ -29,18 +36,27 @@ describe('pipeline roles', () => {
         name: 'reviewer',
         purpose: '',
         preset: 'read-only',
-        skills: ['mobile-master'],
+        skills: ['review-checklist', 'mobile-master'],
         mcp: ['figma'],
         status: 'review',
         kind: 'check',
       },
-      { name: 'tester', purpose: '', preset: 'edit-tests-only', skills: [], mcp: [], status: 'testing', kind: 'check' },
+      {
+        name: 'tester',
+        purpose: '',
+        preset: 'edit-tests-only',
+        skills: ['testing-react-native'],
+        mcp: [],
+        status: 'testing',
+        kind: 'check',
+      },
     ]);
   });
 
   it('reads custom roles in order: planners before the first coder, checks after it', () => {
     const config = parseConfig({
       ...base,
+      advanced: { customRoles: true },
       roles: [
         { name: 'manager', preset: 'read-only', purpose: 'Split the task into steps.' },
         { name: 'coder', preset: 'edit-code', skills: ['mobile-master', 'ekmong-i18n'] },
@@ -82,7 +98,59 @@ describe('pipeline roles', () => {
     [[{ name: 'coder', preset: 'edit-code', mcp: ['github'] }], 'roles.0.mcp.0'],
     [[{ name: 'coder', preset: 'admin' }], 'roles.0.preset'],
   ])('rejects invalid roles %#', (roles, message) => {
-    expect(() => parseConfig({ ...base, roles })).toThrow(message);
+    expect(() => parseConfig({ ...base, advanced: { customRoles: true }, roles })).toThrow(message);
+  });
+});
+
+describe('fixed pipeline and agent skills', () => {
+  it('refuses custom roles unless advanced.customRoles is on, and names the fix', () => {
+    const roles = [{ name: 'coder', preset: 'edit-code' }];
+    expect(() => parseConfig({ ...base, roles })).toThrow(/advanced.*customRoles.*tossana-agents update/);
+    expect(usesDefaultRoles(parseConfig({ ...base, advanced: { customRoles: true }, roles }))).toBe(false);
+  });
+
+  it('with custom roles, skills belong in roles[].skills, not in "agents"', () => {
+    const roles = [{ name: 'coder', preset: 'edit-code' }];
+    expect(() =>
+      parseConfig({ ...base, advanced: { customRoles: true }, roles, agents: { coder: { skills: ['x'] } } }),
+    ).toThrow('roles[].skills');
+  });
+
+  it.each([
+    ['react-native', 'mobile-master', ['testing-react-native']],
+    ['flutter', 'flutter-master', ['testing-flutter']],
+    ['nextjs', 'frontend-master', ['testing-web']],
+    ['react', 'frontend-master', ['testing-web']],
+    ['node-backend', 'backend-master', ['testing-node']],
+    ['other', 'backend-master', []],
+  ])('defaults for %s', (type, skill, tester) => {
+    const config = parseConfig({ ...base, project: { name: 'x', type, skill } });
+    expect(defaultAgentSkills(config)).toEqual({ coder: [skill], reviewer: ['review-checklist', skill], tester });
+    expect(agentSkills(config)).toEqual(defaultAgentSkills(config));
+  });
+
+  it('"agents" in agent.config.json replaces the defaults per role, and the pipeline uses them', () => {
+    const config = parseConfig({
+      ...base,
+      agents: { coder: { skills: ['mobile-master', 'ekmong-i18n'] }, tester: { skills: [] } },
+    });
+    expect(agentSkills(config)).toEqual({
+      coder: ['mobile-master', 'ekmong-i18n'],
+      reviewer: ['review-checklist', 'mobile-master'],
+      tester: [],
+    });
+    expect(pipelineRoles(config).map((r) => [r.name, r.skills])).toEqual([
+      ['coder', ['mobile-master', 'ekmong-i18n']],
+      ['reviewer', ['review-checklist', 'mobile-master']],
+      ['tester', []],
+    ]);
+  });
+
+  it('refuses unknown agents, unknown keys, bad or duplicate skill names', () => {
+    expect(() => parseConfig({ ...base, agents: { planner: { skills: [] } } })).toThrow();
+    expect(() => parseConfig({ ...base, agents: { coder: { skills: [], tools: [] } } })).toThrow();
+    expect(() => parseConfig({ ...base, agents: { coder: { skills: ['../x'] } } })).toThrow('lower-case');
+    expect(() => parseConfig({ ...base, agents: { coder: { skills: ['a', 'a'] } } })).toThrow('twice');
   });
 });
 
