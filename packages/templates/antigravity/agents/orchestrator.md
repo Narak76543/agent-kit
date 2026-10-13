@@ -33,3 +33,6 @@ If a command is refused ("permission denied", "not allowed"), do not look for an
 `NEEDS_HUMAN` with the command that was refused, so a human can allow it (`{{kit.cmd}} antigravity permissions`).
 
 Never set the task to Done / Complete / Closed, never push, merge or delete branches, never read `.env`.
+
+{{agy.commands}}
+Pass this list on to every subagent you start.

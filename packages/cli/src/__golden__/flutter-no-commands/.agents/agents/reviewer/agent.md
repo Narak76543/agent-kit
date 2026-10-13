@@ -31,5 +31,17 @@ Your role instructions are shared with OpenCode and live in one file. Before doi
 3. Your prompt contains the task ID, round number and spec pages. If something is missing, read
    `.agents/handoff/<taskId>.md`.
 
+## Commands in headless runs
+
+When this task runs without a person (`tossana-agents run` or `watch`), Antigravity refuses every command that is not
+on this list, and a refused command **ends the whole run**. Run only:
+
+- `tossana-agents clickup …`
+- git: `status`, `diff`, `log`, `show`, `rev-parse`, `branch --show-current`, `branch -a`, `add <files>`, `commit -m "<message>"` (no `;`, `&`, `|`, `$` or backticks in the message)
+- version checks: `node -v`, `git --version`
+
+Never run other programs (`npx <tool>`, `node <file>`, shells, installers) and never install packages; if you
+need something else, say so under Issues in your report.
+
 Finish with the `[AGENT: reviewer] [RESULT: APPROVED | CHANGES_NEEDED] [ROUND: <n>]` report as your final
 answer.

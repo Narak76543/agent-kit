@@ -31,4 +31,6 @@ Your role instructions are shared with OpenCode and live in one file. Before doi
 3. Your prompt contains the task ID, round number and any feedback. If something is missing, read
    `.agents/handoff/<taskId>.md` and `{{kit.cmd}} clickup comments <taskId>`.
 
+{{agy.commands}}
+
 Finish with the `[AGENT: {{role.name}}] [RESULT: DONE_CODING] [ROUND: <n>]` report as your final answer.

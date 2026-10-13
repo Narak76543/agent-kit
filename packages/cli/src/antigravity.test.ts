@@ -149,6 +149,9 @@ describe('antigravity permissions', () => {
     'git branch --show-current',
     'pnpm.cmd lint',
     'pnpm test',
+    'node -v',
+    'pnpm.cmd --version',
+    'git --version',
   ];
   const REFUSED = [
     'git push',
@@ -166,6 +169,9 @@ describe('antigravity permissions', () => {
     'git clean -fd',
     'pnpm.cmd install',
     'git log | sh',
+    'node scripts/x.js',
+    'node -e "process.exit(0)"',
+    'node -v && git push',
   ];
   const matches = (rules: string[], command: string) =>
     rules.some((r) => new RegExp(/^command\(regex:(.*)\)$/.exec(r)![1]!).test(command));

@@ -34,3 +34,17 @@ If a command is refused ("permission denied", "not allowed"), do not look for an
 `NEEDS_HUMAN` with the command that was refused, so a human can allow it (`npx tossana-agents antigravity permissions`).
 
 Never set the task to Done / Complete / Closed, never push, merge or delete branches, never read `.env`.
+
+## Commands in headless runs
+
+When this task runs without a person (`tossana-agents run` or `watch`), Antigravity refuses every command that is not
+on this list, and a refused command **ends the whole run**. Run only:
+
+- `npx tossana-agents clickup …`
+- git: `status`, `diff`, `log`, `show`, `rev-parse`, `branch --show-current`, `branch -a`, `add <files>`, `commit -m "<message>"` (no `;`, `&`, `|`, `$` or backticks in the message)
+- the project's package.json scripts: `pnpm <script>` or `pnpm run <script>` (e.g. `pnpm lint`, `pnpm test`), not start/dev/android/ios/e2e
+- version checks: `node -v`, `pnpm -v`, `git --version`
+
+To run a new script file, add it to package.json "scripts" and run it as `pnpm <name>`. Never run other programs (`npx <tool>`, `node <file>`, shells, installers) and never install packages; if you
+need something else, say so under Issues in your report.
+Pass this list on to every subagent you start.

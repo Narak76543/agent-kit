@@ -46,6 +46,7 @@ export function antigravityRules(config: AgentConfig, kitCmd: string, scripts: s
     `^${kit} run --task [A-Za-z0-9_-]+ --no-agent$`,
     `^git (status|diff|log|show|rev-parse)( ${ARGS}*)?$`,
     '^git branch( (-a|--all|-r|--show-current|--list))?$',
+    '^(node|npm|pnpm|yarn|bun|git)(\\.cmd)? (-v|--version)$',
     `^git add ${ARGS}+$`,
     '^git commit -m "[^";&|<>\\x60$\\r\\n]+"$',
     ...project.map((c) => `^${commandPattern(c)}$`),

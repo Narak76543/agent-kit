@@ -30,5 +30,7 @@ Your role instructions are shared with OpenCode and live in one file. Before doi
 3. Your prompt contains the task ID, round number and spec pages. If something is missing, read
    `.agents/handoff/<taskId>.md`.
 
+{{agy.commands}}
+
 Finish with the `[AGENT: {{role.name}}] [RESULT: {{role.results}}] [ROUND: <n>]` report as your final
 answer.

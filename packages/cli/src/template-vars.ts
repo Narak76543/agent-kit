@@ -119,6 +119,7 @@ export function templateVars(
     'project.stackLine': options.packageManager ? ` · **Package manager:** ${options.packageManager}` : '',
     'project.tree': options.cwd ? projectTree(options.cwd) : '',
     'kit.cmd': options.kitCmd,
+    'agy.commands': agyCommands(config, options.kitCmd),
     'kit.version': KIT_VERSION,
     ...Object.fromEntries(ROLES.map((r) => [`statuses.${r}`, clickup.statuses[r]])),
     'pipeline.maxRounds': String(pipeline.maxRounds),
@@ -165,4 +166,42 @@ export function templateVars(
       (['lint', 'typecheck', 'test'] as const).flatMap((k) => (commands[k] ? [rule(`${commands[k]}*`, 'allow')] : [])),
     ),
   };
+}
+
+/**
+ * The commands an Antigravity agent may run in a headless run (the same set `tossana-agents antigravity permissions`
+ * allows). Headless agy refuses anything else and that ends the whole run, so the agents are told the list.
+ */
+export function agyCommands(config: AgentConfig, kitCmd: string): string {
+  const pm = config.commands.install?.trim().split(/\s+/)[0];
+  const node = !!pm && ['pnpm', 'npm', 'yarn', 'bun'].includes(pm);
+  const project = [config.commands.lint, config.commands.typecheck, config.commands.test]
+    .map((c) => c?.trim())
+    .filter((c): c is string => !!c);
+  const lines = [
+    `- \`${kitCmd} clickup …\``,
+    '- git: `status`, `diff`, `log`, `show`, `rev-parse`, `branch --show-current`, `branch -a`, `add <files>`, ' +
+      '`commit -m "<message>"` (no `;`, `&`, `|`, `$` or backticks in the message)',
+    node
+      ? `- the project's package.json scripts: \`${pm} <script>\` or \`${pm} run <script>\` (e.g. ${project.map((c) => `\`${c}\``).join(', ') || 'lint, test'}), ` +
+        'not start/dev/android/ios/e2e'
+      : project.length
+        ? `- the project commands: ${project.map((c) => `\`${c}\``).join(', ')}`
+        : '',
+    `- version checks: \`node -v\`${node ? `, \`${pm} -v\`` : ''}, \`git --version\``,
+  ].filter(Boolean);
+  const extra = node
+    ? `To run a new script file, add it to package.json "scripts" and run it as \`${pm} <name>\`. `
+    : '';
+  return [
+    '## Commands in headless runs',
+    '',
+    'When this task runs without a person (`tossana-agents run` or `watch`), Antigravity refuses every command that is not',
+    'on this list, and a refused command **ends the whole run**. Run only:',
+    '',
+    ...lines,
+    '',
+    `${extra}Never run other programs (\`npx <tool>\`, \`node <file>\`, shells, installers) and never install packages; if you`,
+    'need something else, say so under Issues in your report.',
+  ].join('\n');
 }

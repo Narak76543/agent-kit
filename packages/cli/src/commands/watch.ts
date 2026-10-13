@@ -127,7 +127,8 @@ export async function watch(ctx: CliContext, opts: WatchOptions): Promise<void> 
   }
   try {
     for (;;) {
-      await pollOnce(ctx, config, runner, state, controller.signal, () => stopping, log);
+      await pollOnce(ctx, config, runner, state, controller.signal, () => stopping, log, opts.retry);
+      opts.retry = undefined;
       if (opts.once || stopping) break;
       log(`[watch] next check in ${Math.round(interval / 60_000)} min (Ctrl+C stops)`);
       await new Promise<void>((resolve) => {
@@ -155,12 +156,20 @@ async function pollOnce(
   signal: AbortSignal,
   stopping: () => boolean,
   log: (s: string) => void,
+  retry?: string,
 ): Promise<void> {
   const project = loadProject(ctx);
   const client = createClient(ctx, project);
   const me = await client.getUser();
   const queue: QueueItem[] = [];
   const queued = (id: string) => queue.some((q) => q.id === id);
+
+  // 0. --retry: that task first, whatever happened before (still "to do": a new run; otherwise a resume).
+  if (retry) {
+    const t = await client.getTask(retry, { subtasks: false });
+    const todo = (t.status?.status ?? '').toLowerCase() === statusForRole(config, 'todo').toLowerCase();
+    queue.push({ id: t.id, name: t.name, kind: todo ? 'new' : 'resume' });
+  }
 
   // 1. interrupted by an earlier stop
   for (const [id, s] of Object.entries(state.tasks)) {

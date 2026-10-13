@@ -32,4 +32,17 @@ Your role instructions are shared with OpenCode and live in one file. Before doi
 3. Your prompt contains the task ID, round number and any feedback. If something is missing, read
    `.agents/handoff/<taskId>.md` and `npx tossana-agents clickup comments <taskId>`.
 
+## Commands in headless runs
+
+When this task runs without a person (`tossana-agents run` or `watch`), Antigravity refuses every command that is not
+on this list, and a refused command **ends the whole run**. Run only:
+
+- `npx tossana-agents clickup …`
+- git: `status`, `diff`, `log`, `show`, `rev-parse`, `branch --show-current`, `branch -a`, `add <files>`, `commit -m "<message>"` (no `;`, `&`, `|`, `$` or backticks in the message)
+- the project's package.json scripts: `pnpm <script>` or `pnpm run <script>` (e.g. `pnpm lint`, `pnpm typecheck`, `pnpm test`), not start/dev/android/ios/e2e
+- version checks: `node -v`, `pnpm -v`, `git --version`
+
+To run a new script file, add it to package.json "scripts" and run it as `pnpm <name>`. Never run other programs (`npx <tool>`, `node <file>`, shells, installers) and never install packages; if you
+need something else, say so under Issues in your report.
+
 Finish with the `[AGENT: coder] [RESULT: DONE_CODING] [ROUND: <n>]` report as your final answer.
