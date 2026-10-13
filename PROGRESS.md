@@ -497,7 +497,20 @@ resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner comma
   (kit `clickup`, read-only git, `git add`, `git commit -m`, project lint/typecheck/test) after a confirmation, with a
   backup. No `--dangerously-skip-permissions`, no deny rules written (they would be global and break the user's
   other projects); doctor warns about broad rules (`command(*)`, `command(git)`, `git push`).
-- Not verified yet: the tool names in the agent files other than the documented ones (`view_file`,
-  `replace_file_content`, `grep_search`, `run_command`, `invoke_subagent`); a wrong name can hang a subagent. The
-  first real agy run will show it.
 - Tests: 9 new (461 total, PowerShell e2e included).
+
+### agy tool names + agent check (2026-10-13, same branch)
+
+- The first real run failed at once: `unknown component: tool "command_status" not found in registry` (agy 1.3.3).
+  Tool names were then **tested against agy itself** (a probe agent with every candidate; agy rejects an unknown
+  name before any model call). Accepted: view_file, list_dir, find_by_name, grep_search, write_to_file,
+  replace_file_content, multi_replace_file_content, edit_file, run_command, invoke_subagent, define_subagent,
+  read_url_content, search_web, ask_question. Rejected: command_status, send_command_input, read_terminal,
+  list_directory, view_file_outline, view_code_item, codebase_search, code_search, notify_user.
+- Removed `command_status` from the four agent templates. The tools lists stay: per the docs an agent without one
+  gets no tools, and they keep the reviewer read-only (the permission rules cannot do that per agent).
+- New `tossana-agents antigravity check`: starts each agent once with "Reply with the single word pong"
+  (subagents as a temporary main-agent copy, since agy only starts main agents). Remembered per agy version and
+  agent files in `.tossana/tmp/agy-check.json`; `run --runner antigravity` runs it first when stale (dry runs do
+  not); doctor shows it without starting agy.
+- Tests: 7 new (468 total).

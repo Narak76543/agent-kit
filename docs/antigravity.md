@@ -76,65 +76,22 @@ If the subagents cannot start, the main agent plays each role itself and says so
 are only instructions. OpenCode enforces them with permission rules. The Done rule is still enforced by the
 `tossana-agents clickup status` command in both tools.
 
-## Check the subagent tool names
+## Check that agy can start every agent
 
-The subagent files list the tools each role may use:
+Each agent file lists the tools its role may use (the reviewer gets no file-writing tools). agy refuses to start an
+agent whose list names a tool it does not know (`unknown component: tool "…" not found in registry`), before any
+work is done. Checked with agy 1.3.3, these names are accepted: `view_file`, `list_dir`, `find_by_name`,
+`grep_search`, `write_to_file`, `replace_file_content`, `multi_replace_file_content`, `edit_file`, `run_command`,
+`invoke_subagent`, `define_subagent`, `read_url_content`, `search_web`, `ask_question`. Not accepted:
+`command_status`, `send_command_input`, `read_terminal`, `list_directory`, `view_file_outline`, `view_code_item`,
+`codebase_search`, `code_search`, `notify_user`.
 
-```yaml
-tools:
-  - view_file
-  - list_dir
-  - find_by_name
-  - grep_search
-  - write_to_file
-  - replace_file_content
-  - multi_replace_file_content
-  - run_command
-  - command_status
+To check the agents of a project on your computer:
+
+```
+npx tossana-agents antigravity check
 ```
 
-The Antigravity docs warn that **a wrong tool name can make a subagent hang**. The docs only show four of these
-names (`view_file`, `replace_file_content`, `grep_search`, `run_command`), so check the others once:
-
-1. Open a project with the kit in Antigravity.
-2. Open the **Customizations** menu (agents / skills). `coder`, `reviewer` and `tester` should be listed
-   without errors, and `start-task`, `explore` should be listed as skills.
-3. In the chat, ask: "List the exact names of all tools you can use." Compare them with the list above.
-4. Test one subagent with a harmless job, for example: "Start the reviewer subagent (workspace mode inherit)
-   and ask it to list the files in the project root." It should answer in under a minute.
-5. If a name is wrong: tell the kit maintainer. The fix goes in `packages/templates/antigravity/agents/`.
-   Do not edit the files in the project (`update` would replace them).
-
-## Figma in Antigravity
-
-If the project uses Figma (`figma.enabled` in `agent.config.json`, see
-[getting-started.md](./getting-started.md#figma-designs-optional)), `init` writes the project MCP config
-`.agents/mcp_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "figma": { "serverUrl": "http://127.0.0.1:3845/mcp" }
-  }
-}
-```
-
-Antigravity reads this file for the workspace (the per-user file `~/.gemini/config/mcp_config.json` is not
-needed). Figma lists Antigravity in its MCP catalog as **local server only, read only**, so use the desktop server.
-
-Steps for each developer:
-
-1. Open the Figma desktop app, log in with your own account (Dev or Full seat), open a design file, press
-   Shift+D (Dev Mode) and click **Enable desktop MCP server**.
-2. Open the project in Antigravity. Open **Agent settings → Customizations → MCP servers**. `figma` should be
-   listed and connected. If not, click refresh, or check that the Figma app is still open.
-3. Test it in the chat: "Use the figma MCP server to call whoami." It should answer with your Figma account.
-4. Then use `/start-task <taskId>` as usual.
-
-In Antigravity, the main agent (the orchestrator) reads each Figma frame once and saves a summary to the handoff
-file. The coder and reviewer subagents use that summary, because subagents may not have the Figma tools.
-
-## `/explore`
-
-Type `/explore` to refresh the synced ClickUp specs (`clickup sync-docs`) and update the project part of
-`AGENTS.md` (below `<!-- PROJECT -->`) so it matches the code. It changes no other files.
+It starts each agent once with "Reply with the single word pong" (one short model call each; subagents are started
+as a temporary copy, because agy only starts main agents directly). The result is remembered until agy or the agent
+files change. `run --runner antigravity` does the same check first when it is not remembered, and doctor shows it.
