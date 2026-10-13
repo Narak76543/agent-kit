@@ -88,6 +88,11 @@ describe('init --yes', () => {
       commands: { install: 'pnpm install', lint: 'pnpm lint', typecheck: 'pnpm typecheck', test: 'pnpm test' },
       figma: { enabled: false },
       tools: ['opencode', 'antigravity'],
+      agents: {
+        coder: { skills: ['mobile-master'] },
+        reviewer: { skills: ['review-checklist', 'mobile-master'] },
+        tester: { skills: ['testing-react-native'] },
+      },
       pipeline: {
         maxRounds: 5,
         branchPrefix: 'task/',
@@ -136,7 +141,9 @@ name: start-task
       '.agents/agents/tester/agent.md',
       '.agents/skills/explore/SKILL.md',
       '.agents/skills/mobile-master/SKILL.md',
+      '.agents/skills/review-checklist/SKILL.md',
       '.agents/skills/start-task/SKILL.md',
+      '.agents/skills/testing-react-native/SKILL.md',
       '.opencode/agents/coder.md',
       '.opencode/agents/orchestrator.md',
       '.opencode/agents/reviewer.md',
@@ -154,7 +161,7 @@ name: start-task
     const r = await cli(['init', '--yes', '--no-doctor'], { cwd: project.dir, api: api() });
     expect(r.code).toBe(0);
     expect(snapshot(project.dir)).toEqual(before);
-    expect(r.out).toContain('12 file(s) already up to date');
+    expect(r.out).toContain('14 file(s) already up to date');
     expect(r.out).not.toContain('Wrote agent.config.json');
     expect(r.out).not.toContain('Updated .gitignore');
   });

@@ -63,7 +63,7 @@ To post a comment, write the text to `.tossana/tmp/<taskId>-reviewer.md`, then r
 3. The spec pages and FR/AC codes for the task (in `docs/clickup/` if the project syncs ClickUp Docs).
 4. The change: `git log main..HEAD --oneline` and `git diff main...HEAD`.
    Open full files when the diff lacks context.
-5. The project section of `AGENTS.md` and `.agents/skills/mobile-master/SKILL.md` for project-specific checks.
+5. The project section of `AGENTS.md` and `.agents/skills/review-checklist/SKILL.md`, `.agents/skills/mobile-master/SKILL.md` for project-specific checks.
 
 ## Check
 

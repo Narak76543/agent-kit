@@ -44,6 +44,7 @@ export const GOLDEN_CASES: Record<string, { config: object; kitCmd: string; pack
       project: { name: 'web', type: 'nextjs', skill: 'frontend-master' },
       commands: { install: 'npm install', lint: 'npm run lint', typecheck: 'npx tsc --noEmit' },
       figma: { enabled: true },
+      advanced: { customRoles: true },
       roles: [
         {
           name: 'manager',

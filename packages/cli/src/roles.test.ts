@@ -28,6 +28,7 @@ describe('init with custom roles and skill scopes', () => {
       version: 1,
       project: { name: 'app', type: 'react-native', skill: 'mobile-master' },
       clickup: { listId: 'L1' },
+      advanced: { customRoles: true },
       roles: [
         { name: 'manager', preset: 'read-only' },
         { name: 'coder', preset: 'edit-code' },
@@ -71,6 +72,7 @@ describe('init with custom roles and skill scopes', () => {
       version: 1,
       project: { name: 'app', type: 'react-native', skill: 'mobile-master' },
       clickup: { listId: 'L1' },
+      advanced: { customRoles: true },
       roles: [{ name: 'coder', preset: 'edit-code', skills: ['no-such-skill'] }],
     });
     const r = await init();

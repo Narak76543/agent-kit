@@ -29,6 +29,9 @@ import {
   type Role,
 } from '@tossana/agents-core';
 import { wrongAccountHint } from '../account-hint.js';
+import { migrateConfigFile, printSkillChanges, reconcileAgentSkills, recordAgentDefaults } from '../agent-skills.js';
+import { readManifest } from '../kit-manifest.js';
+import { toAgentsSection } from './update.js';
 import { applyClaudeSettings } from '../claude.js';
 import { applyCodexConfig } from '../codex.js';
 import { MANAGED_TEXT } from '../templates.js';
@@ -126,6 +129,8 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
 
   // 2. existing config + detection
   const configFile = join(ctx.cwd, CONFIG_FILE);
+  const migrated = migrateConfigFile(ctx.cwd);
+  if (migrated) log(migrated);
   const existing: AgentConfig | null = existsSync(configFile) ? loadConfig(ctx.cwd) : null;
   const rawExisting = existing
     ? (JSON.parse(stripBom(readFileSync(configFile, 'utf8'))) as Record<string, unknown>)
@@ -251,6 +256,11 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
 
   // 7. config
   const isNode = existsSync(join(ctx.cwd, 'package.json'));
+  // Agent skills: the defaults for the project type; on a re-run, edited roles are kept (see update).
+  const agentSkillsPlan = reconcileAgentSkills(
+    { ...rawExisting, project: { ...(rawExisting.project as object), skill, type } },
+    readManifest(ctx.cwd)?.agentDefaults ?? null,
+  );
   const raw = {
     ...(isNode ? { $schema: SCHEMA_PATH } : {}),
     ...rawExisting,
@@ -270,6 +280,7 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
     commands: dropEmpty(commands),
     figma: { ...(rawExisting.figma as object), enabled: figma },
     tools,
+    ...(agentSkillsPlan.agents ? { agents: toAgentsSection(agentSkillsPlan.agents) } : {}),
     pipeline: { ...(rawExisting.pipeline as object) },
   };
   const config = parseConfig(raw);
@@ -299,6 +310,8 @@ export async function runInit(ctx: CliContext, opts: InitOptions, prompts: Promp
     prompts,
     projectSection: render(readTemplate('AGENTS.project.md'), vars, 'AGENTS.project.md'),
   });
+  recordAgentDefaults(ctx.cwd, agentSkillsPlan.defaults);
+  if (existing) printSkillChanges(ctx, agentSkillsPlan.changes);
   log('\nKit files:');
   printKitFileResults(ctx, results);
   for (const m of relocated) log(`  moved    ${m}`);

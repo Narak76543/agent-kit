@@ -122,6 +122,8 @@ export function roleVars(
     'role.title': roleTitle(role.name),
     'role.purpose': role.purpose ? `\n**Your purpose in this project:** ${role.purpose}` : '',
     'role.skillRef': paths.length ? paths.join(', ') : '`AGENTS.md` (this role has no skill file)',
+    // For templates that read AGENTS.md first and then the role's skills, if it has any.
+    'role.skillRead': paths.length ? ` Then read the skill ${paths.join(', ')} and follow it.` : '',
     'role.next': roles[index + 1]?.name ?? 'orchestrator',
     'role.fixer': roles.find((r) => r.kind === 'code')!.name,
     'role.results': role.kind === 'plan' ? 'PLANNED' : 'APPROVED | CHANGES_NEEDED',

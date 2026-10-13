@@ -16,6 +16,7 @@ import { loadProject, type CliContext } from '../context.js';
 import { availableSkills, deleteProfile, listProfiles, saveProfile } from '../profiles.js';
 import { clackPrompts, type Prompts } from '../prompts.js';
 import { toolStatuses } from '../tool-status.js';
+import { registerSkillsCommands } from './skills.js';
 
 interface CreateOptions {
   name: string;
@@ -36,7 +37,9 @@ const csv = (s: string | undefined) =>
     .filter(Boolean);
 
 export function registerAgentsCommand(program: Command, ctx: CliContext, prompts: Prompts = clackPrompts): void {
-  const agents = program.command('agents').description('agent profiles: a named agent = a tool + skills + MCP servers');
+  const agents = program
+    .command('agents')
+    .description('the pipeline agents (coder, reviewer, tester: their skills) and agent profiles (name + tool)');
   const print = (s: string) => ctx.logger.info(s);
 
   agents
@@ -134,4 +137,6 @@ export function registerAgentsCommand(program: Command, ctx: CliContext, prompts
       const file = deleteProfile(ctx, scope, slug);
       print(`Deleted ${file}`);
     });
+
+  registerSkillsCommands(agents, program, ctx);
 }

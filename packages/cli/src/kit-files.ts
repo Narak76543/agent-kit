@@ -70,7 +70,11 @@ export async function applyKitFiles(
   options: ApplyOptions,
 ): Promise<KitFileResult[]> {
   const old = readManifest(ctx.cwd);
-  const manifest: KitManifest = { kitVersion: KIT_VERSION, files: {} };
+  const manifest: KitManifest = {
+    kitVersion: KIT_VERSION,
+    files: {},
+    ...(old?.agentDefaults ? { agentDefaults: old.agentDefaults } : {}),
+  };
   const results: KitFileResult[] = [];
   const stamp = ctx.now().toISOString().replace(/[:.]/g, '-');
 

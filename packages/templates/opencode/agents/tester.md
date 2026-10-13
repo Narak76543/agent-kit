@@ -45,7 +45,7 @@ You may create or edit **test files only** ({{tests.description}}). You never ch
 is wrong, that is a FAIL with a precise issue for the coder.
 {{role.purpose}}
 
-Read `AGENTS.md` first. Shorthand: `cu` = `{{kit.cmd}} clickup`. To post a comment, write the text to
+Read `AGENTS.md` first.{{role.skillRead}} Shorthand: `cu` = `{{kit.cmd}} clickup`. To post a comment, write the text to
 `.tossana/tmp/<taskId>-{{role.name}}.md`, then run `cu comment <taskId> --file .tossana/tmp/<taskId>-{{role.name}}.md`.
 Never put comment text in the command line.
 
