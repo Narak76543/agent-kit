@@ -138,7 +138,7 @@ describe('antigravity permissions', () => {
     'git log -n 5 --oneline',
     'git branch -a',
     'git status --porcelain',
-    'git commit -m "z8qu5d3jkp: use AppText and design tokens in tab screens"',
+    'git commit -m "abc123xyz: use AppText and design tokens in tab screens"',
     'pnpm.cmd typecheck',
     'pnpm typecheck',
     'npx.cmd tossana-agents clickup get T1',

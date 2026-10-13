@@ -514,7 +514,7 @@ resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner comma
   agent files in `.tossana/tmp/agy-check.json`; `run --runner antigravity` runs it first when stale (dry runs do
   not); doctor shows it without starting agy.
 - Tests: 7 new (468 total).
-- Found while preparing the second real run: the failed run had left `task/z8qu5d3jkp` with no commits of its own,
+- Found while preparing the second real run: the failed run had left `task/<taskId>` with no commits of its own,
   pointing at the old main (old agent files with `command_status`). `run` reuses an existing task branch as it is, so
   a kit update on main does not reach it; it was fast-forwarded to main by hand (lossless: no own commits).
   **Follow-up:** let `run` fast-forward a task branch that has no own commits and is behind the base branch.
@@ -522,7 +522,7 @@ resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner comma
 ### agy permission rules: regex, tested (2026-10-13, same branch)
 
 - First real (interactive) agy run: NEEDS_HUMAN after round 1; the coder could not commit. agy recorded the exact
-  texts it refused: `git commit -m "z8qu5d3jkp: …"`, `pnpm.cmd typecheck`, `git log -n 5 --oneline`; agents also ran
+  texts it refused: `git commit -m "<taskId>: …"`, `pnpm.cmd typecheck`, `git log -n 5 --oneline`; agents also ran
   `npx.cmd tossana-agents …`, `npx tossana-agents run --task <id> --no-agent`, `git branch -a`.
 - Tested in a sandbox (temporary HOME with its own agy settings.json, scratch repo, fake kit bin, a throwaway agent
   running ONE command per session, because headless agy ends the session at the first refusal; verdict from the
@@ -571,7 +571,7 @@ skips). ClickUp Docs sync is incremental (unchanged pages are not rewritten, rem
 `docs/clickup/INDEX.md` (one line per page, no timestamp). The task bundle `.agents/context/<taskId>/` (git-ignored)
 holds the task, parent, subtasks, linked tasks and dependencies (both directions), all comments, attachment links and
 an INDEX.md. Only GET requests; a failed Docs sync keeps the old files. Checked read-only against the real ClickUp API
-(28 spec pages, task z8qu5d3jkp). All role templates point to the INDEX files (`cu get`/`cu comments` as fallback).
+(28 spec pages, a real test task). All role templates point to the INDEX files (`cu get`/`cu comments` as fallback).
 
 ### Steps 3 and 4 — watch, worktrees, review (built on feat/watch)
 
