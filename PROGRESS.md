@@ -558,3 +558,23 @@ resume, runner, yes, signal })`; status → `lastResult` + handoff. Runner comma
 - Agent profiles unchanged: their skills are added for the coder and reviewer on top of the per-agent skills.
 - Not in this change: per-agent skill editing in the Local Console (lives on `feature/console-design`).
 - Tests: 14 new (481+ total); goldens: reviewer/tester now name their skills, new skill folders per case.
+
+## Phase 10 — Automation (plan, 2026-10-13; feat/default-agents merged into main first)
+
+User goal (to pass the kit to the team once it works for them). Order: 1 → 3/4 → 5 → 2 → 6.
+
+1. **Context before every run** — `tossana-agents context <taskId>` (run/resume call it; `--no-context` skips):
+   incremental `sync-docs` with a short `docs/clickup/INDEX.md` (one line per page), and a git-ignored task bundle
+   `.agents/context/<taskId>/` (task, parent, subtasks, linked tasks + dependencies, all comments, attachment links,
+   INDEX.md). Agents read the two INDEX files and open only what they need. _(in progress: feat/context-refresh)_
+2. **Planner step** — fixed read-only planner before the coder: subtasks with acceptance criteria when the task is
+   bigger than one small change, plan posted as a comment, pipeline per subtask. `pipeline.planApproval`:
+   `auto` (default) or `human` (waits for the comment "approved", resumed by watch mode or `feedback`).
+3. - 4. **Watch mode, worktrees, review helper** — waiting for the user's spec (their earlier message did not
+        reach the session).
+4. **Feedback loop** — `tossana-agents feedback <taskId> "text"` (comment + back to coding + handoff entry as top
+   priority) and automatic resume in watch mode when a "ready for review" task gets a human comment and is moved
+   back to coding; next round starts at the coder, then review and test.
+5. **Figma for real** — coder: get_design_context / get_variable_defs / get_screenshot mapped to tokens and
+   components; reviewer: differences against the screenshot and design context; doctor: desktop MCP server
+   reachable; agy MCP permissions tested; then a real task with the user's Figma link.
