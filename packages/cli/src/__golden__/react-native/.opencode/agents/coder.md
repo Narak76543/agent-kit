@@ -1,7 +1,7 @@
 ---
 # Managed by @tossana/agents v0.1.0 — do not edit; run "tossana-agents update"
 description: Developer for ekmong-mobile (react-native). Implements one ClickUp task on branch task/<taskId>, or fixes issues sent back by the reviewer/tester, and commits. Never pushes.
-mode: subagent
+mode: all
 temperature: 0.2
 steps: 120
 permission:
@@ -91,6 +91,10 @@ Read `AGENTS.md` first (conventions, commands, communication format) and the ski
 To post a comment, write the text to `.tossana/tmp/<taskId>-coder.md` with your edit tool, then run
 `cu comment <taskId> --file .tossana/tmp/<taskId>-coder.md`. Same for `cu handoff`. Never put comment text
 in the command line.
+
+**Your brief.** When `tossana-agents run` starts you, your prompt names a brief file
+(`.tossana/tmp/<taskId>-r<n>-{role.name}-brief.md`): the task, the round number, the issues to fix and the owner's feedback. Read it first; it
+gives you what an orchestrator would otherwise tell you. Use its round number in your report.
 
 ## Start
 

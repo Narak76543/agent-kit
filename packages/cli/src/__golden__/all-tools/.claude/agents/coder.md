@@ -17,6 +17,10 @@ To post a comment, write the text to `.tossana/tmp/<taskId>-coder.md` with your 
 `cu comment <taskId> --file .tossana/tmp/<taskId>-coder.md`. Same for `cu handoff`. Never put comment text
 in the command line.
 
+**Your brief.** When `tossana-agents run` starts you, your prompt names a brief file
+(`.tossana/tmp/<taskId>-r<n>-{role.name}-brief.md`): the task, the round number, the issues to fix and the owner's feedback. Read it first; it
+gives you what an orchestrator would otherwise tell you. Use its round number in your report.
+
 ## Start
 
 1. Read `.agents/handoff/<taskId>.md` (what happened before, what was asked).

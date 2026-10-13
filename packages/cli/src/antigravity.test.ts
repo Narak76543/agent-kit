@@ -49,7 +49,8 @@ describe('Antigravity agents layout', () => {
     expect(orchestrator).toMatch(/^subagent: false$/m);
     expect(orchestrator).toContain('  - invoke_subagent');
     const coder = readFileSync(join(project.dir, '.agents/agents/coder/agent.md'), 'utf8');
-    expect(coder).toMatch(/^mainAgent: false$/m);
+    // Selectable (agy --agent coder, /agents) and still a subagent for /start-task in the IDE.
+    expect(coder).toMatch(/^mainAgent: true$/m);
     expect(coder).toMatch(/^subagent: true$/m);
   });
 

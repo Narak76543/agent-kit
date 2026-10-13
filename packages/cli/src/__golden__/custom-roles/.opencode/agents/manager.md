@@ -1,7 +1,7 @@
 ---
 # Managed by @tossana/agents v0.1.0 — do not edit; run "tossana-agents update"
 description: Planner for web. Reads the ClickUp task, specs and code before any coding starts and writes a short plan. Read-only; never writes code.
-mode: subagent
+mode: all
 temperature: 0.1
 steps: 60
 permission:
@@ -57,6 +57,10 @@ Read `AGENTS.md` first. Shorthand: `cu` = `npx tossana-agents clickup`. Your onl
 
 To post a comment, write the text to `.tossana/tmp/<taskId>-manager.md`, then run
 `cu comment <taskId> --file .tossana/tmp/<taskId>-manager.md`. Never put comment text in the command line.
+
+**Your brief.** When `tossana-agents run` starts you, your prompt names a brief file
+(`.tossana/tmp/<taskId>-r<n>-{role.name}-brief.md`): the task, the round number. Read it first; it
+gives you what an orchestrator would otherwise tell you. Use its round number in your report.
 
 ## What to read
 

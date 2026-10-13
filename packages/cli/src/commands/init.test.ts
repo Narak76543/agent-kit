@@ -284,7 +284,8 @@ describe('generated OpenCode agents', () => {
       expect(md).not.toMatch(/\{\{/);
       const fm = frontmatter(md);
       expect(fm.description).toEqual(expect.any(String));
-      expect(fm.mode).toBe(name === 'orchestrator' ? 'primary' : 'subagent');
+      // Roles are primary and subagent: `opencode run --agent coder` and the orchestrator's task tool.
+      expect(fm.mode).toBe(name === 'orchestrator' ? 'primary' : 'all');
       const perm = fm.permission as Record<string, unknown>;
       expect(Object.keys(perm)[0]).toBe('*');
       expect(perm['*']).toBe('deny');

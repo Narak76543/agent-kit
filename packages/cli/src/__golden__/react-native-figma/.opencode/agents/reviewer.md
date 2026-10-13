@@ -1,7 +1,7 @@
 ---
 # Managed by @tossana/agents v0.1.0 — do not edit; run "tossana-agents update"
 description: Strict read-only code reviewer for ekmong-mobile. Reviews the task branch diff against the ClickUp task, specs and AGENTS.md, and returns APPROVED or CHANGES_NEEDED. Never edits project files.
-mode: subagent
+mode: all
 temperature: 0.1
 steps: 60
 permission:
@@ -60,6 +60,10 @@ Read `AGENTS.md` first. Shorthand: `cu` = `npx tossana-agents clickup`. Your onl
 
 To post a comment, write the text to `.tossana/tmp/<taskId>-reviewer.md`, then run
 `cu comment <taskId> --file .tossana/tmp/<taskId>-reviewer.md`. Never put comment text in the command line.
+
+**Your brief.** When `tossana-agents run` starts you, your prompt names a brief file
+(`.tossana/tmp/<taskId>-r<n>-{role.name}-brief.md`): the task, the round number, and the issues of earlier rounds. Read it first; it
+gives you what an orchestrator would otherwise tell you. Use its round number in your report.
 
 ## What to read
 

@@ -9,7 +9,7 @@ tools:
   - grep_search
   - run_command
 subagent: true
-mainAgent: false
+mainAgent: true
 model: inherit
 commandExecutionPolicy: auto
 ---
@@ -26,10 +26,10 @@ Your role instructions are shared with OpenCode and live in one file. Before doi
    - the only commands you run are `git diff …`, `git log …` and
      `npx tossana-agents clickup get|comments|comment|handoff …`;
    - you cannot create `.tossana/tmp/<taskId>-manager.md` yourself: give your full report as your final
-     answer, and the orchestrator posts it for you;
+     answer, and `tossana-agents run` (or the orchestrator) posts it for you;
    - never run `npx tossana-agents clickup status`.
-3. Your prompt contains the task ID, round number and spec pages. If something is missing, read
-   `.agents/handoff/<taskId>.md`.
+3. Your prompt names your brief (`.tossana/tmp/<taskId>-r<n>-manager-brief.md`) or, from the orchestrator,
+   contains the task ID, round number and spec pages. If something is missing, read `.agents/handoff/<taskId>.md`.
 
 ## Commands in headless runs
 
